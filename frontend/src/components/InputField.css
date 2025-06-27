@@ -1,27 +1,28 @@
 .input-field {
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.5rem;
   width: 100%;
 }
 .input-field label {
   display: block;
-  color: #fff;
-  font-size: 1rem;
-  margin-bottom: 0.4rem;
+  color: #ccc;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
 }
 .input-field input {
   width: 100%;
-  padding: 0.7rem 1rem;
-  border-radius: 7px;
-  border: 1.5px solid #400000;
-  background: #000000;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2a2a2a;
   color: #fff;
   font-size: 1rem;
-  transition: border 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
 }
 .input-field input:focus {
-  border-color: #ff0000;
-  box-shadow: 0 0 0 2px #ff000033;
+  border-color: #d32f2f;
+  box-shadow: 0 0 0 3px #d32f2f30;
 }
 .input-error {
   border-color: #ff0000 !important;

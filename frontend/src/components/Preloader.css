@@ -1,0 +1,150 @@
+.preloader-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #181c24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  color: #e0e6f0;
+  text-align: center;
+}
+
+.preloader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5rem;
+}
+
+.ddos-diagram-container {
+  position: relative;
+  width: 480px;
+  height: 220px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lines-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.node {
+  position: absolute;
+  background: #23293a;
+  border-radius: 50%;
+  box-shadow: 0 2px 16px #0008;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  color: #90caf9;
+  width: 56px;
+  height: 56px;
+  z-index: 2;
+  transition: box-shadow 0.2s;
+}
+
+.node.attacker {
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ff7043;
+  background: #2d2323;
+}
+
+.node.bot.bot-1 {
+  left: 160px;
+  top: 30px;
+}
+.node.bot.bot-2 {
+  left: 160px;
+  top: 82px;
+}
+.node.bot.bot-3 {
+  left: 160px;
+  top: 134px;
+}
+
+.node.target {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #43e97b;
+  background: #1b2d1b;
+}
+
+.shield-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-size: 2.2rem;
+  color: #2E7D32;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.shield-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.attacker-arrow {
+  stroke: #ff7043;
+  stroke-width: 3;
+  opacity: 0.85;
+  marker-end: url(#arrowhead);
+}
+
+.bot-arrow {
+  stroke: #2196f3;
+  stroke-width: 3;
+  opacity: 0.95;
+  marker-end: url(#arrowhead);
+}
+
+.preloader-text {
+  color: #90caf9;
+  font-family: 'SF Mono', 'Courier New', Courier, monospace;
+  font-size: 1.2rem;
+  font-weight: 500;
+  max-width: 80%;
+  min-height: 40px;
+  letter-spacing: 0.5px;
+}
+
+.preloader-text.main-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #e0e6f0;
+  letter-spacing: 1.5px;
+}
+
+@media (max-width: 600px) {
+  .ddos-diagram-container {
+    width: 98vw;
+    height: 160px;
+  }
+  .node {
+    font-size: 1.3rem;
+    width: 36px;
+    height: 36px;
+  }
+  .preloader-text.main-title {
+    font-size: 1.3rem;
+  }
+} 

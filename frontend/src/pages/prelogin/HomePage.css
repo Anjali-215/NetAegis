@@ -1,84 +1,176 @@
-.prelogin-bg {
-  background: #18181c;
-  color: #f3f3f3;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+body {
+  background-color: #111; /* Ensure body has the base background color */
 }
+
+#smooth-wrapper {
+  /* This will contain the entire scrollable area */
+}
+
+#smooth-content {
+  overflow: visible; /* Required for GSAP effects to work properly */
+  width: 100%;
+}
+
+.prelogin-bg {
+  background-color: #111;
+  color: #f8f9fa;
+  min-height: 100vh;
+}
+
 .homepage-main {
-  flex: 1;
-  padding: 3rem 1.5rem 2rem 1.5rem;
-  max-width: 900px;
+  padding-top: 80px; /* Space for fixed navbar */
+}
+
+/* Hero Section */
+.hero-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 100vh;
+  padding: 4rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('../../assets/hero_home.png') no-repeat center center/cover;
+  filter: blur(8px) brightness(0.6);
+  z-index: 1;
+  transform: scale(1.1);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
   margin: 0 auto;
 }
-.hero-section {
-  text-align: center;
-  margin-bottom: 3.5rem;
-}
+
 .hero-title {
-  font-size: 3.2rem;
-  color: #e53935;
-  font-weight: 800;
-  margin-bottom: 1.2rem;
-  letter-spacing: 1px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 4.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1rem;
+  letter-spacing: 2px;
+  text-shadow: 0 0 25px rgba(211, 47, 47, 0.5);
 }
+
+.hero-title span {
+  display: inline-block;
+}
+
 .hero-desc {
   font-size: 1.25rem;
-  color: #ff8a65;
-  margin-bottom: 2.2rem;
-  font-weight: 400;
+  margin: 1rem 0 2rem;
+  color: #adb5bd;
 }
+
+.hero-image {
+  display: none;
+}
+
 .cta-buttons {
   display: flex;
+  gap: 1rem;
   justify-content: center;
-  gap: 1.2rem;
-  margin-bottom: 0.5rem;
 }
+
+/* Features Section */
 .features-section {
-  margin-top: 2.5rem;
-}
-.features-section h2 {
-  color: #e53935;
+  background: #111;
+  padding: 5rem 1.5rem;
+  border-top: 1px solid #222;
   text-align: center;
-  margin-bottom: 2.2rem;
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
 }
+
+.features-content {
+  max-width: 1200px;
+  margin: auto;
+}
+
+.features-title {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.features-subtitle {
+  font-size: 1.1rem;
+  color: #adb5bd;
+  max-width: 700px;
+  margin: 0 auto 3rem;
+}
+
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 2.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
 }
+
 .feature-card {
-  background: #23232b;
-  border: 1px solid #2d2d36;
-  border-radius: 16px;
-  padding: 2.2rem 1.2rem 1.7rem 1.2rem;
-  text-align: center;
-  color: #f3f3f3;
-  box-shadow: 0 2px 8px #0004;
-  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+  background: #1c1c1c;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #2a2a2a;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
-.feature-card h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #ff8a65;
-  margin-bottom: 0.7rem;
-}
-.feature-card p {
-  color: #bdbdbd;
-  font-size: 1rem;
-  font-weight: 400;
-}
+
 .feature-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 6px 24px #e5393530;
-  border-color: #e53935;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(211, 47, 47, 0.15);
 }
-@media (max-width: 600px) {
-  .hero-title { font-size: 2rem; }
-  .features-grid { gap: 1.2rem; }
-  .feature-card { padding: 1.2rem 0.5rem; }
-  .homepage-main { padding: 1.5rem 0.5rem; }
+
+.feature-icon {
+  color: #d32f2f;
+  margin-bottom: 1.5rem;
+}
+
+.feature-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.feature-desc {
+  color: #adb5bd;
+}
+
+/* CTA Section */
+.cta-section {
+  text-align: center;
+  background: #1c1c1c;
+  padding: 5rem 1.5rem;
+}
+
+.cta-title {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+}
+
+.cta-subtitle {
+  font-size: 1.1rem;
+  color: #adb5bd;
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.8rem;
+  }
+  .hero-desc {
+    font-size: 1.1rem;
+  }
+  .features-title {
+    font-size: 2rem;
+  }
 } 

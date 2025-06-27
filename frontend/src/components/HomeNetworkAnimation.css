@@ -1,0 +1,33 @@
+.home-network-animation {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.network-svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.network-line {
+    stroke: rgba(0, 0, 0, 0.3);
+    stroke-width: 1px;
+}
+
+.network-node {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    background-color: rgb(211, 47, 47);
+    border-radius: 50%;
+    box-shadow: 0 0 15px rgba(211, 47, 47, 0.9), 
+                0 0 25px rgba(211, 47, 47, 0.7);
+    transform: translate(-50%, -50%);
+} 
