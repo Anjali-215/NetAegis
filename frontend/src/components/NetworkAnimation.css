@@ -1,0 +1,98 @@
+/* === Network Animation Container === */
+.network-animation-container {
+    width: 100%;
+    max-width: 600px; /* Adjust as needed */
+    height: 400px;
+    position: relative;
+    margin: auto;
+    transform-style: preserve-3d;
+    perspective: 1000px;
+}
+
+/* === SVG for drawing lines === */
+.lines-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* === General Node Styles === */
+.node {
+    position: absolute;
+    z-index: 2;
+    transform: translate(-50%, -50%); /* Center nodes on their coordinates */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px; /* Default icon size */
+    color: #d32f2f; /* Default to red for bots */
+}
+
+.node-icon {
+    width: 40px;
+    height: 40px;
+}
+
+.attacker-icon,
+.server-icon {
+    width: 50px;
+    height: 50px;
+}
+
+/* === Node Positions === */
+.attacker { 
+    top: 10%; 
+    left: 50%; 
+    font-size: 40px;
+    color: #222;
+}
+
+.bot-1 { top: 40%; left: 25%; }
+.bot-2 { top: 40%; left: 50%; }
+.bot-3 { top: 40%; left: 75%; }
+
+.server { 
+    top: 80%; 
+    left: 50%; 
+    font-size: 40px;
+    color: #222;
+}
+
+/* === Line Styles === */
+.attacker-line {
+    stroke: #9E9E9E; /* Grey for initial botnet connection */
+    stroke-width: 1.5;
+    stroke-dasharray: 2 4; /* Dotted line */
+}
+
+.attack-line {
+    stroke: #d32f2f; /* Red for active attack */
+    stroke-width: 1; /* Thinner line */
+    stroke-dasharray: 4 4; /* Dashed line */
+}
+
+/* === Icon Fill Colors (No longer needed for FontAwesome) === */
+.attacker-icon path,
+.laptop-icon,
+.server-icon path,
+.server-icon line, 
+.server-icon circle {
+    /* These styles are for the old SVG icons and are no longer needed */
+}
+
+@media (max-width: 768px) {
+    .network-animation-container {
+        width: 100%;
+        max-width: 400px;
+        height: 300px;
+    }
+    .node {
+        font-size: 25px;
+    }
+    .attacker, .server {
+        font-size: 35px;
+    }
+} 
