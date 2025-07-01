@@ -1,27 +1,112 @@
 .footer {
-  background: #1a0000;
-  color: #fff;
-  padding: 1.2rem 2rem 1rem 2rem;
+  background: #181a20;
+  color: #f8f9fa;
+  padding: 2.5rem 2rem 1.2rem 2rem;
   text-align: center;
-  border-top: 1.5px solid #400000;
+  border-top: 1.5px solid #23242b;
   margin-top: auto;
+  font-family: 'Roboto Mono', monospace;
 }
-.footer-links {
+
+.footer-main {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 3.5rem;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto 1.2rem auto;
+  text-align: left;
+}
+
+.footer-brand {
+  min-width: 180px;
+  margin-bottom: 1.2rem;
+}
+.footer-logo {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.08em;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+.footer-tagline {
+  color: #d32f2f;
+  font-size: 1.05rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.footer-links-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 140px;
+  margin-bottom: 1.2rem;
+}
+.footer-links-col h4 {
+  color: #fff;
+  font-size: 1.08rem;
+  font-weight: 700;
   margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
 }
-.footer-links a {
-  color: #ff0000;
-  text-decoration: underline;
-  margin: 0 0.5rem;
+.footer-links-col a {
+  color: #adb5bd;
+  text-decoration: none;
+  font-size: 1rem;
+  margin-bottom: 0.1rem;
   transition: color 0.2s;
 }
-.footer-links a:hover {
+.footer-links-col a:hover {
+  color: #d32f2f;
+}
+
+.footer-social {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 120px;
+  margin-bottom: 1.2rem;
+}
+.footer-social h4 {
   color: #fff;
+  font-size: 1.08rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
 }
+.footer-social a {
+  color: #adb5bd;
+  font-size: 1.35rem;
+  margin-right: 0.7rem;
+  transition: color 0.2s;
+  display: inline-block;
+}
+.footer-social a:hover {
+  color: #d32f2f;
+}
+
 .footer-copy {
-  font-size: 0.95rem;
-  color: #800000;
+  font-size: 0.98rem;
+  color: #adb5bd;
+  margin-top: 0.5rem;
 }
+
+@media (max-width: 900px) {
+  .footer-main {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+  }
+  .footer-links-col, .footer-brand, .footer-social {
+    align-items: center;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 600px) {
   .footer { padding: 1rem 0.5rem; }
   .footer-links a { margin: 0 0.2rem; }
