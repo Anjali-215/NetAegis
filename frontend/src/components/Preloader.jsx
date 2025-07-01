@@ -19,12 +19,14 @@ const Preloader = ({ onComplete }) => {
             }
         });
         gsap.set(textRef.current, { autoAlpha: 0 });
-        tl.to(textRef.current, { autoAlpha: 1, text: "Detect.......", duration: 1 })
-          .to(textRef.current, { autoAlpha: 1, text: "Secure.......", duration: 1 }, "+=0.5")
-          .to(textRef.current, { autoAlpha: 1, text: "Monitor.......", duration: 1 }, "+=0.5")
-          .to(textRef.current, { autoAlpha: 0, duration: 0.5 }, "+=0.5")
-          .to(textRef.current, { autoAlpha: 1, text: "NetAegis", className: "+=main-title", duration: 1 }, "+=0.2")
-          .to({}, { duration: 1 });
+        tl.set(textRef.current, { className: 'preloader-text glitch' })
+          .to(textRef.current, { autoAlpha: 1, text: "Detect...", duration: 0.7 })
+          .set(textRef.current, { className: 'preloader-text glitch' })
+          .to(textRef.current, { autoAlpha: 1, text: "Secure...", duration: 0.7 }, "+=0.5")
+          .set(textRef.current, { className: 'preloader-text glitch' })
+          .to(textRef.current, { autoAlpha: 1, text: "Monitor...", duration: 0.7 }, "+=0.5")
+          .set(textRef.current, { className: 'preloader-text glitch' })
+          .to(textRef.current, { autoAlpha: 1, text: "NetAegis", duration: 0.7 }, "+=0.5")
     }, [onComplete]);
 
     return (
