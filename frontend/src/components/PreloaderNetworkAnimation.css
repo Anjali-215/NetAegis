@@ -1,6 +1,7 @@
 .preloader-network-animation {
   position: relative;
-  width: 420px;
+  width: 100vw;
+  max-width: 100vw;
   height: 420px;
   margin: 0 auto;
   display: flex;
@@ -18,30 +19,17 @@
   z-index: 1;
 }
 
-.preloader-network-line.attacker {
-  stroke: #9E9E9E;
-  stroke-width: 2.5px;
+.preloader-network-line.attacker, .preloader-network-line.bot, .preloader-network-line.secured {
+  stroke: #fff;
+  stroke-width: 1.5px;
   stroke-dasharray: 6 6;
-  opacity: 0.85;
-  marker-end: url(#preloader-arrowhead);
-}
-
-.preloader-network-line.bot {
-  stroke: #d32f2f;
-  stroke-width: 3.2px;
   opacity: 0.95;
   marker-end: url(#preloader-arrowhead);
-}
-
-.preloader-network-line.secured {
-  stroke: #2E7D32;
-  stroke-width: 3.2px;
-  opacity: 0.95;
-  marker-end: url(#preloader-arrowhead);
+  animation: dashmove 1.2s linear infinite;
 }
 
 .preloader-network-arrowhead {
-  fill: #d32f2f;
+  fill: #fff;
 }
 
 .preloader-network-node {
@@ -57,6 +45,63 @@
   40% { transform: scale(1.08) translateY(-6px); box-shadow: 0 0 18px #d32f2f99; }
   60% { transform: scale(0.97) translateY(3px); box-shadow: 0 0 8px #d32f2f44; }
   100% { transform: scale(1) translateY(0px); box-shadow: 0 0 10px #d32f2f44; }
+}
+
+@keyframes dashmove {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.preloader-text {
+  color: #d32f2f;
+  font-size: 2.8rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 2.5rem;
+  letter-spacing: 0.04em;
+  font-family: 'Fira Mono', 'Consolas', monospace;
+}
+
+.preloader-text.main-title {
+  color: #d32f2f;
+  font-size: 4.2rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin-top: 2.5rem;
+  text-shadow: 0 0 32px #d32f2f55, 0 0 8px #fff2;
+  opacity: 0;
+  transform: translateY(40px);
+  animation: fadeInUp 1.2s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.preloader-text.glitch {
+  position: relative;
+  color: #d32f2f;
+  font-size: 2.8rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 2.5rem;
+  letter-spacing: 0.04em;
+  font-family: 'Fira Mono', 'Consolas', monospace;
+  animation: glitch 0.7s linear 2;
+}
+
+@keyframes glitch {
+  0% { text-shadow: 2px 0 #00fff9, -2px 0 #ff005a; filter: blur(0.5px); }
+  10% { text-shadow: -2px 0 #00fff9, 2px 0 #ff005a; filter: blur(1.5px); }
+  20% { text-shadow: 2px 2px #00fff9, -2px -2px #ff005a; filter: blur(0.5px); }
+  30% { text-shadow: -2px -2px #00fff9, 2px 2px #ff005a; filter: blur(1.5px); }
+  40% { text-shadow: 2px 0 #00fff9, -2px 0 #ff005a; filter: blur(0.5px); }
+  50% { text-shadow: none; filter: none; }
+  100% { text-shadow: none; filter: none; }
 }
 
 @media (max-width: 600px) {

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUserSecret, faLaptop, faServer } from '@fortawesome/free-solid-svg-icons';
 import './HomeNetworkAnimation.css';
 import './PreloaderNetworkAnimation.css';
 
@@ -8,202 +10,134 @@ const NetworkMascotAnimation = ({ preloaderMode }) => {
     const svgRef = useRef(null);
 
     useEffect(() => {
-        if (!preloaderMode) return;
         const container = containerRef.current;
         const svg = svgRef.current;
-        // Clean up SVG
-        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        const nodes = [];
+        const lines = [];
 
-        // Node structure (top to bottom)
+        // Define the network structure
         const structure = [
-            { type: 'attacker', count: 1, y: 30, size: 44, color: '#ff7043', className: 'attacker' },
-            { type: 'bot', count: 4, y: 110, size: 32, color: '#d32f2f', className: 'bot' },
-            { type: 'bot', count: 8, y: 190, size: 24, color: '#d32f2f', className: 'bot' },
-            { type: 'bot', count: 16, y: 270, size: 16, color: '#d32f2f', className: 'bot' },
-            { type: 'server', count: 1, y: 350, size: 44, color: '#43e97b', className: 'server' },
+            { icon: faUserSecret, count: 1, y: 50, size: 40, color: '#000000' },
+            { icon: faLaptop, count: 4, y: 150, size: 30, color: '#d9534f' },
+            { icon: faLaptop, count: 8, y: 250, size: 20, color: '#d9534f' },
+            { icon: faLaptop, count: 16, y: 350, size: 15, color: '#d9534f' },
+            { icon: faServer, count: 1, y: 450, size: 40, color: '#000000' }
         ];
-        
-        // Calculate node positions
-        let nodePositions = [];
-        structure.forEach((level, i) => {
-            for (let j = 0; j < level.count; j++) {
-                nodePositions.push({
-                    x: 210 + (380 / (level.count + 1)) * (j + 1) - 190, // center in 420px
-                    y: level.y,
-                    type: level.type,
+
+        // Set container width wider in preloader mode for more spread
+        if (preloaderMode && container) {
+            container.style.width = '600px';
+        }
+
+        let nodeIndex = 0;
+        const nodeElements = [];
+
+        structure.forEach((level, levelIndex) => {
+            for (let i = 0; i < level.count; i++) {
+                const nodeElement = document.createElement('div');
+                nodeElement.classList.add(preloaderMode ? 'preloader-network-node' : 'network-node');
+                container.appendChild(nodeElement);
+                
+                // Spread out nodes more in preloader mode
+                const spread = preloaderMode ? 0.85 : 1;
+                const x = (container.offsetWidth * spread / (level.count + 1)) * (i + 1) + (preloaderMode ? container.offsetWidth * 0.075 : 0);
+                const y = level.y;
+
+                const node = {
+                    element: nodeElement,
+                    x: x,
+                    y: y,
+                    icon: level.icon,
                     size: level.size,
                     color: level.color,
-                    className: level.className,
-                    level: i,
-                    index: j
-                });
+                    level: levelIndex,
+                    indexInLevel: i
+                };
+                
+                nodes.push(node);
+                nodeElements.push(
+                    <FontAwesomeIcon
+                        key={nodeIndex++}
+                        icon={node.icon}
+                        style={{
+                            position: 'absolute',
+                            left: node.x,
+                            top: node.y,
+                            fontSize: node.size,
+                            color: node.color,
+                            transform: 'translate(-50%, -50%)',
+                            filter: preloaderMode ? 'drop-shadow(0 0 8px #d32f2f)' : undefined
+                        }}
+                    />
+                );
             }
         });
 
-        // Render nodes as SVG elements
-        nodePositions.forEach((node, i) => {
-            let svgElement;
-            
-            if (node.type === 'attacker') {
-                // Create user icon (circle with person symbol)
-                svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('cx', node.x);
-                circle.setAttribute('cy', node.y);
-                circle.setAttribute('r', node.size / 2);
-                circle.setAttribute('fill', '#2d2323');
-                circle.setAttribute('stroke', node.color);
-                circle.setAttribute('stroke-width', '2');
-                svgElement.appendChild(circle);
-                
-                // Add person symbol
-                const person = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                person.setAttribute('x', node.x);
-                person.setAttribute('y', node.y + 4);
-                person.setAttribute('text-anchor', 'middle');
-                person.setAttribute('fill', node.color);
-                person.setAttribute('font-size', node.size * 0.6);
-                person.setAttribute('font-family', 'Arial');
-                person.textContent = '👤';
-                svgElement.appendChild(person);
-                
-            } else if (node.type === 'bot') {
-                // Create laptop icon (rectangle)
-                svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                svgElement.setAttribute('x', node.x - node.size / 2);
-                svgElement.setAttribute('y', node.y - node.size / 2);
-                svgElement.setAttribute('width', node.size);
-                svgElement.setAttribute('height', node.size);
-                svgElement.setAttribute('fill', '#1b1b1b');
-                svgElement.setAttribute('stroke', node.color);
-                svgElement.setAttribute('stroke-width', '2');
-                svgElement.setAttribute('rx', '4');
-                
-            } else if (node.type === 'server') {
-                // Create server icon (rectangle with circles)
-                svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', node.x - node.size / 2);
-                rect.setAttribute('y', node.y - node.size / 2);
-                rect.setAttribute('width', node.size);
-                rect.setAttribute('height', node.size);
-                rect.setAttribute('fill', '#1b2d1b');
-                rect.setAttribute('stroke', node.color);
-                rect.setAttribute('stroke-width', '2');
-                rect.setAttribute('rx', '4');
-                svgElement.appendChild(rect);
-                
-                // Add server indicator circles
-                for (let k = 0; k < 3; k++) {
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', node.x - node.size / 4 + (k * node.size / 4));
-                    circle.setAttribute('cy', node.y);
-                    circle.setAttribute('r', '3');
-                    circle.setAttribute('fill', node.color);
-                    svgElement.appendChild(circle);
-                }
-                
-                // Add NetAegis label
-                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                label.setAttribute('x', node.x);
-                label.setAttribute('y', node.y + node.size / 2 + 20);
-                label.setAttribute('text-anchor', 'middle');
-                label.setAttribute('fill', '#90caf9');
-                label.setAttribute('font-size', '14');
-                label.setAttribute('font-family', 'monospace');
-                label.textContent = 'NetAegis';
-                svgElement.appendChild(label);
-            }
-            
-            svgElement.setAttribute('class', `preloader-network-node ${node.className}`);
-            svg.appendChild(svgElement);
+        // Render icons
+        const iconContainer = document.createElement('div');
+        container.appendChild(iconContainer);
+        import('react-dom/client').then(({ createRoot }) => {
+            const tempApp = React.createElement('div', null, ...nodeElements);
+            const root = createRoot(iconContainer);
+            root.render(tempApp);
         });
 
-        // Draw lines after nodes are created
-        setTimeout(() => {
-            // Add marker for arrows
-            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            marker.setAttribute('id', 'preloader-arrowhead');
-            marker.setAttribute('markerWidth', '10');
-            marker.setAttribute('markerHeight', '7');
-            marker.setAttribute('refX', '10');
-            marker.setAttribute('refY', '3.5');
-            marker.setAttribute('orient', 'auto');
-            marker.setAttribute('markerUnits', 'strokeWidth');
-            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
-            polygon.setAttribute('fill', '#ff7043');
-            marker.appendChild(polygon);
-            defs.appendChild(marker);
-            svg.appendChild(defs);
-            
-            // Draw connection lines
-            const nodeElements = Array.from(svg.querySelectorAll('.preloader-network-node'));
-            
-            // Attacker to level 1 bots
-            const attacker = nodeElements[0];
-            const level1Bots = nodeElements.slice(1, 5);
-            level1Bots.forEach(bot => {
-                drawLine(attacker, bot, '#ff7043');
-            });
-            
-            // Level 1 to Level 2
-            for (let i = 0; i < 4; i++) {
-                const parent = level1Bots[i];
-                const children = nodeElements.slice(5 + i * 2, 5 + i * 2 + 2);
-                children.forEach(child => {
-                    drawLine(parent, child, '#ff7043');
-                });
-            }
-            
-            // Level 2 to Level 3
-            const level2Bots = nodeElements.slice(5, 13);
-            for (let i = 0; i < 8; i++) {
-                const parent = level2Bots[i];
-                const children = nodeElements.slice(13 + i * 2, 13 + i * 2 + 2);
-                children.forEach(child => {
-                    drawLine(parent, child, '#ff7043');
-                });
-            }
-            
-            // Level 3 to server
-            const level3Bots = nodeElements.slice(13, 29);
-            const server = nodeElements[nodeElements.length - 1];
-            level3Bots.forEach(bot => {
-                drawLine(bot, server, '#2196f3');
-            });
-            
-            function drawLine(fromEl, toEl, color) {
-                const fromRect = fromEl.getBoundingClientRect();
-                const toRect = toEl.getBoundingClientRect();
-                const svgRect = svg.getBoundingClientRect();
-                
-                const fromX = fromRect.left - svgRect.left + fromRect.width / 2;
-                const fromY = fromRect.top - svgRect.top + fromRect.height / 2;
-                const toX = toRect.left - svgRect.left + toRect.width / 2;
-                const toY = toRect.top - svgRect.top + toRect.height / 2;
-                
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', fromX);
-                line.setAttribute('y1', fromY);
-                line.setAttribute('x2', toX);
-                line.setAttribute('y2', toY);
-                line.setAttribute('stroke', color);
-                line.setAttribute('stroke-width', '2');
-                line.setAttribute('marker-end', 'url(#preloader-arrowhead)');
-                line.setAttribute('opacity', '0.7');
+        // Move SVG to top to ensure lines are above icons
+        container.appendChild(svg);
+
+        // Create lines
+        // Hacker to level 1
+        const hacker = nodes[0];
+        const level1Nodes = nodes.slice(1, 5);
+        level1Nodes.forEach(node => {
+            const line = createLine(hacker.x, hacker.y, node.x, node.y, 'attacker');
+            svg.appendChild(line);
+            lines.push(line);
+        });
+
+        // Level 1 to Level 2
+        for(let i = 0; i < 4; i++) {
+            const parent = nodes[1 + i];
+            for(let j = 0; j < 2; j++) {
+                const child = nodes[5 + i * 2 + j];
+                const line = createLine(parent.x, parent.y, child.x, child.y, 'attacker');
                 svg.appendChild(line);
+                lines.push(line);
             }
-        }, 100);
+        }
 
-        // Animate nodes
-        setTimeout(() => {
-            gsap.fromTo(svg.querySelectorAll('.preloader-network-node'),
+        // Level 2 to Level 3
+        for(let i = 0; i < 8; i++) {
+            const parent = nodes[5 + i];
+             for(let j = 0; j < 2; j++) {
+                const childIndex = 13 + i * 2 + j;
+                if(childIndex < nodes.length - 1) { // ensure we dont connect to the server
+                    const child = nodes[childIndex];
+                    const line = createLine(parent.x, parent.y, child.x, child.y, 'attacker');
+                    svg.appendChild(line);
+                    lines.push(line);
+                }
+            }
+        }
+        
+        // Level 3 to Server
+        const server = nodes[nodes.length - 1];
+        const level3Nodes = nodes.slice(13, 13 + 16);
+        level3Nodes.forEach(node => {
+            const line = createLine(node.x, node.y, server.x, server.y, 'bot');
+            svg.appendChild(line);
+            lines.push(line);
+        });
+
+        // Animate
+        if (preloaderMode) {
+            // Animate nodes with extra movement
+            gsap.fromTo(container.querySelectorAll('.preloader-network-node'),
                 { scale: 0.7, opacity: 0 },
                 { scale: 1, opacity: 1, duration: 1.2, stagger: 0.04, ease: 'back.out(1.7)' }
             );
-            gsap.to(svg.querySelectorAll('.preloader-network-node'), {
+            // Floating effect
+            gsap.to(container.querySelectorAll('.preloader-network-node'), {
                 y: 'random(-8,8)',
                 x: 'random(-8,8)',
                 repeat: -1,
@@ -212,19 +146,42 @@ const NetworkMascotAnimation = ({ preloaderMode }) => {
                 ease: 'sine.inOut',
                 stagger: { amount: 1.5, grid: 'auto', from: 'center' }
             });
-        }, 200);
+            gsap.fromTo(svg.querySelectorAll('.preloader-network-line'), { opacity: 0 }, { opacity: 0.85, duration: 1.5, stagger: 0.01, delay: 0.5 });
+        } else {
+            gsap.fromTo(container.querySelectorAll('.network-node'), 
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 1.5, stagger: 0.05, ease: 'power3.out' }
+            );
+            gsap.fromTo(svg.querySelectorAll('.network-line'), { opacity: 0 }, { opacity: 0.5, duration: 2, stagger: 0.02, delay: 1 });
+        }
+
+        // Cleanup on unmount
+        return () => {
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            if (svg) {
+                while (svg.firstChild) {
+                    svg.removeChild(svg.firstChild);
+                }
+            }
+        };
     }, [preloaderMode]);
 
-    if (preloaderMode) {
-        return (
-            <div className="preloader-network-animation" ref={containerRef}>
-                <svg ref={svgRef} className="preloader-network-svg" width={420} height={420}></svg>
-            </div>
-        );
+    function createLine(x1, y1, x2, y2, type) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        if (preloaderMode) {
+            line.classList.add('preloader-network-line');
+            line.classList.add(type); // 'attacker' or 'bot' or 'secured'
+        } else {
+            line.classList.add('network-line');
+        }
+        return line;
     }
-
-    // Home page (non-preloader) logic unchanged
-    // ... existing code ...
 
     return (
         <div className={preloaderMode ? 'preloader-network-animation' : 'home-network-animation'} ref={containerRef}>

@@ -26,6 +26,9 @@ export default function Navbar() {
                 <Link to={link.href}>{link.name}</Link>
               </li>
             ))}
+            <li>
+              <a href="#about">About</a>
+            </li>
           </ul>
           <div className="navbar-auth-buttons">
             <Button variant="secondary" href="/login">Login</Button>
