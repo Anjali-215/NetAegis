@@ -1,13 +1,16 @@
 .navbar-header {
-  background: transparent;
-  border-bottom: none;
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  z-index: 20;
-  padding: 0 1.5rem;
-  box-shadow: none;
+  width: 100vw;
+  z-index: 1000;
+  background: rgba(20, 20, 25, 0.98);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.navbar-hidden {
+  transform: translateY(-100%);
 }
 
 .navbar {
@@ -108,4 +111,9 @@
   .navbar-burger {
     display: flex;
   }
+}
+
+/* Add padding to the top of the main content to prevent overlap */
+.homepage-main {
+  padding-top: 72px;
 } 
