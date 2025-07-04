@@ -144,26 +144,26 @@ const CSVUpload = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle color="success" />;
+        return <CheckCircle sx={{ color: '#b71c1c' }} />;
       case 'processing':
-        return <Info color="info" />;
+        return <Info sx={{ color: '#3a2323' }} />;
       case 'error':
-        return <Error color="error" />;
+        return <Error sx={{ color: '#ff5252' }} />;
       default:
-        return <Warning color="warning" />;
+        return <Warning sx={{ color: '#c50e29' }} />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed':
-        return 'success';
+        return 'primary';
       case 'processing':
-        return 'info';
+        return 'default';
       case 'error':
         return 'error';
       default:
-        return 'warning';
+        return 'default';
     }
   };
 
@@ -267,7 +267,7 @@ const CSVUpload = () => {
               <List dense>
                 <ListItem>
                   <ListItemIcon>
-                    <Info color="info" />
+                    <Info sx={{ color: '#3a2323' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="File Format" 
@@ -276,7 +276,7 @@ const CSVUpload = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
-                    <CheckCircle color="success" />
+                    <CheckCircle sx={{ color: '#b71c1c' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Required Columns" 
@@ -285,7 +285,7 @@ const CSVUpload = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
-                    <Warning color="warning" />
+                    <Warning sx={{ color: '#c50e29' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="File Size" 
@@ -294,7 +294,7 @@ const CSVUpload = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
-                    <Error color="error" />
+                    <Error sx={{ color: '#ff5252' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Data Validation" 
@@ -365,13 +365,13 @@ const CSVUpload = () => {
                     onClick={() => handlePreviewFile(file)}
                     disabled={file.status !== 'completed'}
                   >
-                    <Visibility />
+                    <Visibility sx={{ color: '#ff5252' }} />
                   </IconButton>
                 </Tooltip>
                 
                 <Tooltip title="Download">
                   <IconButton size="small" disabled={file.status !== 'completed'}>
-                    <Download />
+                    <Download sx={{ color: '#ff5252' }} />
                   </IconButton>
                 </Tooltip>
                 
@@ -381,7 +381,7 @@ const CSVUpload = () => {
                     onClick={() => handleDeleteFile(file.id)}
                     color="error"
                   >
-                    <Delete />
+                    <Delete sx={{ color: '#ff5252' }} />
                   </IconButton>
                 </Tooltip>
               </Box>

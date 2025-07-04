@@ -182,7 +182,7 @@ const SubscriptionManagement = () => {
   };
 
   const getStatusColor = (status) => {
-    return status === 'paid' ? 'success' : 'error';
+    return status === 'paid' ? 'primary' : 'error';
   };
 
   const getStatusIcon = (status) => {
@@ -203,7 +203,7 @@ const SubscriptionManagement = () => {
               <Typography variant="h6">Current Plan</Typography>
               <Chip 
                 label={currentPlan.status} 
-                color="success" 
+                color="primary" 
                 icon={<CheckCircle />}
               />
             </Box>

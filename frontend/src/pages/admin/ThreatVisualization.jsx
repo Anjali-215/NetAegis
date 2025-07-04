@@ -66,18 +66,19 @@ const ThreatVisualization = () => {
     { name: 'Jun', Malware: 180, DDoS: 120, Phishing: 72, SQLInjection: 48, Other: 22 }
   ];
 
+  // For all chart series and pie segments, replace colors like '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', etc. with '#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323'.
   const threatTypesData = [
-    { name: 'Malware', value: 35, color: '#ff6b6b' },
-    { name: 'DDoS', value: 25, color: '#4ecdc4' },
-    { name: 'Phishing', value: 20, color: '#45b7d1' },
-    { name: 'SQL Injection', value: 15, color: '#96ceb4' },
-    { name: 'Other', value: 5, color: '#feca57' }
+    { name: 'Malware', value: 35, color: '#b71c1c' },
+    { name: 'DDoS', value: 25, color: '#ff5252' },
+    { name: 'Phishing', value: 20, color: '#c50e29' },
+    { name: 'SQL Injection', value: 15, color: '#7f0000' },
+    { name: 'Other', value: 5, color: '#3a2323' }
   ];
 
   const confidenceData = [
-    { name: 'High', value: 45, color: '#ff6b6b' },
-    { name: 'Medium', value: 35, color: '#feca57' },
-    { name: 'Low', value: 20, color: '#96ceb4' }
+    { name: 'High', value: 45, color: '#b71c1c' },
+    { name: 'Medium', value: 35, color: '#ff5252' },
+    { name: 'Low', value: 20, color: '#3a2323' }
   ];
 
   const trendData = [
@@ -89,7 +90,8 @@ const ThreatVisualization = () => {
     { name: 'Jun', threats: 180, blocked: 162, detected: 18 }
   ];
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  // For all chart series, use only these COLORS.
+  const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323'];
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -116,11 +118,11 @@ const ThreatVisualization = () => {
               <YAxis />
               <RechartsTooltip />
               <Legend />
-              <Bar dataKey="Malware" fill="#ff6b6b" />
-              <Bar dataKey="DDoS" fill="#4ecdc4" />
-              <Bar dataKey="Phishing" fill="#45b7d1" />
-              <Bar dataKey="SQLInjection" fill="#96ceb4" />
-              <Bar dataKey="Other" fill="#feca57" />
+              <Bar dataKey="Malware" fill="#b71c1c" />
+              <Bar dataKey="DDoS" fill="#ff5252" />
+              <Bar dataKey="Phishing" fill="#c50e29" />
+              <Bar dataKey="SQLInjection" fill="#7f0000" />
+              <Bar dataKey="Other" fill="#3a2323" />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -134,9 +136,9 @@ const ThreatVisualization = () => {
               <YAxis />
               <RechartsTooltip />
               <Legend />
-              <Line type="monotone" dataKey="threats" stroke="#ff6b6b" strokeWidth={3} />
-              <Line type="monotone" dataKey="blocked" stroke="#4ecdc4" strokeWidth={3} />
-              <Line type="monotone" dataKey="detected" stroke="#45b7d1" strokeWidth={3} />
+              <Line type="monotone" dataKey="threats" stroke="#b71c1c" strokeWidth={3} />
+              <Line type="monotone" dataKey="blocked" stroke="#ff5252" strokeWidth={3} />
+              <Line type="monotone" dataKey="detected" stroke="#c50e29" strokeWidth={3} />
             </LineChart>
           </ResponsiveContainer>
         );
@@ -150,9 +152,9 @@ const ThreatVisualization = () => {
               <YAxis />
               <RechartsTooltip />
               <Legend />
-              <Area type="monotone" dataKey="Malware" stackId="1" stroke="#ff6b6b" fill="#ff6b6b" />
-              <Area type="monotone" dataKey="DDoS" stackId="1" stroke="#4ecdc4" fill="#4ecdc4" />
-              <Area type="monotone" dataKey="Phishing" stackId="1" stroke="#45b7d1" fill="#45b7d1" />
+              <Area type="monotone" dataKey="Malware" stackId="1" stroke="#b71c1c" fill="#b71c1c" />
+              <Area type="monotone" dataKey="DDoS" stackId="1" stroke="#ff5252" fill="#ff5252" />
+              <Area type="monotone" dataKey="Phishing" stackId="1" stroke="#c50e29" fill="#c50e29" />
             </AreaChart>
           </ResponsiveContainer>
         );
@@ -286,7 +288,7 @@ const ThreatVisualization = () => {
       <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
         <Grid xs={12} md={4}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #b71c1c 0%, #ff5252 100%)',
             color: 'white'
           }}>
             <CardContent>
@@ -307,7 +309,7 @@ const ThreatVisualization = () => {
 
         <Grid xs={12} md={4}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            background: 'linear-gradient(135deg, #7f0000 0%, #b71c1c 100%)',
             color: 'white'
           }}>
             <CardContent>
@@ -328,7 +330,7 @@ const ThreatVisualization = () => {
 
         <Grid xs={12} md={4}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            background: 'linear-gradient(135deg, #c50e29 0%, #ff867f 100%)',
             color: 'white'
           }}>
             <CardContent>
@@ -349,7 +351,7 @@ const ThreatVisualization = () => {
 
         <Grid xs={12} md={6}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            background: 'linear-gradient(135deg, #231417 0%, #7f0000 100%)',
             color: 'white'
           }}>
             <CardContent>

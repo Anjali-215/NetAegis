@@ -172,11 +172,11 @@ const Reports = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed':
-        return 'success';
+        return 'primary'; // red
       case 'processing':
-        return 'warning';
+        return 'default'; // neutral
       case 'error':
-        return 'error';
+        return 'error'; // red
       default:
         return 'default';
     }
