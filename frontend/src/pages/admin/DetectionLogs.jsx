@@ -184,25 +184,30 @@ const DetectionLogs = () => {
 
   const getThreatTypeColor = (type) => {
     const colors = {
-      'Malware': 'error',
-      'DDoS': 'warning',
-      'Phishing': 'info',
-      'SQL Injection': 'secondary'
+      'Malware': 'error', // red
+      'DDoS': 'primary', // deep red
+      'Phishing': 'primary', // deep red
+      'SQL Injection': 'primary' // deep red
     };
     return colors[type] || 'default';
   };
-
   const getConfidenceColor = (confidence) => {
     const colors = {
-      'High': 'error',
-      'Medium': 'warning',
-      'Low': 'success'
+      'High': 'error', // red
+      'Medium': 'primary', // deep red
+      'Low': 'default' // neutral
     };
     return colors[confidence] || 'default';
   };
-
   const getStatusColor = (status) => {
-    return status === 'Blocked' ? 'success' : 'error';
+    switch (status) {
+      case 'Blocked':
+        return 'error'; // red
+      case 'Detected':
+        return 'primary'; // deep red
+      default:
+        return 'default';
+    }
   };
 
   const getStatusIcon = (status) => {

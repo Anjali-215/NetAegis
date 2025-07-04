@@ -14,6 +14,7 @@ import NotificationsPage from './pages/admin/Notifications';
 import Reports from './pages/admin/Reports';
 import SubscriptionManagement from './pages/admin/SubscriptionManagement';
 import Settings from './pages/admin/Settings';
+import Profile from './pages/admin/Profile';
 import Preloader from './components/Preloader';
 
 function App() {
@@ -49,6 +50,7 @@ function App() {
               <Route path="/admin/reports" element={<AdminLayout><Reports /></AdminLayout>} />
               <Route path="/admin/subscription" element={<AdminLayout><SubscriptionManagement /></AdminLayout>} />
               <Route path="/admin/settings" element={<AdminLayout><Settings /></AdminLayout>} />
+              <Route path="/admin/profile" element={<AdminLayout><Profile /></AdminLayout>} />
         </Routes>
       </Router>
         )}

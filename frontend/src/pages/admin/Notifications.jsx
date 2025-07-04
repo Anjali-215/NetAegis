@@ -181,17 +181,17 @@ const NotificationsPage = () => {
   const getNotificationColor = (type) => {
     switch (type) {
       case 'threat':
-        return '#f44336';
+        return '#b71c1c';
       case 'upload':
-        return '#4caf50';
+        return '#ff5252';
       case 'system':
-        return '#2196f3';
+        return '#c50e29';
       case 'user':
-        return '#ff9800';
+        return '#7f0000';
       case 'report':
-        return '#9c27b0';
+        return '#231417';
       default:
-        return '#757575';
+        return '#3a2323';
     }
   };
 
@@ -200,9 +200,9 @@ const NotificationsPage = () => {
       case 'high':
         return 'error';
       case 'medium':
-        return 'warning';
+        return 'primary';
       case 'low':
-        return 'success';
+        return 'default';
       default:
         return 'default';
     }
