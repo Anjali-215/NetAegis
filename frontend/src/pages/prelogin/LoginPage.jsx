@@ -5,6 +5,7 @@ import Button from '../../components/Button';
 import InputField from '../../components/InputField';
 import './AuthPage.css';
 import gsap from 'gsap';
+import NetworkAnimation from '../../components/HeroNetworkAnimation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -27,39 +28,41 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="auth-page" ref={pageRef}>
-      <div className="auth-container">
-        <div className="auth-branding">
-          <h2>NetAegis</h2>
-          <p>Your shield against digital threats.</p>
-        </div>
-        <div className="auth-form-container">
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <h3>Welcome Back</h3>
-            <p>Enter your credentials to access your account.</p>
-            {error && <div className="form-error">{error}</div>}
-            <InputField
-              label="Email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-            <InputField
-              label="Password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-            <a href="/forgot-password" className="forgot-password-link">Forgot Password?</a>
-            <Button variant="primary" type="submit" style={{ width: '100%' }}>Login</Button>
-            <div className="auth-switch-link">
-              <span>New here? </span>
-              <a href="/signup">Create an account</a>
-            </div>
-          </form>
-        </div>
+    <div className="auth-page login-bg" ref={pageRef} style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      {/* Network animation as background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+        <NetworkAnimation />
+      </div>
+      <div className="auth-form-outer" style={{ maxWidth: '400px', padding: '2rem 2rem 1.5rem 2rem', margin: '2.5rem 0', borderRadius: '16px', zIndex: 2, background: 'rgba(24,23,28,0.98)' }}>
+        <form className="auth-form auth-form-centered" onSubmit={handleSubmit} style={{ width: '100%' }}>
+          <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#fff', fontWeight: 700 }}>Sign In.</h2>
+          <input
+            className="auth-input"
+            type="email"
+            placeholder="E-mail"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+          />
+          <button className="main-auth-btn" type="submit">Sign in.</button>
+          <div className="auth-divider">or</div>
+          <button type="button" className="social-btn google-btn">
+            <span className="social-icon">G</span> Continue with Google
+          </button>
+          <div className="auth-links">
+            <span>don't have an account? <a href="/signup">Create a account</a></span>
+            <br />
+            <a href="/forgot-password">Forgot password?</a>
+          </div>
+        </form>
       </div>
     </div>
   );
