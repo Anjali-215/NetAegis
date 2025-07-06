@@ -1,0 +1,83 @@
+{
+  "RandomForest": {
+    "0": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8404.0
+    },
+    "1": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 29687.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38091.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38091.0
+    }
+  },
+  "XGBoost": {
+    "0": {
+      "precision": 1.0,
+      "recall": 0.9998810090433127,
+      "f1-score": 0.9999405009817338,
+      "support": 8404.0
+    },
+    "1": {
+      "precision": 0.9999663163567771,
+      "recall": 1.0,
+      "f1-score": 0.9999831578947368,
+      "support": 29687.0
+    },
+    "accuracy": 0.9999737470793626,
+    "macro avg": {
+      "precision": 0.9999831581783886,
+      "recall": 0.9999405045216563,
+      "f1-score": 0.9999618294382353,
+      "support": 38091.0
+    },
+    "weighted avg": {
+      "precision": 0.9999737479636565,
+      "recall": 0.9999737470793626,
+      "f1-score": 0.9999737465194283,
+      "support": 38091.0
+    }
+  },
+  "NeuralNetwork": {
+    "0": {
+      "precision": 0.9803921568627451,
+      "recall": 0.9221799143265111,
+      "f1-score": 0.950395487154332,
+      "support": 8404.0
+    },
+    "1": {
+      "precision": 0.9783343271715365,
+      "recall": 0.994778859433422,
+      "f1-score": 0.9864880664072286,
+      "support": 29687.0
+    },
+    "accuracy": 0.9787613872043265,
+    "macro avg": {
+      "precision": 0.9793632420171408,
+      "recall": 0.9584793868799666,
+      "f1-score": 0.9684417767807803,
+      "support": 38091.0
+    },
+    "weighted avg": {
+      "precision": 0.9787883452000712,
+      "recall": 0.9787613872043265,
+      "f1-score": 0.9785249770674542,
+      "support": 38091.0
+    }
+  }
+}

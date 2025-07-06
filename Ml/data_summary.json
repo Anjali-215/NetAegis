@@ -1,0 +1,13 @@
+{
+  "original_shape": [
+    211044,
+    44
+  ],
+  "cleaned_shape": [
+    190474,
+    44
+  ],
+  "feature_count": 42,
+  "categorical_features": 26,
+  "numerical_features": 16
+}

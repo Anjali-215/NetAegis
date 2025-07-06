@@ -1,0 +1,38 @@
+{
+  "original_shape": [
+    211043,
+    44
+  ],
+  "cleaned_shape": [
+    190455,
+    28
+  ],
+  "removed_columns": [
+    "ssl_version",
+    "ssl_cipher",
+    "ssl_resumed",
+    "ssl_established",
+    "ssl_subject",
+    "ssl_issuer",
+    "http_trans_depth",
+    "http_method",
+    "http_uri",
+    "http_version",
+    "http_user_agent",
+    "http_orig_mime_types",
+    "http_resp_mime_types",
+    "weird_name",
+    "weird_addl",
+    "weird_notice"
+  ],
+  "transformed_columns": [
+    "dns_query",
+    "dns_AA",
+    "dns_RD",
+    "dns_RA",
+    "dns_rejected"
+  ],
+  "feature_count": 26,
+  "categorical_features": 10,
+  "numerical_features": 16
+}
