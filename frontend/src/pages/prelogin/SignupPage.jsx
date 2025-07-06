@@ -5,6 +5,7 @@ import Button from '../../components/Button';
 import InputField from '../../components/InputField';
 import './AuthPage.css';
 import gsap from 'gsap';
+import NetworkAnimation from '../../components/HeroNetworkAnimation';
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -40,29 +41,68 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="auth-page" ref={pageRef}>
-       <div className="auth-container">
-        <div className="auth-branding">
-          <h2>NetAegis</h2>
-          <p>Get started by creating your account.</p>
-        </div>
-        <div className="auth-form-container">
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <h3>Create Your Account</h3>
-            <p>Join us to secure your digital assets.</p>
-            {error && <div className="form-error">{error}</div>}
-            <InputField label="Full Name" name="name" value={form.name} onChange={handleChange} required />
-            <InputField label="Company Name" name="company" value={form.company} onChange={handleChange} required />
-            <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} required />
-            <InputField label="Password" name="password" type="password" value={form.password} onChange={handleChange} required />
-            <InputField label="Confirm Password" name="confirm" type="password" value={form.confirm} onChange={handleChange} required />
-            <Button variant="primary" type="submit" style={{ width: '100%' }}>Sign Up</Button>
-            <div className="auth-switch-link">
-              <span>Already have an account? </span>
-              <a href="/login">Login</a>
-            </div>
-          </form>
-        </div>
+    <div className="auth-page login-bg" ref={pageRef} style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      {/* Network animation as background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+        <NetworkAnimation />
+      </div>
+      <div className="auth-form-outer" style={{ maxWidth: '400px', padding: '2rem 2rem 1.5rem 2rem', margin: '2.5rem 0', borderRadius: '16px', zIndex: 2, background: 'rgba(24,23,28,0.98)' }}>
+        <form className="auth-form auth-form-centered" onSubmit={handleSubmit} style={{ width: '100%' }}>
+          <h2 style={{ textAlign: 'center', marginBottom: '1.2rem', color: '#fff', fontWeight: 700 }}>Sign Up.</h2>
+          <input
+            className="auth-input"
+            name="name"
+            type="text"
+            placeholder="Full Name"
+            value={form.name}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="auth-input"
+            name="company"
+            type="text"
+            placeholder="Company Name"
+            value={form.company}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="auth-input"
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="auth-input"
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="auth-input"
+            name="confirm"
+            type="password"
+            placeholder="Confirm Password"
+            value={form.confirm}
+            onChange={handleChange}
+            required
+          />
+          <button className="main-auth-btn" type="submit">Sign Up</button>
+          <div className="auth-divider">or</div>
+          <button type="button" className="social-btn google-btn">
+            <span className="social-icon">G</span> Continue with Google
+          </button>
+          <div className="auth-links">
+            <span>Already have an account? <a href="/login">Login</a></span>
+          </div>
+        </form>
       </div>
     </div>
   );

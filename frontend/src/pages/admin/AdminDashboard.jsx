@@ -127,10 +127,10 @@ const AdminDashboard = () => {
                   <Card
                     sx={{
                       background: [
-                        'linear-gradient(135deg, #7f0000 0%, #b71c1c 100%)', // deep red
-                        'linear-gradient(135deg, #c50e29 0%, #ff5252 100%)', // accent red
-                        'linear-gradient(135deg, #231417 0%, #7f0000 100%)', // dark to deep red
-                        'linear-gradient(135deg, #b71c1c 0%, #ff867f 100%)', // red to light red
+                        'linear-gradient(135deg, #7f0000 0%, #b71c1c 100%)',
+                        'linear-gradient(135deg, #c50e29 0%, #ff5252 100%)',
+                        'linear-gradient(135deg, #231417 0%, #7f0000 100%)',
+                        'linear-gradient(135deg, #b71c1c 0%, #ff867f 100%)',
                       ][idx],
                       color: 'white',
                       height: '100%',
@@ -139,6 +139,11 @@ const AdminDashboard = () => {
                       '&:hover': {
                         boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
                         transform: 'translateY(-8px) scale(1.02)',
+                        color: '#fff',
+                        '& .MuiSvgIcon-root': {
+                          color: '#fff',
+                          filter: 'drop-shadow(0 0 6px #b71c1c)'
+                        }
                       },
                       borderRadius: 3,
                       border: '1px solid rgba(255,255,255,0.1)'
@@ -293,9 +298,14 @@ const AdminDashboard = () => {
                             borderRadius: 2,
                             transition: 'all 0.3s ease',
                             p: 2,
-                            '&:hover': { 
-                              background: 'rgba(183,28,28,0.1)',
-                              transform: 'translateX(8px)'
+                            '&:hover': {
+                              background: 'rgba(183,28,28,0.18)',
+                              transform: 'translateX(8px)',
+                              color: '#fff',
+                              '& .MuiSvgIcon-root, & .MuiAvatar-root': {
+                                color: '#fff',
+                                background: '#b71c1c'
+                              }
                             }
                           }}>
                             <Tooltip title={activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}>

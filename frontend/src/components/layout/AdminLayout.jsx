@@ -26,7 +26,8 @@ import {
   Fab,
   Tooltip,
   Grid,
-  Card
+  Card,
+  Dialog
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
@@ -50,6 +51,7 @@ import {
   Close
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Profile from '../../pages/admin/Profile';
 
 const drawerWidth = 280;
 
@@ -145,18 +147,13 @@ const AdminLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [appDrawerOpen, setAppDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [
-    {
-      text: 'Profile',
-      icon: <AccountCircle />,
-      path: '/admin/profile',
-      description: 'View and edit your profile'
-    },
     {
       text: 'Dashboard',
       icon: <Dashboard />,
@@ -297,6 +294,10 @@ const AdminLayout = ({ children }) => {
                   color: '#fff',
                   boxShadow: '0 8px 24px 0 rgba(255,82,82,0.13)',
                   transform: 'translateY(-2px) scale(1.03)',
+                  '& .MuiListItemIcon-root': {
+                    color: '#fff',
+                    filter: 'drop-shadow(0 0 8px #ff5252)'
+                  }
                 },
                 '& .MuiListItemIcon-root': {
                   color: location.pathname === item.path ? '#fff' : '#ff5252',
@@ -474,7 +475,9 @@ const AdminLayout = ({ children }) => {
               </Badge>
               
               <IconButton
-                onClick={() => navigate('/admin/profile')}
+                color="inherit"
+                aria-label="profile"
+                onClick={() => setProfileOpen(true)}
                 sx={{ ml: 1 }}
               >
                 <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255, 255, 255, 0.2)' }}>
@@ -588,6 +591,10 @@ const AdminLayout = ({ children }) => {
         >
           {appDrawer}
         </Drawer>
+        
+        <Dialog open={profileOpen} onClose={() => setProfileOpen(false)} maxWidth="sm" fullWidth>
+          <Profile />
+        </Dialog>
         
       </Box>
     </ThemeProvider>
