@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -16,7 +16,18 @@ import {
   Chip,
   IconButton,
   Tooltip,
-  Alert
+  Alert,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import {
   BarChart,
@@ -44,8 +55,20 @@ import {
   Security,
   Warning,
   Error,
-  CheckCircle
+  CheckCircle,
+  PlayArrow,
+  Stop,
+  Analytics
 } from '@mui/icons-material';
+
+// Import API services
+import { 
+  checkApiHealth, 
+  getModels, 
+  predictThreat, 
+  getModelPerformance,
+  getSampleNetworkData 
+} from '../../services/api';
 
 const ThreatVisualization = () => {
   const [filters, setFilters] = useState({
@@ -55,6 +78,105 @@ const ThreatVisualization = () => {
   });
 
   const [chartType, setChartType] = useState('bar');
+  
+  // ML Integration states
+  const [apiStatus, setApiStatus] = useState('checking');
+  const [models, setModels] = useState({});
+  const [modelPerformance, setModelPerformance] = useState({});
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [predictionDialog, setPredictionDialog] = useState(false);
+  const [batchResults, setBatchResults] = useState(null);
+  const [isLiveMonitoring, setIsLiveMonitoring] = useState(false);
+  const [livePredictions, setLivePredictions] = useState([]);
+  const [testThreatType, setTestThreatType] = useState('normal');
+
+  // Initialize ML API connection
+  useEffect(() => {
+    initializeMLAPI();
+  }, []);
+
+  const initializeMLAPI = async () => {
+    try {
+      setApiStatus('checking');
+      const health = await checkApiHealth();
+      if (health.status === 'healthy') {
+        setApiStatus('connected');
+        
+        // Load models and performance data
+        const [modelsData, performanceData] = await Promise.all([
+          getModels(),
+          getModelPerformance()
+        ]);
+        
+        setModels(modelsData.available_models || {});
+        setModelPerformance(performanceData.model_performance || {});
+      } else {
+        setApiStatus('error');
+      }
+    } catch (error) {
+      console.error('ML API initialization failed:', error);
+      setApiStatus('error');
+    }
+  };
+
+  // Make single prediction
+  const handleSinglePrediction = async () => {
+    try {
+      setIsPredicting(true);
+      const sampleData = getSampleNetworkData(testThreatType);
+      const result = await predictThreat(sampleData);
+      setPredictionResult(result);
+      setPredictionDialog(true);
+    } catch (error) {
+      console.error('Prediction failed:', error);
+      alert('Prediction failed: ' + error.message);
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  // Batch prediction removed - handled in CSV upload page
+
+  // Live monitoring simulation
+  const startLiveMonitoring = () => {
+    setIsLiveMonitoring(true);
+    setLivePredictions([]);
+    
+    // Simulate live predictions every 5 seconds
+    const interval = setInterval(async () => {
+      if (!isLiveMonitoring) {
+        clearInterval(interval);
+        return;
+      }
+
+      try {
+        const sampleData = getSampleNetworkData();
+        // Add some randomness to simulate real network data
+        sampleData.src_bytes = Math.floor(Math.random() * 1000);
+        sampleData.dst_bytes = Math.floor(Math.random() * 5000);
+        sampleData.count = Math.floor(Math.random() * 20);
+        
+        const result = await predictThreat(sampleData);
+        setLivePredictions(prev => [
+          {
+            id: Date.now(),
+            timestamp: new Date().toLocaleTimeString(),
+            ...result
+          },
+          ...prev.slice(0, 9) // Keep only last 10 predictions
+        ]);
+      } catch (error) {
+        console.error('Live prediction failed:', error);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  };
+
+  const stopLiveMonitoring = () => {
+    setIsLiveMonitoring(false);
+  };
 
   // Sample data
   const threatData = [
@@ -193,6 +315,88 @@ const ThreatVisualization = () => {
           </Button>
         </Box>
       </Box>
+
+      {/* ML API Status */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Typography variant="h6">ML API Status:</Typography>
+          <Chip
+            label={apiStatus === 'connected' ? 'Connected' : apiStatus === 'checking' ? 'Checking...' : 'Disconnected'}
+            color={apiStatus === 'connected' ? 'success' : apiStatus === 'checking' ? 'warning' : 'error'}
+            icon={apiStatus === 'checking' ? <CircularProgress size={16} /> : undefined}
+          />
+          {apiStatus === 'error' && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={initializeMLAPI}
+            >
+              Retry Connection
+            </Button>
+          )}
+        </Box>
+      </Paper>
+
+      {/* ML Controls */}
+      {apiStatus === 'connected' && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" mb={2}>Machine Learning Controls</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Box display="flex" gap={1}>
+                <FormControl sx={{ minWidth: 200 }}>
+                  <InputLabel>Test Threat Type</InputLabel>
+                  <Select
+                    value={testThreatType}
+                    label="Test Threat Type"
+                    onChange={(e) => setTestThreatType(e.target.value)}
+                  >
+                    <MenuItem value="normal">Normal Traffic</MenuItem>
+                    <MenuItem value="ddos">DDoS Attack</MenuItem>
+                    <MenuItem value="scanning">Port Scanning</MenuItem>
+                    <MenuItem value="injection">SQL Injection</MenuItem>
+                    <MenuItem value="backdoor">Backdoor</MenuItem>
+                    <MenuItem value="xss">XSS Attack</MenuItem>
+                    <MenuItem value="ransomware">Ransomware</MenuItem>
+                    <MenuItem value="mitm">Man-in-the-Middle</MenuItem>
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="contained"
+                  startIcon={isPredicting ? <CircularProgress size={20} /> : <Analytics />}
+                  onClick={handleSinglePrediction}
+                  disabled={isPredicting}
+                  sx={{ 
+                    background: 'linear-gradient(135deg, #b71c1c 0%, #ff5252 100%)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #a01515 0%, #e64545 100%)'
+                    }
+                  }}
+                >
+                  Test Prediction
+                </Button>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="body2" color="textSecondary" align="center">
+                CSV uploads are handled in the CSV Upload page
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Button
+                variant={isLiveMonitoring ? "contained" : "outlined"}
+                fullWidth
+                startIcon={isLiveMonitoring ? <Stop /> : <PlayArrow />}
+                onClick={isLiveMonitoring ? stopLiveMonitoring : startLiveMonitoring}
+                disabled={isPredicting}
+                color={isLiveMonitoring ? "error" : "primary"}
+              >
+                {isLiveMonitoring ? 'Stop Live Monitoring' : 'Start Live Monitoring'}
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {/* Filters */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -427,6 +631,278 @@ const ThreatVisualization = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Live Monitoring Results */}
+      {isLiveMonitoring && livePredictions.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Live Monitoring Results
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                                     <TableRow>
+                       <TableCell>Time</TableCell>
+                       <TableCell>Threat Type</TableCell>
+                       <TableCell>Threat Level</TableCell>
+                       <TableCell>Final Prediction</TableCell>
+                       <TableCell>Random Forest</TableCell>
+                       <TableCell>XGBoost</TableCell>
+                       <TableCell>Neural Network</TableCell>
+                     </TableRow>
+              </TableHead>
+              <TableBody>
+                {livePredictions.map((pred) => (
+                                     <TableRow key={pred.id}>
+                     <TableCell>{pred.timestamp}</TableCell>
+                     <TableCell>
+                       <Chip
+                         label={pred.threat_type || 'Unknown'}
+                         color={pred.threat_type === 'normal' ? 'success' : 'error'}
+                         size="small"
+                       />
+                     </TableCell>
+                     <TableCell>
+                       <Chip
+                         label={pred.threat_level}
+                         color={
+                           pred.threat_level === 'Critical' ? 'error' : 
+                           pred.threat_level === 'High' ? 'warning' : 
+                           pred.threat_level === 'Normal' ? 'success' : 'default'
+                         }
+                         size="small"
+                       />
+                     </TableCell>
+                     <TableCell>{pred.final_prediction}</TableCell>
+                    <TableCell>
+                      {pred.predictions?.random_forest !== undefined ? (
+                        <Chip
+                          label={pred.predictions.random_forest ? 'Attack' : 'Normal'}
+                          color={pred.predictions.random_forest ? 'error' : 'success'}
+                          size="small"
+                        />
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {pred.predictions?.xgboost !== undefined ? (
+                        <Chip
+                          label={pred.predictions.xgboost ? 'Attack' : 'Normal'}
+                          color={pred.predictions.xgboost ? 'error' : 'success'}
+                          size="small"
+                        />
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {pred.predictions?.neural_network !== undefined ? (
+                        <Chip
+                          label={pred.predictions.neural_network ? 'Attack' : 'Normal'}
+                          color={pred.predictions.neural_network ? 'error' : 'success'}
+                          size="small"
+                        />
+                      ) : '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* Prediction Results Dialog */}
+      <Dialog
+        open={predictionDialog}
+        onClose={() => setPredictionDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {batchResults ? 'Batch Prediction Results' : 'Single Prediction Results'}
+        </DialogTitle>
+        <DialogContent>
+          {predictionResult && (
+            <Box>
+              <Typography variant="h6" gutterBottom>Prediction Summary</Typography>
+                             <Grid container spacing={2} mb={3}>
+                 <Grid item xs={4}>
+                   <Typography variant="body2" color="textSecondary">Threat Type:</Typography>
+                   <Chip
+                     label={predictionResult.threat_type || 'Unknown'}
+                     color={predictionResult.threat_type === 'normal' ? 'success' : 'error'}
+                     sx={{ mt: 1 }}
+                   />
+                 </Grid>
+                 <Grid item xs={4}>
+                   <Typography variant="body2" color="textSecondary">Threat Level:</Typography>
+                   <Chip
+                     label={predictionResult.threat_level}
+                     color={
+                       predictionResult.threat_level === 'Critical' ? 'error' : 
+                       predictionResult.threat_level === 'High' ? 'warning' : 
+                       predictionResult.threat_level === 'Normal' ? 'success' : 'default'
+                     }
+                     sx={{ mt: 1 }}
+                   />
+                 </Grid>
+                 <Grid item xs={4}>
+                   <Typography variant="body2" color="textSecondary">Final Prediction:</Typography>
+                   <Typography variant="body1" sx={{ mt: 1 }}>
+                     {predictionResult.threat_type === 'normal' ? 'Normal Traffic' : `${predictionResult.threat_type.toUpperCase()} Attack`}
+                   </Typography>
+                 </Grid>
+               </Grid>
+
+              <Typography variant="h6" gutterBottom>Model Predictions</Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                                         <TableRow>
+                       <TableCell>Model</TableCell>
+                       <TableCell>Prediction</TableCell>
+                       <TableCell>Threat Type</TableCell>
+                       <TableCell>Confidence</TableCell>
+                     </TableRow>
+                  </TableHead>
+                                     <TableBody>
+                     {Object.entries(predictionResult.predictions || {}).map(([model, pred]) => {
+                       const threatTypes = {
+                         0: "normal",
+                         1: "scanning", 
+                         2: "ddos",
+                         3: "injection",
+                         4: "backdoor",
+                         5: "xss",
+                         6: "ransomware",
+                         7: "mitm"
+                       };
+                       const threatType = threatTypes[pred] || 'unknown';
+                       const confidence = predictionResult.probabilities?.[model]?.[threatType] || 
+                                        (predictionResult.probabilities?.[model] && 
+                                         Object.values(predictionResult.probabilities[model])[0]) || 0;
+                       
+                       return (
+                         <TableRow key={model}>
+                           <TableCell>{model.replace('_', ' ').toUpperCase()}</TableCell>
+                           <TableCell>
+                             <Chip
+                               label={pred !== null ? pred : 'Error'}
+                               color={threatType === 'normal' ? 'success' : 'error'}
+                               size="small"
+                             />
+                           </TableCell>
+                           <TableCell>
+                             <Chip
+                               label={threatType}
+                               color={threatType === 'normal' ? 'success' : 'error'}
+                               size="small"
+                             />
+                           </TableCell>
+                           <TableCell>
+                             {confidence ? `${(confidence * 100).toFixed(2)}%` : '-'}
+                           </TableCell>
+                         </TableRow>
+                       );
+                     })}
+                   </TableBody>
+                </Table>
+              </TableContainer>
+
+              <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>Input Data</Typography>
+              <Typography variant="body2" component="pre" sx={{ 
+                backgroundColor: '#f5f5f5', 
+                p: 2, 
+                borderRadius: 1,
+                overflow: 'auto',
+                maxHeight: 200
+              }}>
+                {JSON.stringify(predictionResult.input_data, null, 2)}
+              </Typography>
+            </Box>
+          )}
+
+          {batchResults && (
+            <Box>
+              <Typography variant="h6" gutterBottom>Batch Processing Summary</Typography>
+              <Grid container spacing={2} mb={3}>
+                <Grid item xs={4}>
+                  <Typography variant="body2" color="textSecondary">Total Rows:</Typography>
+                  <Typography variant="h6">{batchResults.total_rows}</Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body2" color="textSecondary">Processed:</Typography>
+                  <Typography variant="h6">{batchResults.processed_rows}</Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body2" color="textSecondary">Success Rate:</Typography>
+                  <Typography variant="h6">
+                    {((batchResults.processed_rows / batchResults.total_rows) * 100).toFixed(1)}%
+                  </Typography>
+                </Grid>
+              </Grid>
+
+              <Typography variant="h6" gutterBottom>Sample Results</Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                                         <TableRow>
+                       <TableCell>Row</TableCell>
+                       <TableCell>Threat Type</TableCell>
+                       <TableCell>Threat Level</TableCell>
+                       <TableCell>Final Prediction</TableCell>
+                       <TableCell>Status</TableCell>
+                     </TableRow>
+                  </TableHead>
+                  <TableBody>
+                                         {batchResults.results.slice(0, 10).map((result, index) => (
+                       <TableRow key={index}>
+                         <TableCell>{result.row}</TableCell>
+                         <TableCell>
+                           {result.prediction ? (
+                             <Chip
+                               label={result.prediction.threat_type || 'Unknown'}
+                               color={result.prediction.threat_type === 'normal' ? 'success' : 'error'}
+                               size="small"
+                             />
+                           ) : '-'}
+                         </TableCell>
+                         <TableCell>
+                           {result.prediction ? (
+                             <Chip
+                               label={result.prediction.threat_level}
+                               color={
+                                 result.prediction.threat_level === 'Critical' ? 'error' : 
+                                 result.prediction.threat_level === 'High' ? 'warning' : 
+                                 result.prediction.threat_level === 'Normal' ? 'success' : 'default'
+                               }
+                               size="small"
+                             />
+                           ) : '-'}
+                         </TableCell>
+                         <TableCell>
+                           {result.prediction?.threat_type 
+                             ? (result.prediction.threat_type === 'normal' ? 'Normal Traffic' : `${result.prediction.threat_type.toUpperCase()} Attack`)
+                             : '-'
+                           }
+                         </TableCell>
+                         <TableCell>
+                           {result.error ? (
+                             <Chip label="Error" color="error" size="small" />
+                           ) : (
+                             <Chip label="Success" color="success" size="small" />
+                           )}
+                         </TableCell>
+                       </TableRow>
+                     ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPredictionDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Alerts */}
       <Box sx={{ mt: 3 }}>

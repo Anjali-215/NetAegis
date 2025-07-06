@@ -21,7 +21,14 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress
 } from '@mui/material';
 import {
   CloudUpload,
@@ -35,6 +42,7 @@ import {
   Refresh
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
+import { predictThreat, checkApiHealth } from '../../services/api';
 
 const CSVUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState([
@@ -74,6 +82,17 @@ const CSVUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewDialog, setPreviewDialog] = useState({ open: false, data: null });
+  const [apiStatus, setApiStatus] = useState('checking');
+  const [predictionResults, setPredictionResults] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
+
+  // Check API status on component mount
+  React.useEffect(() => {
+    checkApiHealth()
+      .then(() => setApiStatus('connected'))
+      .catch(() => setApiStatus('error'));
+  }, []);
 
   const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -96,32 +115,53 @@ const CSVUpload = () => {
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Simulate file upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          
-          // Add file to uploaded files list
-          const newFile = {
-            id: uploadedFiles.length + 1,
-            name: file.name,
-            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-            status: 'completed',
-            uploadDate: new Date().toLocaleString(),
-            records: Math.floor(Math.random() * 1000) + 100,
-            errors: Math.floor(Math.random() * 5),
-            warnings: Math.floor(Math.random() * 10)
-          };
-          
-          setUploadedFiles([newFile, ...uploadedFiles]);
-          setSelectedFile(null);
-          return 100;
-        }
-        return prev + 10;
+    try {
+      // Read CSV file
+      const text = await file.text();
+      const lines = text.split('\n');
+      const headers = lines[0].split(',');
+      const data = lines.slice(1).filter(line => line.trim()).map(line => {
+        const values = line.split(',');
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header.trim()] = values[index] ? values[index].trim() : '';
+        });
+        return row;
       });
-    }, 200);
+
+      // Simulate upload progress
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setIsUploading(false);
+            
+            // Add file to uploaded files list
+            const newFile = {
+              id: uploadedFiles.length + 1,
+              name: file.name,
+              size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+              status: 'completed',
+              uploadDate: new Date().toLocaleString(),
+              records: data.length,
+              errors: 0,
+              warnings: 0,
+              data: data // Store the actual data
+            };
+            
+            setUploadedFiles([newFile, ...uploadedFiles]);
+            setSelectedFile(null);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+    } catch (error) {
+      console.error('Error reading file:', error);
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleDeleteFile = (fileId) => {
@@ -129,16 +169,93 @@ const CSVUpload = () => {
   };
 
   const handlePreviewFile = (file) => {
-    // Simulate file preview data
-    const previewData = [
-      { timestamp: '2024-01-15 10:30:15', sourceIP: '192.168.1.100', destIP: '10.0.0.1', threatType: 'Malware', confidence: 'High' },
-      { timestamp: '2024-01-15 10:30:16', sourceIP: '192.168.1.101', destIP: '10.0.0.2', threatType: 'DDoS', confidence: 'Medium' },
-      { timestamp: '2024-01-15 10:30:17', sourceIP: '192.168.1.102', destIP: '10.0.0.3', threatType: 'Phishing', confidence: 'High' },
-      { timestamp: '2024-01-15 10:30:18', sourceIP: '192.168.1.103', destIP: '10.0.0.4', threatType: 'SQL Injection', confidence: 'Low' },
-      { timestamp: '2024-01-15 10:30:19', sourceIP: '192.168.1.104', destIP: '10.0.0.5', threatType: 'Malware', confidence: 'High' }
-    ];
-    
-    setPreviewDialog({ open: true, data: previewData });
+    if (file.data) {
+      setPreviewDialog({ open: true, data: file.data.slice(0, 10) });
+    }
+  };
+
+  const handleProcessWithML = async (file) => {
+    if (!file.data || apiStatus !== 'connected') {
+      alert('Cannot process: No data or API not connected');
+      return;
+    }
+
+    setIsProcessing(true);
+    const results = [];
+
+    try {
+      // Process each row with ML
+      for (let i = 0; i < Math.min(file.data.length, 50); i++) { // Limit to 50 rows for demo
+        const row = file.data[i];
+        
+        // Convert CSV data to ML format (you may need to adjust this based on your CSV structure)
+        const mlData = {
+          duration: parseFloat(row.duration) || 0,
+          protocol_type: row.protocol_type || 'tcp',
+          service: row.service || 'http',
+          flag: row.flag || 'SF',
+          src_bytes: parseFloat(row.src_bytes) || 0,
+          dst_bytes: parseFloat(row.dst_bytes) || 0,
+          land: parseFloat(row.land) || 0,
+          wrong_fragment: parseFloat(row.wrong_fragment) || 0,
+          urgent: parseFloat(row.urgent) || 0,
+          hot: parseFloat(row.hot) || 0,
+          num_failed_logins: parseFloat(row.num_failed_logins) || 0,
+          logged_in: parseFloat(row.logged_in) || 0,
+          num_compromised: parseFloat(row.num_compromised) || 0,
+          root_shell: parseFloat(row.root_shell) || 0,
+          su_attempted: parseFloat(row.su_attempted) || 0,
+          num_root: parseFloat(row.num_root) || 0,
+          num_file_creations: parseFloat(row.num_file_creations) || 0,
+          num_shells: parseFloat(row.num_shells) || 0,
+          num_access_files: parseFloat(row.num_access_files) || 0,
+          num_outbound_cmds: parseFloat(row.num_outbound_cmds) || 0,
+          is_host_login: parseFloat(row.is_host_login) || 0,
+          is_guest_login: parseFloat(row.is_guest_login) || 0,
+          count: parseFloat(row.count) || 0,
+          srv_count: parseFloat(row.srv_count) || 0,
+          serror_rate: parseFloat(row.serror_rate) || 0.0,
+          srv_serror_rate: parseFloat(row.srv_serror_rate) || 0.0,
+          rerror_rate: parseFloat(row.rerror_rate) || 0.0,
+          srv_rerror_rate: parseFloat(row.srv_rerror_rate) || 0.0,
+          same_srv_rate: parseFloat(row.same_srv_rate) || 0.0,
+          diff_srv_rate: parseFloat(row.diff_srv_rate) || 0.0,
+          srv_diff_host_rate: parseFloat(row.srv_diff_host_rate) || 0.0,
+          dst_host_count: parseFloat(row.dst_host_count) || 0,
+          dst_host_srv_count: parseFloat(row.dst_host_srv_count) || 0,
+          dst_host_same_srv_rate: parseFloat(row.dst_host_same_srv_rate) || 0.0,
+          dst_host_diff_srv_rate: parseFloat(row.dst_host_diff_srv_rate) || 0.0,
+          dst_host_same_src_port_rate: parseFloat(row.dst_host_same_src_port_rate) || 0.0,
+          dst_host_srv_diff_host_rate: parseFloat(row.dst_host_srv_diff_host_rate) || 0.0,
+          dst_host_serror_rate: parseFloat(row.dst_host_serror_rate) || 0.0,
+          dst_host_srv_serror_rate: parseFloat(row.dst_host_srv_serror_rate) || 0.0,
+          dst_host_rerror_rate: parseFloat(row.dst_host_rerror_rate) || 0.0,
+          dst_host_srv_rerror_rate: parseFloat(row.dst_host_srv_rerror_rate) || 0.0
+        };
+
+        try {
+          const prediction = await predictThreat(mlData);
+          results.push({
+            row: i + 1,
+            originalData: row,
+            prediction: prediction
+          });
+        } catch (error) {
+          results.push({
+            row: i + 1,
+            originalData: row,
+            error: error.message
+          });
+        }
+      }
+
+      setResultsDialog({ open: true, results: results });
+    } catch (error) {
+      console.error('ML processing error:', error);
+      alert('Error processing with ML: ' + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -197,9 +314,19 @@ const CSVUpload = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
-        Upload Threat CSV
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+          Upload Threat CSV
+        </Typography>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Typography variant="body2">ML API Status:</Typography>
+          <Chip
+            label={apiStatus === 'connected' ? 'Connected' : apiStatus === 'checking' ? 'Checking...' : 'Disconnected'}
+            color={apiStatus === 'connected' ? 'success' : apiStatus === 'checking' ? 'warning' : 'error'}
+            size="small"
+          />
+        </Box>
+      </Box>
 
       <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
         {/* Upload Area */}
@@ -369,6 +496,20 @@ const CSVUpload = () => {
                   </IconButton>
                 </Tooltip>
                 
+                <Tooltip title="Process with ML">
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleProcessWithML(file)}
+                    disabled={file.status !== 'completed' || apiStatus !== 'connected' || isProcessing}
+                  >
+                    {isProcessing ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <Refresh sx={{ color: '#ff5252' }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+                
                 <Tooltip title="Download">
                   <IconButton size="small" disabled={file.status !== 'completed'}>
                     <Download sx={{ color: '#ff5252' }} />
@@ -459,6 +600,94 @@ const CSVUpload = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPreviewDialog({ open: false, data: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ML Results Dialog */}
+      <Dialog 
+        open={resultsDialog.open} 
+        onClose={() => setResultsDialog({ open: false, results: null })}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          ML Processing Results
+        </DialogTitle>
+        <DialogContent>
+          {resultsDialog.results && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Processed {resultsDialog.results.length} rows
+              </Typography>
+              
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Row</TableCell>
+                      <TableCell>Threat Type</TableCell>
+                      <TableCell>Threat Level</TableCell>
+                      <TableCell>Final Prediction</TableCell>
+                      <TableCell>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {resultsDialog.results.slice(0, 20).map((result, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{result.row}</TableCell>
+                        <TableCell>
+                          {result.prediction ? (
+                            <Chip
+                              label={result.prediction.threat_type || 'Unknown'}
+                              color={result.prediction.threat_type === 'normal' ? 'success' : 'error'}
+                              size="small"
+                            />
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {result.prediction ? (
+                            <Chip
+                              label={result.prediction.threat_level}
+                              color={
+                                result.prediction.threat_level === 'Critical' ? 'error' : 
+                                result.prediction.threat_level === 'High' ? 'warning' : 
+                                result.prediction.threat_level === 'Normal' ? 'success' : 'default'
+                              }
+                              size="small"
+                            />
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {result.prediction?.threat_type 
+                            ? (result.prediction.threat_type === 'normal' ? 'Normal Traffic' : `${result.prediction.threat_type.toUpperCase()} Attack`)
+                            : result.error ? 'Error' : '-'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {result.error ? (
+                            <Chip label="Error" color="error" size="small" />
+                          ) : (
+                            <Chip label="Success" color="success" size="small" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              {resultsDialog.results.length > 20 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  Showing first 20 results. Total processed: {resultsDialog.results.length}
+                </Typography>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResultsDialog({ open: false, results: null })}>
             Close
           </Button>
         </DialogActions>
