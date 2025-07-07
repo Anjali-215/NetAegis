@@ -1,4 +1,7 @@
 import React, { useState, useCallback } from 'react';
+import Papa from 'papaparse';
+import api, { testMLPrediction, checkApiHealth, predictThreat } from '../../services/api';
+import { preprocessNetworkData } from '../../utils/preprocessor';
 import {
   Box,
   Container,
@@ -31,18 +34,17 @@ import {
   CircularProgress
 } from '@mui/material';
 import {
-  CloudUpload,
-  CheckCircle,
-  Error,
-  Warning,
-  Info,
+  CloudUpload as CloudUploadIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
   Delete,
   Visibility,
   Download,
   Refresh
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
-import { predictThreat, checkApiHealth } from '../../services/api';
 
 const CSVUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState([
@@ -86,6 +88,7 @@ const CSVUpload = () => {
   const [predictionResults, setPredictionResults] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
+  const [isTestingML, setIsTestingML] = useState(false);
 
   // Check API status on component mount
   React.useEffect(() => {
@@ -95,6 +98,7 @@ const CSVUpload = () => {
   }, []);
 
   const onDrop = useCallback((acceptedFiles) => {
+    console.log("onDrop called", acceptedFiles);
     const file = acceptedFiles[0];
     if (file) {
       setSelectedFile(file);
@@ -129,6 +133,8 @@ const CSVUpload = () => {
         return row;
       });
 
+      console.log("Parsed CSV data:", data);
+
       // Simulate upload progress
       const interval = setInterval(() => {
         setUploadProgress((prev) => {
@@ -150,6 +156,7 @@ const CSVUpload = () => {
             };
             
             setUploadedFiles([newFile, ...uploadedFiles]);
+            console.log("Uploaded files state:", [newFile, ...uploadedFiles]);
             setSelectedFile(null);
             return 100;
           }
@@ -175,6 +182,7 @@ const CSVUpload = () => {
   };
 
   const handleProcessWithML = async (file) => {
+    console.log("Process with ML clicked", file);
     if (!file.data || apiStatus !== 'connected') {
       alert('Cannot process: No data or API not connected');
       return;
@@ -188,63 +196,38 @@ const CSVUpload = () => {
       for (let i = 0; i < Math.min(file.data.length, 50); i++) { // Limit to 50 rows for demo
         const row = file.data[i];
         
-        // Convert CSV data to ML format (you may need to adjust this based on your CSV structure)
-        const mlData = {
-          duration: parseFloat(row.duration) || 0,
-          protocol_type: row.protocol_type || 'tcp',
-          service: row.service || 'http',
-          flag: row.flag || 'SF',
-          src_bytes: parseFloat(row.src_bytes) || 0,
-          dst_bytes: parseFloat(row.dst_bytes) || 0,
-          land: parseFloat(row.land) || 0,
-          wrong_fragment: parseFloat(row.wrong_fragment) || 0,
-          urgent: parseFloat(row.urgent) || 0,
-          hot: parseFloat(row.hot) || 0,
-          num_failed_logins: parseFloat(row.num_failed_logins) || 0,
-          logged_in: parseFloat(row.logged_in) || 0,
-          num_compromised: parseFloat(row.num_compromised) || 0,
-          root_shell: parseFloat(row.root_shell) || 0,
-          su_attempted: parseFloat(row.su_attempted) || 0,
-          num_root: parseFloat(row.num_root) || 0,
-          num_file_creations: parseFloat(row.num_file_creations) || 0,
-          num_shells: parseFloat(row.num_shells) || 0,
-          num_access_files: parseFloat(row.num_access_files) || 0,
-          num_outbound_cmds: parseFloat(row.num_outbound_cmds) || 0,
-          is_host_login: parseFloat(row.is_host_login) || 0,
-          is_guest_login: parseFloat(row.is_guest_login) || 0,
-          count: parseFloat(row.count) || 0,
-          srv_count: parseFloat(row.srv_count) || 0,
-          serror_rate: parseFloat(row.serror_rate) || 0.0,
-          srv_serror_rate: parseFloat(row.srv_serror_rate) || 0.0,
-          rerror_rate: parseFloat(row.rerror_rate) || 0.0,
-          srv_rerror_rate: parseFloat(row.srv_rerror_rate) || 0.0,
-          same_srv_rate: parseFloat(row.same_srv_rate) || 0.0,
-          diff_srv_rate: parseFloat(row.diff_srv_rate) || 0.0,
-          srv_diff_host_rate: parseFloat(row.srv_diff_host_rate) || 0.0,
-          dst_host_count: parseFloat(row.dst_host_count) || 0,
-          dst_host_srv_count: parseFloat(row.dst_host_srv_count) || 0,
-          dst_host_same_srv_rate: parseFloat(row.dst_host_same_srv_rate) || 0.0,
-          dst_host_diff_srv_rate: parseFloat(row.dst_host_diff_srv_rate) || 0.0,
-          dst_host_same_src_port_rate: parseFloat(row.dst_host_same_src_port_rate) || 0.0,
-          dst_host_srv_diff_host_rate: parseFloat(row.dst_host_srv_diff_host_rate) || 0.0,
-          dst_host_serror_rate: parseFloat(row.dst_host_serror_rate) || 0.0,
-          dst_host_srv_serror_rate: parseFloat(row.dst_host_srv_serror_rate) || 0.0,
-          dst_host_rerror_rate: parseFloat(row.dst_host_rerror_rate) || 0.0,
-          dst_host_srv_rerror_rate: parseFloat(row.dst_host_srv_rerror_rate) || 0.0
-        };
-
-        try {
-          const prediction = await predictThreat(mlData);
+        // Validate the data first
+        const validation = preprocessNetworkData(row);
+        if (!validation.isValid) {
           results.push({
             row: i + 1,
-            originalData: row,
-            prediction: prediction
+            status: 'error',
+            error: validation.errors.join(', '),
+            data: row
+          });
+          continue;
+        }
+        
+        // Get the preprocessed data
+        const preprocessedData = validation.processedData;
+
+        try {
+          const prediction = await predictThreat(preprocessedData);
+          results.push({
+            row: i + 1,
+            status: 'completed',
+            prediction: prediction.prediction,
+            threatType: prediction.threat_type,
+            threatLevel: prediction.threat_level,
+            confidence: prediction.confidence,
+            data: row
           });
         } catch (error) {
           results.push({
             row: i + 1,
-            originalData: row,
-            error: error.message
+            status: 'error',
+            error: error.message,
+            data: row
           });
         }
       }
@@ -258,16 +241,28 @@ const CSVUpload = () => {
     }
   };
 
+  const handleTestML = async () => {
+    setIsTestingML(true);
+    try {
+      const result = await testMLPrediction();
+      alert(`Test successful! Prediction: ${result.prediction}, Threat Level: ${result.threat_level}`);
+    } catch (error) {
+      alert(`Test failed: ${error.message}`);
+    } finally {
+      setIsTestingML(false);
+    }
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle sx={{ color: '#b71c1c' }} />;
+        return <CheckCircleIcon sx={{ color: '#b71c1c' }} />;
       case 'processing':
-        return <Info sx={{ color: '#3a2323' }} />;
+        return <InfoIcon sx={{ color: '#3a2323' }} />;
       case 'error':
-        return <Error sx={{ color: '#ff5252' }} />;
+        return <ErrorIcon sx={{ color: '#ff5252' }} />;
       default:
-        return <Warning sx={{ color: '#c50e29' }} />;
+        return <WarningIcon sx={{ color: '#c50e29' }} />;
     }
   };
 
@@ -325,6 +320,15 @@ const CSVUpload = () => {
             color={apiStatus === 'connected' ? 'success' : apiStatus === 'checking' ? 'warning' : 'error'}
             size="small"
           />
+          {/* Test Button */}
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleTestML}
+            disabled={isTestingML}
+          >
+            Test ML
+          </Button>
         </Box>
       </Box>
 
@@ -348,7 +352,7 @@ const CSVUpload = () => {
             }}
           >
             <input {...getInputProps()} />
-            <CloudUpload sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+            <CloudUploadIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
             <Typography variant="h6" gutterBottom>
               {isDragActive ? 'Drop the CSV file here' : 'Drag & drop a CSV file here'}
             </Typography>
@@ -394,7 +398,7 @@ const CSVUpload = () => {
               <List dense>
                 <ListItem>
                   <ListItemIcon>
-                    <Info sx={{ color: '#3a2323' }} />
+                    <InfoIcon sx={{ color: '#3a2323' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="File Format" 
@@ -403,7 +407,7 @@ const CSVUpload = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
-                    <CheckCircle sx={{ color: '#b71c1c' }} />
+                    <CheckCircleIcon sx={{ color: '#b71c1c' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Required Columns" 
@@ -412,7 +416,7 @@ const CSVUpload = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
-                    <Warning sx={{ color: '#c50e29' }} />
+                    <WarningIcon sx={{ color: '#c50e29' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="File Size" 
@@ -421,7 +425,7 @@ const CSVUpload = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
-                    <Error sx={{ color: '#ff5252' }} />
+                    <ErrorIcon sx={{ color: '#ff5252' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Data Validation" 
@@ -638,30 +642,30 @@ const CSVUpload = () => {
                       <TableRow key={index}>
                         <TableCell>{result.row}</TableCell>
                         <TableCell>
-                          {result.prediction ? (
+                          {result.threatType ? (
                             <Chip
-                              label={result.prediction.threat_type || 'Unknown'}
-                              color={result.prediction.threat_type === 'normal' ? 'success' : 'error'}
+                              label={result.threatType}
+                              color={result.threatType === 'normal' ? 'success' : 'error'}
                               size="small"
                             />
                           ) : '-'}
                         </TableCell>
                         <TableCell>
-                          {result.prediction ? (
+                          {result.threatLevel ? (
                             <Chip
-                              label={result.prediction.threat_level}
+                              label={result.threatLevel}
                               color={
-                                result.prediction.threat_level === 'Critical' ? 'error' : 
-                                result.prediction.threat_level === 'High' ? 'warning' : 
-                                result.prediction.threat_level === 'Normal' ? 'success' : 'default'
+                                result.threatLevel === 'Critical' ? 'error' : 
+                                result.threatLevel === 'High' ? 'warning' : 
+                                result.threatLevel === 'Normal' ? 'success' : 'default'
                               }
                               size="small"
                             />
                           ) : '-'}
                         </TableCell>
                         <TableCell>
-                          {result.prediction?.threat_type 
-                            ? (result.prediction.threat_type === 'normal' ? 'Normal Traffic' : `${result.prediction.threat_type.toUpperCase()} Attack`)
+                          {result.threatType 
+                            ? (result.threatType === 'normal' ? 'Normal Traffic' : `${result.threatType.toUpperCase()} Attack`)
                             : result.error ? 'Error' : '-'
                           }
                         </TableCell>

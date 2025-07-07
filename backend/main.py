@@ -111,51 +111,54 @@ async def predict_threat(data: Dict[str, Any]):
             df = pd.DataFrame(data)
         else:
             raise HTTPException(status_code=400, detail="Invalid data format")
-        # Ensure all required features are present
+        
+        # Ensure all required features are present (using actual dataset features)
         required_features = [
-            'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 
-            'dst_bytes', 'land', 'wrong_fragment', 'urgent', 'hot', 
-            'num_failed_logins', 'logged_in', 'num_compromised', 
-            'root_shell', 'su_attempted', 'num_root', 'num_file_creations', 
-            'num_shells', 'num_access_files', 'num_outbound_cmds', 
-            'is_host_login', 'is_guest_login', 'count', 'srv_count', 
-            'serror_rate', 'srv_serror_rate', 'rerror_rate', 
-            'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate', 
-            'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count', 
-            'dst_host_same_srv_rate', 'dst_host_diff_srv_rate', 
-            'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate', 
-            'dst_host_serror_rate', 'dst_host_srv_serror_rate', 
-            'dst_host_rerror_rate', 'dst_host_srv_rerror_rate'
+            'src_ip', 'src_port', 'dst_ip', 'dst_port', 'proto', 'service', 'duration', 'src_bytes', 'dst_bytes',
+            'conn_state', 'missed_bytes', 'src_pkts', 'src_ip_bytes', 'dst_pkts', 'dst_ip_bytes', 'dns_query', 
+            'dns_qclass', 'dns_qtype', 'dns_rcode', 'dns_AA', 'dns_RD', 'dns_RA', 'dns_rejected', 
+            'http_request_body_len', 'http_response_body_len', 'http_status_code', 'label'
         ]
+        
         for feature in required_features:
             if feature not in df.columns:
                 df[feature] = 0
+        
         df = df[required_features]
+        
         # Only use Random Forest
         if 'random_forest' not in models:
             raise HTTPException(status_code=500, detail="Random Forest model not loaded")
+        
         model = models['random_forest']
+        
         try:
             pred = model.predict(df)[0]
             prob = model.predict_proba(df)[0] if hasattr(model, 'predict_proba') else None
         except Exception as e:
             logger.error(f"Error with Random Forest: {e}")
             raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
-        # Map prediction to threat type
+        
+        # Map prediction to threat type (based on your actual dataset classes)
         threat_types = {
-            0: "normal",
-            1: "scanning", 
-            2: "ddos",
+            0: "backdoor",
+            1: "ddos", 
+            2: "dos",
             3: "injection",
-            4: "backdoor",
-            5: "xss",
-            6: "ransomware",
-            7: "mitm"
+            4: "mitm",
+            5: "normal",
+            6: "password",
+            7: "ransomware",
+            8: "scanning",
+            9: "xss"
         }
+        
         threat_type = threat_types.get(pred, "unknown")
+        
         # Determine threat level based on type
-        high_threat_types = ["ddos", "ransomware", "backdoor", "mitm"]
-        medium_threat_types = ["injection", "xss", "scanning"]
+        high_threat_types = ["ddos", "ransomware", "backdoor", "mitm", "dos"]
+        medium_threat_types = ["injection", "xss", "scanning", "password"]
+        
         if threat_type in high_threat_types:
             threat_level = "Critical"
         elif threat_type in medium_threat_types:
@@ -164,6 +167,7 @@ async def predict_threat(data: Dict[str, Any]):
             threat_level = "Normal"
         else:
             threat_level = "Unknown"
+        
         return {
             "input_data": data,
             "prediction": int(pred),

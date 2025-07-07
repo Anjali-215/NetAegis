@@ -80,47 +80,30 @@ export const getModelPerformance = async () => {
 // Sample network data for testing different threat types
 export const getSampleNetworkData = (threatType = 'normal') => {
   const baseData = {
-    duration: 0,
-    protocol_type: 'tcp',
-    service: 'http',
-    flag: 'SF',
-    src_bytes: 181,
-    dst_bytes: 5450,
-    land: 0,
-    wrong_fragment: 0,
-    urgent: 0,
-    hot: 0,
-    num_failed_logins: 0,
-    logged_in: 1,
-    num_compromised: 0,
-    root_shell: 0,
-    su_attempted: 0,
-    num_root: 0,
-    num_file_creations: 0,
-    num_shells: 0,
-    num_access_files: 0,
-    num_outbound_cmds: 0,
-    is_host_login: 0,
-    is_guest_login: 0,
-    count: 8,
-    srv_count: 8,
-    serror_rate: 0.0,
-    srv_serror_rate: 0.0,
-    rerror_rate: 0.0,
-    srv_rerror_rate: 0.0,
-    same_srv_rate: 1.0,
-    diff_srv_rate: 0.0,
-    srv_diff_host_rate: 0.0,
-    dst_host_count: 19,
-    dst_host_srv_count: 19,
-    dst_host_same_srv_rate: 1.0,
-    dst_host_diff_srv_rate: 0.0,
-    dst_host_same_src_port_rate: 0.05,
-    dst_host_srv_diff_host_rate: 0.0,
-    dst_host_serror_rate: 0.0,
-    dst_host_srv_serror_rate: 0.0,
-    dst_host_rerror_rate: 0.0,
-    dst_host_srv_rerror_rate: 0.0
+    src_port: 4444,
+    dst_port: 49178,
+    proto: 0, // tcp
+    service: 0, // -
+    duration: 290.371539,
+    src_bytes: 101568,
+    dst_bytes: 2592,
+    conn_state: 9, // OTH
+    missed_bytes: 0,
+    history: 'D',
+    orig_pkts: 1,
+    orig_ip_bytes: 0,
+    resp_pkts: 1,
+    resp_ip_bytes: 0,
+    tunnel_parents: 0,
+    dns_query: 0,
+    dns_rcode: 0,
+    dns_AA: 2, // none
+    dns_RD: 2, // none
+    dns_RA: 2, // none
+    dns_rejected: 2, // none
+    http_request_body_len: 0,
+    http_response_body_len: 0,
+    http_status_code: 0
   };
 
   // Modify data based on threat type for testing
@@ -131,10 +114,9 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 0,
         src_bytes: 0,
         dst_bytes: 0,
-        count: 100,
-        srv_count: 100,
-        dst_host_count: 100,
-        dst_host_srv_count: 100
+        orig_pkts: 100,
+        resp_pkts: 100,
+        conn_state: 1 // S0
       };
     case 'scanning':
       return {
@@ -142,10 +124,9 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 0,
         src_bytes: 0,
         dst_bytes: 0,
-        count: 50,
-        srv_count: 50,
-        dst_host_count: 50,
-        dst_host_srv_count: 50
+        orig_pkts: 50,
+        resp_pkts: 50,
+        conn_state: 2 // REJ
       };
     case 'injection':
       return {
@@ -153,8 +134,9 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 0,
         src_bytes: 1000,
         dst_bytes: 1000,
-        num_failed_logins: 5,
-        logged_in: 0
+        service: 1, // http
+        http_request_body_len: 500,
+        http_response_body_len: 500
       };
     case 'backdoor':
       return {
@@ -162,9 +144,8 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 1000,
         src_bytes: 100,
         dst_bytes: 100,
-        root_shell: 1,
-        num_root: 1,
-        num_shells: 1
+        service: 0, // -
+        conn_state: 9 // OTH
       };
     case 'xss':
       return {
@@ -172,8 +153,9 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 0,
         src_bytes: 500,
         dst_bytes: 500,
-        service: 'http',
-        num_access_files: 1
+        service: 1, // http
+        http_request_body_len: 200,
+        http_response_body_len: 200
       };
     case 'ransomware':
       return {
@@ -181,8 +163,8 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 5000,
         src_bytes: 10000,
         dst_bytes: 10000,
-        num_file_creations: 10,
-        num_access_files: 10
+        orig_pkts: 10,
+        resp_pkts: 10
       };
     case 'mitm':
       return {
@@ -190,12 +172,78 @@ export const getSampleNetworkData = (threatType = 'normal') => {
         duration: 100,
         src_bytes: 2000,
         dst_bytes: 2000,
-        service: 'ssl',
-        num_compromised: 1
+        service: 3, // ssl
+        conn_state: 0 // SF
+      };
+    case 'password':
+      return {
+        ...baseData,
+        duration: 50,
+        src_bytes: 300,
+        dst_bytes: 300,
+        service: 6, // ssh
+        conn_state: 0 // SF
+      };
+    case 'dos':
+      return {
+        ...baseData,
+        duration: 0,
+        src_bytes: 0,
+        dst_bytes: 0,
+        orig_pkts: 200,
+        resp_pkts: 0,
+        conn_state: 2 // REJ
       };
     default: // normal
       return baseData;
   }
+};
+
+export const testMLPrediction = async () => {
+  const testData = {
+    src_ip: 3232235777,
+    src_port: 80,
+    dst_ip: 3232235778,
+    dst_port: 443,
+    proto: 1,
+    service: 1,
+    duration: 1.5,
+    src_bytes: 1024,
+    dst_bytes: 2048,
+    conn_state: 1,
+    missed_bytes: 0,
+    src_pkts: 10,
+    src_ip_bytes: 1024,
+    dst_pkts: 8,
+    dst_ip_bytes: 2048,
+    dns_query: 0,
+    dns_qclass: 0,
+    dns_qtype: 0,
+    dns_rcode: 0,
+    dns_AA: 0,
+    dns_RD: 0,
+    dns_RA: 0,
+    dns_rejected: 0,
+    http_request_body_len: 0,
+    http_response_body_len: 0,
+    http_status_code: 0,
+    label: 1
+  };
+  
+  const response = await fetch(`${API_BASE_URL}/predict`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(testData),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+  }
+  
+  return await response.json();
 };
 
 export default api; 
