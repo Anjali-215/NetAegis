@@ -200,22 +200,23 @@ export const getSampleNetworkData = (threatType = 'normal') => {
 };
 
 export const testMLPrediction = async () => {
+  // Test with DDoS pattern using correct field names
   const testData = {
     src_ip: 3232235777,
     src_port: 80,
     dst_ip: 3232235778,
-    dst_port: 443,
-    proto: 1,
-    service: 1,
-    duration: 1.5,
-    src_bytes: 1024,
-    dst_bytes: 2048,
-    conn_state: 1,
+    dst_port: 80,
+    proto: 1, // tcp
+    service: 1, // http
+    duration: 0, // Short duration typical of DDoS
+    src_bytes: 64, // Small packets
+    dst_bytes: 0, // No response
+    conn_state: 1, // S0 - connection attempt, no reply
     missed_bytes: 0,
-    src_pkts: 10,
-    src_ip_bytes: 1024,
-    dst_pkts: 8,
-    dst_ip_bytes: 2048,
+    src_pkts: 1000, // High packet count - DDoS characteristic
+    src_ip_bytes: 64000,
+    dst_pkts: 0, // No response packets
+    dst_ip_bytes: 0,
     dns_query: 0,
     dns_qclass: 0,
     dns_qtype: 0,
@@ -227,7 +228,7 @@ export const testMLPrediction = async () => {
     http_request_body_len: 0,
     http_response_body_len: 0,
     http_status_code: 0,
-    label: 1
+    label: 1 // DDoS label
   };
   
   const response = await fetch(`${API_BASE_URL}/predict`, {
