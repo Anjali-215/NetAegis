@@ -31,7 +31,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress
+  CircularProgress,
+  Tabs,
+  Tab,
+  TextareaAutosize
 } from '@mui/material';
 import {
   CloudUpload as CloudUploadIcon,
@@ -42,7 +45,10 @@ import {
   Delete,
   Visibility,
   Download,
-  Refresh
+  Refresh,
+  Add as AddIcon,
+  DataObject as JsonIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 
@@ -89,6 +95,10 @@ const CSVUpload = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
   const [isTestingML, setIsTestingML] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [jsonData, setJsonData] = useState('');
+  const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
+  const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
 
   // Check API status on component mount
   React.useEffect(() => {
@@ -99,20 +109,21 @@ const CSVUpload = () => {
 
   const onDrop = useCallback((acceptedFiles) => {
     console.log("onDrop called", acceptedFiles);
-    const file = acceptedFiles[0];
-    if (file) {
-      setSelectedFile(file);
+    
+    // Process each file
+    acceptedFiles.forEach(file => {
       handleFileUpload(file);
-    }
+    });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'text/csv': ['.csv'],
-      'application/vnd.ms-excel': ['.csv']
+      'application/vnd.ms-excel': ['.csv'],
+      'application/json': ['.json']
     },
-    multiple: false
+    multiple: true
   });
 
   const handleFileUpload = async (file) => {
@@ -120,20 +131,29 @@ const CSVUpload = () => {
     setUploadProgress(0);
 
     try {
-      // Read CSV file
       const text = await file.text();
-      const lines = text.split('\n');
-      const headers = lines[0].split(',');
-      const data = lines.slice(1).filter(line => line.trim()).map(line => {
-        const values = line.split(',');
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header.trim()] = values[index] ? values[index].trim() : '';
+      let data = [];
+      
+      // Handle different file types
+      if (file.name.endsWith('.json')) {
+        // Parse JSON file
+        const jsonData = JSON.parse(text);
+        data = Array.isArray(jsonData) ? jsonData : [jsonData];
+      } else {
+        // Parse CSV file
+        const lines = text.split('\n');
+        const headers = lines[0].split(',');
+        data = lines.slice(1).filter(line => line.trim()).map(line => {
+          const values = line.split(',');
+          const row = {};
+          headers.forEach((header, index) => {
+            row[header.trim()] = values[index] ? values[index].trim() : '';
+          });
+          return row;
         });
-        return row;
-      });
+      }
 
-      console.log("Parsed CSV data:", data);
+      console.log("Parsed file data:", data);
 
       // Simulate upload progress
       const interval = setInterval(() => {
@@ -168,6 +188,7 @@ const CSVUpload = () => {
       console.error('Error reading file:', error);
       setIsUploading(false);
       setUploadProgress(0);
+      alert('Error processing file: ' + error.message);
     }
   };
 
@@ -193,7 +214,7 @@ const CSVUpload = () => {
 
     try {
       // Process each row with ML
-      for (let i = 0; i < Math.min(file.data.length, 50); i++) { // Limit to 50 rows for demo
+      for (let i = 0; i < file.data.length; i++) { // Process ALL rows
         const row = file.data[i];
         
         // Validate the data first
@@ -307,6 +328,63 @@ const CSVUpload = () => {
     return null;
   };
 
+  // Handle JSON data processing
+  const handleJsonProcessing = async () => {
+    try {
+      const parsedData = JSON.parse(jsonData);
+      const dataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
+      
+      // Create a mock file object for processing
+      const mockFile = {
+        id: uploadedFiles.length + 1,
+        name: 'json_data.json',
+        size: `${(jsonData.length / 1024).toFixed(1)} KB`,
+        status: 'completed',
+        uploadDate: new Date().toLocaleString(),
+        records: dataArray.length,
+        errors: 0,
+        warnings: 0,
+        data: dataArray
+      };
+      
+      setUploadedFiles([mockFile, ...uploadedFiles]);
+      setJsonData('');
+      alert(`JSON data processed! ${dataArray.length} records added.`);
+    } catch (error) {
+      alert('Invalid JSON format: ' + error.message);
+    }
+  };
+
+  // Handle single manual prediction
+  const handleManualPrediction = async () => {
+    try {
+      const validation = preprocessNetworkData(manualEntryDialog.data);
+      if (!validation.isValid) {
+        alert('Validation failed: ' + validation.errors.join(', '));
+        return;
+      }
+      
+      const prediction = await predictThreat(validation.processedData);
+      setSinglePredictionDialog({ 
+        open: true, 
+        result: {
+          threatType: prediction.threat_type,
+          threatLevel: prediction.threat_level,
+          confidence: prediction.confidence,
+          inputData: manualEntryDialog.data
+        }
+      });
+      setManualEntryDialog({ open: false, data: {} });
+    } catch (error) {
+      alert('Prediction failed: ' + error.message);
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
@@ -333,59 +411,161 @@ const CSVUpload = () => {
       </Box>
 
       <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
-        {/* Upload Area */}
+        {/* Upload Area with Tabs */}
         <Grid item xs={12} md={6}>
-          <Paper 
-            {...getRootProps()} 
-            sx={{ 
-              p: 4, 
-              textAlign: 'center',
-              border: '2px dashed',
-              borderColor: isDragActive ? 'primary.main' : 'grey.300',
-              backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: 'primary.main',
-                backgroundColor: 'action.hover'
-              }
-            }}
-          >
-            <input {...getInputProps()} />
-            <CloudUploadIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h6" gutterBottom>
-              {isDragActive ? 'Drop the CSV file here' : 'Drag & drop a CSV file here'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              or click to select a file
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Supported format: CSV files with threat data
-            </Typography>
+          <Paper sx={{ p: 2 }}>
+            <Tabs value={activeTab} onChange={handleTabChange} aria-label="data input methods">
+              <Tab label="CSV Upload" />
+              <Tab label="JSON Data" />
+              <Tab label="Manual Entry" />
+            </Tabs>
             
-            {selectedFile && (
+            {/* CSV Upload Tab */}
+            {activeTab === 0 && (
               <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" color="primary">
-                  Selected: {selectedFile.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                </Typography>
+                <Paper 
+                  {...getRootProps()} 
+                  sx={{ 
+                    p: 4, 
+                    textAlign: 'center',
+                    border: '2px dashed',
+                    borderColor: isDragActive ? 'primary.main' : 'grey.300',
+                    backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      backgroundColor: 'action.hover'
+                    }
+                  }}
+                >
+                  <input {...getInputProps()} />
+                  <CloudUploadIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    {isDragActive ? 'Drop the files here' : 'Drag & drop CSV/JSON files here'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    or click to select files
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Supported formats: CSV, JSON files with network data (multiple files allowed)
+                  </Typography>
+                  
+                  {selectedFile && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="primary">
+                        Selected: {selectedFile.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
               </Box>
             )}
-          </Paper>
+            
+            {/* JSON Data Tab */}
+            {activeTab === 1 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  <JsonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Paste JSON Data
+                </Typography>
+                <TextField
+                  multiline
+                  rows={8}
+                  fullWidth
+                  variant="outlined"
+                  placeholder={`Paste your JSON data here. Examples:
 
-          {isUploading && (
-            <Paper sx={{ p: 2, mt: 2 }}>
-              <Typography variant="body2" gutterBottom>
-                Uploading file...
-              </Typography>
-              <LinearProgress variant="determinate" value={uploadProgress} />
-              <Typography variant="caption" color="text.secondary">
-                {uploadProgress}% complete
-              </Typography>
-            </Paper>
-          )}
+Single record:
+{
+  "src_ip": "192.168.1.1",
+  "src_port": 80,
+  "dst_ip": "192.168.1.2",
+  "dst_port": 443,
+  "proto": "tcp",
+  "service": "http",
+  "duration": 1.5,
+  "src_bytes": 1024,
+  "dst_bytes": 2048,
+  "conn_state": "SF",
+  "missed_bytes": 0,
+  "src_pkts": 10,
+  "src_ip_bytes": 1024,
+  "dst_pkts": 8,
+  "dst_ip_bytes": 2048,
+  "dns_query": 0,
+  "dns_qclass": 0,
+  "dns_qtype": 0,
+  "dns_rcode": 0,
+  "dns_AA": "none",
+  "dns_RD": "none",
+  "dns_RA": "none",
+  "dns_rejected": "none",
+  "http_request_body_len": 0,
+  "http_response_body_len": 0,
+  "http_status_code": 200,
+  "label": 1
+}
+
+Multiple records: [record1, record2, ...]`}
+                  value={jsonData}
+                  onChange={(e) => setJsonData(e.target.value)}
+                />
+                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleJsonProcessing}
+                    disabled={!jsonData.trim()}
+                    startIcon={<AddIcon />}
+                  >
+                    Process JSON Data
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setJsonData('')}
+                  >
+                    Clear
+                  </Button>
+                </Box>
+              </Box>
+            )}
+            
+            {/* Manual Entry Tab */}
+            {activeTab === 2 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  <EditIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Manual Data Entry
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Enter network connection details manually for single prediction
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => setManualEntryDialog({ open: true, data: {} })}
+                  startIcon={<AddIcon />}
+                  sx={{ mt: 2 }}
+                >
+                  Open Manual Entry Form
+                </Button>
+              </Box>
+            )}
+            
+            {isUploading && (
+              <Paper sx={{ p: 2, mt: 2 }}>
+                <Typography variant="body2" gutterBottom>
+                  Processing file...
+                </Typography>
+                <LinearProgress variant="determinate" value={uploadProgress} />
+                <Typography variant="caption" color="text.secondary">
+                  {uploadProgress}% complete
+                </Typography>
+              </Paper>
+            )}
+          </Paper>
         </Grid>
 
         {/* Upload Guidelines */}
@@ -692,6 +872,246 @@ const CSVUpload = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setResultsDialog({ open: false, results: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Manual Entry Dialog */}
+      <Dialog 
+        open={manualEntryDialog.open} 
+        onClose={() => setManualEntryDialog({ open: false, data: {} })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Manual Network Data Entry
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Source IP"
+                value={manualEntryDialog.data.src_ip || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, src_ip: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Source Port"
+                type="number"
+                value={manualEntryDialog.data.src_port || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, src_port: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Destination IP"
+                value={manualEntryDialog.data.dst_ip || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dst_ip: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Destination Port"
+                type="number"
+                value={manualEntryDialog.data.dst_port || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dst_port: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Protocol"
+                value={manualEntryDialog.data.proto || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, proto: e.target.value }
+                })}
+                placeholder="tcp, udp, icmp"
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Service"
+                value={manualEntryDialog.data.service || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, service: e.target.value }
+                })}
+                placeholder="http, ssh, dns, -"
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Duration"
+                type="number"
+                value={manualEntryDialog.data.duration || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, duration: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Connection State"
+                value={manualEntryDialog.data.conn_state || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, conn_state: e.target.value }
+                })}
+                placeholder="SF, S0, REJ, OTH"
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Source Bytes"
+                type="number"
+                value={manualEntryDialog.data.src_bytes || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, src_bytes: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Destination Bytes"
+                type="number"
+                value={manualEntryDialog.data.dst_bytes || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dst_bytes: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Source Packets"
+                type="number"
+                value={manualEntryDialog.data.src_pkts || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, src_pkts: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Destination Packets"
+                type="number"
+                value={manualEntryDialog.data.dst_pkts || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dst_pkts: e.target.value }
+                })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="caption" color="text.secondary">
+                Fill in the required fields. Missing fields will be set to default values.
+              </Typography>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManualEntryDialog({ open: false, data: {} })}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleManualPrediction}
+            variant="contained"
+            disabled={!manualEntryDialog.data.src_ip || !manualEntryDialog.data.dst_ip}
+          >
+            Predict Threat
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Single Prediction Result Dialog */}
+      <Dialog 
+        open={singlePredictionDialog.open} 
+        onClose={() => setSinglePredictionDialog({ open: false, result: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Threat Prediction Result
+        </DialogTitle>
+        <DialogContent>
+          {singlePredictionDialog.result && (
+            <Box sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Detection Results
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Threat Type:
+                  </Typography>
+                  <Chip
+                    label={singlePredictionDialog.result.threatType}
+                    color={singlePredictionDialog.result.threatType === 'normal' ? 'success' : 'error'}
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Threat Level:
+                  </Typography>
+                  <Chip
+                    label={singlePredictionDialog.result.threatLevel}
+                    color={
+                      singlePredictionDialog.result.threatLevel === 'Critical' ? 'error' : 
+                      singlePredictionDialog.result.threatLevel === 'High' ? 'warning' : 
+                      'success'
+                    }
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    Final Assessment:
+                  </Typography>
+                  <Typography variant="body1">
+                    {singlePredictionDialog.result.threatType === 'normal' 
+                      ? 'Normal Network Traffic' 
+                      : `${singlePredictionDialog.result.threatType.toUpperCase()} Attack Detected`
+                    }
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSinglePredictionDialog({ open: false, result: null })}>
             Close
           </Button>
         </DialogActions>

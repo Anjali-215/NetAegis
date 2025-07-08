@@ -194,6 +194,160 @@ const connStateMapping = {
   '-': 0
 };
 
+// Column name mappings for different CSV formats
+const columnMappings = {
+  // Source IP variations
+  'source_ip': 'src_ip',
+  'sourceip': 'src_ip',
+  'source_address': 'src_ip',
+  'src_addr': 'src_ip',
+  'origin_ip': 'src_ip',
+  
+  // Source Port variations
+  'source_port': 'src_port',
+  'sourceport': 'src_port',
+  'src_prt': 'src_port',
+  'origin_port': 'src_port',
+  
+  // Destination IP variations
+  'dest_ip': 'dst_ip',
+  'destination_ip': 'dst_ip',
+  'destip': 'dst_ip',
+  'dst_addr': 'dst_ip',
+  'target_ip': 'dst_ip',
+  
+  // Destination Port variations
+  'dest_port': 'dst_port',
+  'destination_port': 'dst_port',
+  'destport': 'dst_port',
+  'dst_prt': 'dst_port',
+  'target_port': 'dst_port',
+  
+  // Protocol variations
+  'protocol': 'proto',
+  'prot': 'proto',
+  'protocol_type': 'proto',
+  
+  // Service variations
+  'svc': 'service',
+  'srv': 'service',
+  'service_type': 'service',
+  
+  // Duration variations
+  'time': 'duration',
+  'dur': 'duration',
+  'connection_time': 'duration',
+  
+  // Bytes variations
+  'source_bytes': 'src_bytes',
+  'src_size': 'src_bytes',
+  'origin_bytes': 'src_bytes',
+  'destination_bytes': 'dst_bytes',
+  'dest_bytes': 'dst_bytes',
+  'dst_size': 'dst_bytes',
+  'target_bytes': 'dst_bytes',
+  
+  // Connection state variations
+  'state': 'conn_state',
+  'connection_state': 'conn_state',
+  'conn_status': 'conn_state',
+  'status': 'conn_state',
+  
+  // Packet count variations
+  'source_packets': 'src_pkts',
+  'src_count': 'src_pkts',
+  'origin_packets': 'src_pkts',
+  'destination_packets': 'dst_pkts',
+  'dest_packets': 'dst_pkts',
+  'dst_count': 'dst_pkts',
+  'target_packets': 'dst_pkts',
+  
+  // IP bytes variations
+  'source_ip_bytes': 'src_ip_bytes',
+  'src_ip_size': 'src_ip_bytes',
+  'destination_ip_bytes': 'dst_ip_bytes',
+  'dst_ip_size': 'dst_ip_bytes',
+  
+  // DNS variations
+  'dns_q': 'dns_query',
+  'dns_qc': 'dns_qclass',
+  'dns_qt': 'dns_qtype',
+  'dns_rc': 'dns_rcode',
+  'dns_aa': 'dns_AA',
+  'dns_rd': 'dns_RD',
+  'dns_ra': 'dns_RA',
+  'dns_rej': 'dns_rejected',
+  
+  // HTTP variations
+  'http_req_len': 'http_request_body_len',
+  'http_request_len': 'http_request_body_len',
+  'http_resp_len': 'http_response_body_len',
+  'http_response_len': 'http_response_body_len',
+  'http_code': 'http_status_code',
+  'http_status': 'http_status_code',
+  
+  // Label variations
+  'attack_type': 'label',
+  'threat_type': 'label',
+  'class': 'label',
+  'target': 'label',
+  'attack': 'label',
+  'threat': 'label',
+  
+  // Missed bytes variations
+  'lost': 'missed_bytes',
+  'lost_bytes': 'missed_bytes',
+  'missing_bytes': 'missed_bytes'
+};
+
+// Function to normalize column names
+const normalizeColumnNames = (data) => {
+  const normalized = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    const normalizedKey = key.toLowerCase().trim();
+    const mappedKey = columnMappings[normalizedKey] || normalizedKey;
+    normalized[mappedKey] = value;
+  }
+  
+  return normalized;
+};
+
+// Function to detect and suggest column mappings
+const detectColumnMappings = (headers) => {
+  const suggestions = {};
+  const requiredFeatures = [
+    'src_ip', 'src_port', 'dst_ip', 'dst_port', 'proto', 'service', 'duration',
+    'src_bytes', 'dst_bytes', 'conn_state', 'missed_bytes', 'src_pkts', 'src_ip_bytes',
+    'dst_pkts', 'dst_ip_bytes', 'dns_query', 'dns_qclass', 'dns_qtype', 'dns_rcode',
+    'dns_AA', 'dns_RD', 'dns_RA', 'dns_rejected', 'http_request_body_len',
+    'http_response_body_len', 'http_status_code', 'label'
+  ];
+  
+  const normalizedHeaders = headers.map(h => h.toLowerCase().trim());
+  
+  requiredFeatures.forEach(required => {
+    // Check if exact match exists
+    if (normalizedHeaders.includes(required)) {
+      suggestions[required] = required;
+      return;
+    }
+    
+    // Check for mapped alternatives
+    for (const [alt, mapped] of Object.entries(columnMappings)) {
+      if (mapped === required && normalizedHeaders.includes(alt)) {
+        suggestions[required] = alt;
+        return;
+      }
+    }
+    
+    // If no mapping found, mark as missing
+    suggestions[required] = null;
+  });
+  
+  return suggestions;
+};
+
 /**
  * Preprocess a single data row by applying label encoding to categorical features
  * @param {Object} data - Raw data object with string values
@@ -472,8 +626,11 @@ export const getSampleData = () => {
 };
 
 export const preprocessNetworkData = (data) => {
-  // Create a copy of the data to avoid mutating the original
-  const processed = { ...data };
+  // First, normalize column names to handle different CSV formats
+  const normalizedData = normalizeColumnNames(data);
+  
+  // Create a copy of the normalized data to avoid mutating the original
+  const processed = { ...normalizedData };
   const errors = [];
   
   // Required features for the model (27 features)
@@ -575,4 +732,7 @@ export const preprocessNetworkData = (data) => {
     errors: [],
     processedData: finalProcessed
   };
-}; 
+};
+
+// Export the new functions
+export { detectColumnMappings, normalizeColumnNames }; 
