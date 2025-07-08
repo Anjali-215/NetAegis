@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
 import api, { testMLPrediction, checkApiHealth, predictThreat } from '../../services/api';
-import { preprocessNetworkData } from '../../utils/preprocessor';
+import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
 import {
   Box,
   Container,
@@ -142,7 +142,11 @@ const CSVUpload = () => {
       } else {
         // Parse CSV file
         const lines = text.split('\n');
-        const headers = lines[0].split(',');
+        const headers = lines[0].split(',').map(h => h.trim());
+        
+        // Analyze headers for column mapping
+        const headerAnalysis = analyzeCSVHeaders(headers);
+        
         data = lines.slice(1).filter(line => line.trim()).map(line => {
           const values = line.split(',');
           const row = {};
@@ -151,6 +155,29 @@ const CSVUpload = () => {
           });
           return row;
         });
+        
+        // Show column analysis to user
+        if (headerAnalysis.missing.length > 0) {
+          console.warn('Missing columns:', headerAnalysis.missing);
+          console.log('Mapped columns:', headerAnalysis.mapped);
+          console.log('Exact matches:', headerAnalysis.exact);
+          
+          // Show user-friendly message
+          const mappedInfo = headerAnalysis.mapped.length > 0 
+            ? `\n\nMapped columns:\n${headerAnalysis.mapped.map(m => `• "${m.detected}" → "${m.required}"`).join('\n')}`
+            : '';
+          
+          const missingInfo = headerAnalysis.missing.length > 0
+            ? `\n\nMissing columns (will use defaults):\n${headerAnalysis.missing.map(m => `• ${m}`).join('\n')}`
+            : '';
+          
+          alert(`CSV Analysis:\n` +
+            `Found ${headerAnalysis.found}/${headerAnalysis.total} required columns.` +
+            mappedInfo +
+            missingInfo +
+            `\n\nThe system will automatically map similar column names and use default values for missing columns.`
+          );
+        }
       }
 
       console.log("Parsed file data:", data);
@@ -383,6 +410,22 @@ const CSVUpload = () => {
   // Handle tab change
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  // Analyze CSV headers and show mapping info
+  const analyzeCSVHeaders = (headers) => {
+    const mappings = detectColumnMappings(headers);
+    const missing = Object.entries(mappings).filter(([key, value]) => value === null);
+    const mapped = Object.entries(mappings).filter(([key, value]) => value !== null && value !== key);
+    const exact = Object.entries(mappings).filter(([key, value]) => value === key);
+    
+    return {
+      missing: missing.map(([key]) => key),
+      mapped: mapped.map(([required, detected]) => ({ required, detected })),
+      exact: exact.map(([key]) => key),
+      total: Object.keys(mappings).length,
+      found: Object.values(mappings).filter(v => v !== null).length
+    };
   };
 
   return (
