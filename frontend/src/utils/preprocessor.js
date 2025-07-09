@@ -194,7 +194,8 @@ const connStateMapping = {
   '-': 0
 };
 
-// Column name mappings for different CSV formats
+// Comprehensive column name mappings for different CSV/JSON formats
+// Supports popular network monitoring tools: Wireshark, Zeek/Bro, Suricata, pfSense, etc.
 const columnMappings = {
   // Source IP variations
   'source_ip': 'src_ip',
@@ -202,12 +203,26 @@ const columnMappings = {
   'source_address': 'src_ip',
   'src_addr': 'src_ip',
   'origin_ip': 'src_ip',
+  'orig_h': 'src_ip',              // Zeek/Bro format
+  'ip.src': 'src_ip',              // Wireshark format
+  'srcip': 'src_ip',
+  'saddr': 'src_ip',
+  'source': 'src_ip',
+  'from_ip': 'src_ip',
+  'client_ip': 'src_ip',
   
   // Source Port variations
   'source_port': 'src_port',
   'sourceport': 'src_port',
   'src_prt': 'src_port',
   'origin_port': 'src_port',
+  'orig_p': 'src_port',            // Zeek/Bro format
+  'tcp.srcport': 'src_port',       // Wireshark format
+  'udp.srcport': 'src_port',       // Wireshark format
+  'srcport': 'src_port',
+  'sport': 'src_port',
+  'from_port': 'src_port',
+  'client_port': 'src_port',
   
   // Destination IP variations
   'dest_ip': 'dst_ip',
@@ -215,6 +230,13 @@ const columnMappings = {
   'destip': 'dst_ip',
   'dst_addr': 'dst_ip',
   'target_ip': 'dst_ip',
+  'resp_h': 'dst_ip',              // Zeek/Bro format
+  'ip.dst': 'dst_ip',              // Wireshark format
+  'dstip': 'dst_ip',
+  'daddr': 'dst_ip',
+  'destination': 'dst_ip',
+  'to_ip': 'dst_ip',
+  'server_ip': 'dst_ip',
   
   // Destination Port variations
   'dest_port': 'dst_port',
@@ -222,82 +244,190 @@ const columnMappings = {
   'destport': 'dst_port',
   'dst_prt': 'dst_port',
   'target_port': 'dst_port',
+  'resp_p': 'dst_port',            // Zeek/Bro format
+  'tcp.dstport': 'dst_port',       // Wireshark format
+  'udp.dstport': 'dst_port',       // Wireshark format
+  'dstport': 'dst_port',
+  'dport': 'dst_port',
+  'to_port': 'dst_port',
+  'server_port': 'dst_port',
   
   // Protocol variations
   'protocol': 'proto',
   'prot': 'proto',
   'protocol_type': 'proto',
+  'ip_protocol': 'proto',
+  'ip.proto': 'proto',             // Wireshark format
+  'frame.protocols': 'proto',      // Wireshark format
+  'l4_proto': 'proto',
+  'transport': 'proto',
   
   // Service variations
   'svc': 'service',
   'srv': 'service',
   'service_type': 'service',
+  'application': 'service',
+  'app': 'service',
+  'protocol_service': 'service',
+  'port_service': 'service',
   
   // Duration variations
   'time': 'duration',
   'dur': 'duration',
   'connection_time': 'duration',
+  'flow_duration': 'duration',
+  'session_time': 'duration',
+  'elapsed': 'duration',
+  'total_time': 'duration',
   
-  // Bytes variations
+  // Source bytes variations
   'source_bytes': 'src_bytes',
   'src_size': 'src_bytes',
   'origin_bytes': 'src_bytes',
+  'orig_bytes': 'src_bytes',       // Zeek/Bro format
+  'orig_ip_bytes': 'src_bytes',
+  'client_bytes': 'src_bytes',
+  'upload_bytes': 'src_bytes',
+  'sent_bytes': 'src_bytes',
+  'tx_bytes': 'src_bytes',
+  
+  // Destination bytes variations
   'destination_bytes': 'dst_bytes',
   'dest_bytes': 'dst_bytes',
   'dst_size': 'dst_bytes',
   'target_bytes': 'dst_bytes',
+  'resp_bytes': 'dst_bytes',       // Zeek/Bro format
+  'resp_ip_bytes': 'dst_bytes',
+  'server_bytes': 'dst_bytes',
+  'download_bytes': 'dst_bytes',
+  'received_bytes': 'dst_bytes',
+  'rx_bytes': 'dst_bytes',
   
   // Connection state variations
   'state': 'conn_state',
   'connection_state': 'conn_state',
   'conn_status': 'conn_state',
   'status': 'conn_state',
+  'tcp_state': 'conn_state',
+  'flow_state': 'conn_state',
+  'session_state': 'conn_state',
   
-  // Packet count variations
+  // Source packet count variations
   'source_packets': 'src_pkts',
   'src_count': 'src_pkts',
   'origin_packets': 'src_pkts',
+  'orig_pkts': 'src_pkts',         // Zeek/Bro format
+  'client_packets': 'src_pkts',
+  'upload_packets': 'src_pkts',
+  'sent_packets': 'src_pkts',
+  'tx_packets': 'src_pkts',
+  'srcpkts': 'src_pkts',
+  
+  // Destination packet count variations
   'destination_packets': 'dst_pkts',
   'dest_packets': 'dst_pkts',
   'dst_count': 'dst_pkts',
   'target_packets': 'dst_pkts',
+  'resp_pkts': 'dst_pkts',         // Zeek/Bro format
+  'server_packets': 'dst_pkts',
+  'download_packets': 'dst_pkts',
+  'received_packets': 'dst_pkts',
+  'rx_packets': 'dst_pkts',
+  'dstpkts': 'dst_pkts',
   
-  // IP bytes variations
+  // Source IP bytes variations
   'source_ip_bytes': 'src_ip_bytes',
   'src_ip_size': 'src_ip_bytes',
+  'orig_ip_bytes': 'src_ip_bytes',
+  'client_ip_bytes': 'src_ip_bytes',
+  
+  // Destination IP bytes variations
   'destination_ip_bytes': 'dst_ip_bytes',
   'dst_ip_size': 'dst_ip_bytes',
+  'resp_ip_bytes': 'dst_ip_bytes',
+  'server_ip_bytes': 'dst_ip_bytes',
   
-  // DNS variations
+  // DNS query variations
   'dns_q': 'dns_query',
-  'dns_qc': 'dns_qclass',
-  'dns_qt': 'dns_qtype',
-  'dns_rc': 'dns_rcode',
-  'dns_aa': 'dns_AA',
-  'dns_rd': 'dns_RD',
-  'dns_ra': 'dns_RA',
-  'dns_rej': 'dns_rejected',
+  'dns.qry.name': 'dns_query',     // Wireshark format
+  'query': 'dns_query',
+  'dns_name': 'dns_query',
   
-  // HTTP variations
+  // DNS class variations
+  'dns_qc': 'dns_qclass',
+  'dns.qry.class': 'dns_qclass',   // Wireshark format
+  'qclass': 'dns_qclass',
+  
+  // DNS type variations
+  'dns_qt': 'dns_qtype',
+  'dns.qry.type': 'dns_qtype',     // Wireshark format
+  'qtype': 'dns_qtype',
+  
+  // DNS response code variations
+  'dns_rc': 'dns_rcode',
+  'dns.flags.rcode': 'dns_rcode',  // Wireshark format
+  'rcode': 'dns_rcode',
+  'response_code': 'dns_rcode',
+  
+  // DNS flags variations
+  'dns_aa': 'dns_AA',
+  'dns.flags.authoritative': 'dns_AA',
+  'authoritative': 'dns_AA',
+  'dns_rd': 'dns_RD',
+  'dns.flags.recdesired': 'dns_RD',
+  'recursion_desired': 'dns_RD',
+  'dns_ra': 'dns_RA',
+  'dns.flags.recavail': 'dns_RA',
+  'recursion_available': 'dns_RA',
+  'dns_rej': 'dns_rejected',
+  'dns_rejected_flag': 'dns_rejected',
+  'rejected': 'dns_rejected',
+  
+  // HTTP request length variations
   'http_req_len': 'http_request_body_len',
   'http_request_len': 'http_request_body_len',
+  'http_request_size': 'http_request_body_len',
+  'request_body_length': 'http_request_body_len',
+  'req_body_len': 'http_request_body_len',
+  'http.request.body.len': 'http_request_body_len',
+  
+  // HTTP response length variations
   'http_resp_len': 'http_response_body_len',
   'http_response_len': 'http_response_body_len',
+  'http_response_size': 'http_response_body_len',
+  'response_body_length': 'http_response_body_len',
+  'resp_body_len': 'http_response_body_len',
+  'http.response.body.len': 'http_response_body_len',
+  
+  // HTTP status code variations
   'http_code': 'http_status_code',
   'http_status': 'http_status_code',
+  'status_code': 'http_status_code',
+  'response_code': 'http_status_code',
+  'http.response.code': 'http_status_code',
+  'resp_code': 'http_status_code',
   
-  // Label variations
+  // Label/Attack type variations
   'attack_type': 'label',
   'threat_type': 'label',
   'class': 'label',
   'target': 'label',
   'attack': 'label',
   'threat': 'label',
+  'classification': 'label',
+  'category': 'label',
+  'malware': 'label',
+  'intrusion': 'label',
+  'anomaly': 'label',
+  'normal': 'label',
+  'benign': 'label',
   
   // Missed bytes variations
   'lost': 'missed_bytes',
   'lost_bytes': 'missed_bytes',
-  'missing_bytes': 'missed_bytes'
+  'missing_bytes': 'missed_bytes',
+  'dropped_bytes': 'missed_bytes',
+  'retransmitted': 'missed_bytes'
 };
 
 // Function to normalize column names

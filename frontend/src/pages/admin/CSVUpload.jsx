@@ -99,6 +99,7 @@ const CSVUpload = () => {
   const [jsonData, setJsonData] = useState('');
   const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
   const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
+  const [columnMappingDialog, setColumnMappingDialog] = useState(false);
 
   // Check API status on component mount
   React.useEffect(() => {
@@ -183,33 +184,33 @@ const CSVUpload = () => {
       console.log("Parsed file data:", data);
 
       // Simulate upload progress
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setIsUploading(false);
-            
-            // Add file to uploaded files list
-            const newFile = {
-              id: uploadedFiles.length + 1,
-              name: file.name,
-              size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-              status: 'completed',
-              uploadDate: new Date().toLocaleString(),
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          
+          // Add file to uploaded files list
+          const newFile = {
+            id: uploadedFiles.length + 1,
+            name: file.name,
+            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+            status: 'completed',
+            uploadDate: new Date().toLocaleString(),
               records: data.length,
               errors: 0,
               warnings: 0,
               data: data // Store the actual data
-            };
-            
-            setUploadedFiles([newFile, ...uploadedFiles]);
+          };
+          
+          setUploadedFiles([newFile, ...uploadedFiles]);
             console.log("Uploaded files state:", [newFile, ...uploadedFiles]);
-            setSelectedFile(null);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 200);
+          setSelectedFile(null);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
 
     } catch (error) {
       console.error('Error reading file:', error);
@@ -244,8 +245,39 @@ const CSVUpload = () => {
       for (let i = 0; i < file.data.length; i++) { // Process ALL rows
         const row = file.data[i];
         
-        // Validate the data first
-        const validation = preprocessNetworkData(row);
+        // Normalize CSV data to fill in default values (like JSON and Manual Entry)
+        const completeRecord = {
+          src_ip: row.src_ip || row.source_ip || row.sourceip || row.orig_h || row['ip.src'] || '',
+          src_port: row.src_port || row.source_port || row.sourceport || row.orig_p || row['tcp.srcport'] || row['udp.srcport'] || 80,
+          dst_ip: row.dst_ip || row.dest_ip || row.destination_ip || row.destip || row.resp_h || row['ip.dst'] || '',
+          dst_port: row.dst_port || row.dest_port || row.destination_port || row.destport || row.resp_p || row['tcp.dstport'] || row['udp.dstport'] || 443,
+          proto: row.proto || row.protocol || row.prot || 'tcp',
+          service: row.service || row.svc || row.srv || '-',
+          duration: row.duration || row.dur || row.time || 1.0,
+          src_bytes: row.src_bytes || row.source_bytes || row.orig_bytes || 0,
+          dst_bytes: row.dst_bytes || row.dest_bytes || row.destination_bytes || row.resp_bytes || 0,
+          conn_state: row.conn_state || row.connection_state || row.state || 'SF',
+          missed_bytes: row.missed_bytes || 0,
+          src_pkts: row.src_pkts || row.source_packets || row.orig_pkts || 1,
+          src_ip_bytes: row.src_ip_bytes || 0,
+          dst_pkts: row.dst_pkts || row.dest_packets || row.destination_packets || row.resp_pkts || 1,
+          dst_ip_bytes: row.dst_ip_bytes || 0,
+          dns_query: row.dns_query || row.dns_q || 0,
+          dns_qclass: row.dns_qclass || row.dns_qc || 0,
+          dns_qtype: row.dns_qtype || row.dns_qt || 0,
+          dns_rcode: row.dns_rcode || 0,
+          dns_AA: row.dns_AA || row.dns_aa || 'none',
+          dns_RD: row.dns_RD || row.dns_rd || 'none',
+          dns_RA: row.dns_RA || row.dns_ra || 'none',
+          dns_rejected: row.dns_rejected || 'none',
+          http_request_body_len: row.http_request_body_len || row.http_req_len || 0,
+          http_response_body_len: row.http_response_body_len || row.http_resp_len || 0,
+          http_status_code: row.http_status_code || row.http_code || 0,
+          label: 1  // Always 1 for threat detection prediction (ignore any label from CSV)
+        };
+        
+        // Validate the normalized data
+        const validation = preprocessNetworkData(completeRecord);
         if (!validation.isValid) {
           results.push({
             row: i + 1,
@@ -361,6 +393,41 @@ const CSVUpload = () => {
       const parsedData = JSON.parse(jsonData);
       const dataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
       
+      // Process each record to fill in default values
+      const processedData = dataArray.map(record => {
+        const completeRecord = {
+          src_ip: record.src_ip || record.source_ip || record.sourceip || '',
+          src_port: record.src_port || record.source_port || record.sourceport || 80,
+          dst_ip: record.dst_ip || record.dest_ip || record.destination_ip || record.destip || '',
+          dst_port: record.dst_port || record.dest_port || record.destination_port || record.destport || 443,
+          proto: record.proto || record.protocol || 'tcp',
+          service: record.service || record.svc || '-',
+          duration: record.duration || record.dur || 1.0,
+          src_bytes: record.src_bytes || record.source_bytes || 0,
+          dst_bytes: record.dst_bytes || record.dest_bytes || record.destination_bytes || 0,
+          conn_state: record.conn_state || record.connection_state || record.state || 'SF',
+          missed_bytes: record.missed_bytes || 0,
+          src_pkts: record.src_pkts || record.source_packets || 1,
+          src_ip_bytes: record.src_ip_bytes || 0,
+          dst_pkts: record.dst_pkts || record.dest_packets || record.destination_packets || 1,
+          dst_ip_bytes: record.dst_ip_bytes || 0,
+          dns_query: record.dns_query || 0,
+          dns_qclass: record.dns_qclass || 0,
+          dns_qtype: record.dns_qtype || 0,
+          dns_rcode: record.dns_rcode || 0,
+          dns_AA: record.dns_AA || 'none',
+          dns_RD: record.dns_RD || 'none',
+          dns_RA: record.dns_RA || 'none',
+          dns_rejected: record.dns_rejected || 'none',
+          http_request_body_len: record.http_request_body_len || 0,
+          http_response_body_len: record.http_response_body_len || 0,
+          http_status_code: record.http_status_code || 0,
+          label: 1  // Always 1 for threat detection prediction
+        };
+        
+        return completeRecord;
+      });
+      
       // Create a mock file object for processing
       const mockFile = {
         id: uploadedFiles.length + 1,
@@ -368,15 +435,15 @@ const CSVUpload = () => {
         size: `${(jsonData.length / 1024).toFixed(1)} KB`,
         status: 'completed',
         uploadDate: new Date().toLocaleString(),
-        records: dataArray.length,
+        records: processedData.length,
         errors: 0,
         warnings: 0,
-        data: dataArray
+        data: processedData
       };
       
       setUploadedFiles([mockFile, ...uploadedFiles]);
       setJsonData('');
-      alert(`JSON data processed! ${dataArray.length} records added.`);
+      alert(`JSON data processed! ${processedData.length} records added.`);
     } catch (error) {
       alert('Invalid JSON format: ' + error.message);
     }
@@ -385,7 +452,38 @@ const CSVUpload = () => {
   // Handle single manual prediction
   const handleManualPrediction = async () => {
     try {
-      const validation = preprocessNetworkData(manualEntryDialog.data);
+      // Fill in default values for missing fields
+      const completeData = {
+        src_ip: manualEntryDialog.data.src_ip || '',
+        src_port: manualEntryDialog.data.src_port || 80,
+        dst_ip: manualEntryDialog.data.dst_ip || '',
+        dst_port: manualEntryDialog.data.dst_port || 443,
+        proto: manualEntryDialog.data.proto || 'tcp',
+        service: manualEntryDialog.data.service || '-',
+        duration: manualEntryDialog.data.duration || 1.0,
+        src_bytes: manualEntryDialog.data.src_bytes || 0,
+        dst_bytes: manualEntryDialog.data.dst_bytes || 0,
+        conn_state: manualEntryDialog.data.conn_state || 'SF',
+        missed_bytes: manualEntryDialog.data.missed_bytes || 0,
+        src_pkts: manualEntryDialog.data.src_pkts || 1,
+        src_ip_bytes: manualEntryDialog.data.src_ip_bytes || 0,
+        dst_pkts: manualEntryDialog.data.dst_pkts || 1,
+        dst_ip_bytes: manualEntryDialog.data.dst_ip_bytes || 0,
+        dns_query: manualEntryDialog.data.dns_query || 0,
+        dns_qclass: manualEntryDialog.data.dns_qclass || 0,
+        dns_qtype: manualEntryDialog.data.dns_qtype || 0,
+        dns_rcode: manualEntryDialog.data.dns_rcode || 0,
+        dns_AA: manualEntryDialog.data.dns_AA || 'none',
+        dns_RD: manualEntryDialog.data.dns_RD || 'none',
+        dns_RA: manualEntryDialog.data.dns_RA || 'none',
+        dns_rejected: manualEntryDialog.data.dns_rejected || 'none',
+        http_request_body_len: manualEntryDialog.data.http_request_body_len || 0,
+        http_response_body_len: manualEntryDialog.data.http_response_body_len || 0,
+        http_status_code: manualEntryDialog.data.http_status_code || 0,
+        label: 1  // Always 1 for threat detection prediction
+      };
+      
+      const validation = preprocessNetworkData(completeData);
       if (!validation.isValid) {
         alert('Validation failed: ' + validation.errors.join(', '));
         return;
@@ -398,7 +496,7 @@ const CSVUpload = () => {
           threatType: prediction.threat_type,
           threatLevel: prediction.threat_level,
           confidence: prediction.confidence,
-          inputData: manualEntryDialog.data
+          inputData: completeData
         }
       });
       setManualEntryDialog({ open: false, data: {} });
@@ -432,8 +530,8 @@ const CSVUpload = () => {
     <Container maxWidth="xl" sx={{ py: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-          Upload Threat CSV
-        </Typography>
+        Upload Threat CSV
+      </Typography>
         <Box display="flex" alignItems="center" gap={2}>
           <Typography variant="body2">ML API Status:</Typography>
           <Chip
@@ -449,6 +547,14 @@ const CSVUpload = () => {
             disabled={isTestingML}
           >
             Test ML
+          </Button>
+          {/* Column Mapping Help */}
+          <Button 
+            variant="outlined" 
+            color="info" 
+            onClick={() => setColumnMappingDialog(true)}
+          >
+            Column Reference
           </Button>
         </Box>
       </Box>
@@ -466,45 +572,45 @@ const CSVUpload = () => {
             {/* CSV Upload Tab */}
             {activeTab === 0 && (
               <Box sx={{ mt: 2 }}>
-                <Paper 
-                  {...getRootProps()} 
-                  sx={{ 
-                    p: 4, 
-                    textAlign: 'center',
-                    border: '2px dashed',
-                    borderColor: isDragActive ? 'primary.main' : 'grey.300',
-                    backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      backgroundColor: 'action.hover'
-                    }
-                  }}
-                >
-                  <input {...getInputProps()} />
+          <Paper 
+            {...getRootProps()} 
+            sx={{ 
+              p: 4, 
+              textAlign: 'center',
+              border: '2px dashed',
+              borderColor: isDragActive ? 'primary.main' : 'grey.300',
+              backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                borderColor: 'primary.main',
+                backgroundColor: 'action.hover'
+              }
+            }}
+          >
+            <input {...getInputProps()} />
                   <CloudUploadIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                  <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom>
                     {isDragActive ? 'Drop the files here' : 'Drag & drop CSV/JSON files here'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
                     or click to select files
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
                     Supported formats: CSV, JSON files with network data (multiple files allowed)
-                  </Typography>
-                  
-                  {selectedFile && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="body2" color="primary">
-                        Selected: {selectedFile.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </Typography>
-                    </Box>
-                  )}
-                </Paper>
+            </Typography>
+            
+            {selectedFile && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="primary">
+                  Selected: {selectedFile.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                </Typography>
+              </Box>
+            )}
+          </Paper>
               </Box>
             )}
             
@@ -549,8 +655,7 @@ Single record:
   "dns_rejected": "none",
   "http_request_body_len": 0,
   "http_response_body_len": 0,
-  "http_status_code": 200,
-  "label": 1
+  "http_status_code": 200
 }
 
 Multiple records: [record1, record2, ...]`}
@@ -596,18 +701,18 @@ Multiple records: [record1, record2, ...]`}
                 </Button>
               </Box>
             )}
-            
-            {isUploading && (
-              <Paper sx={{ p: 2, mt: 2 }}>
-                <Typography variant="body2" gutterBottom>
+
+          {isUploading && (
+            <Paper sx={{ p: 2, mt: 2 }}>
+              <Typography variant="body2" gutterBottom>
                   Processing file...
-                </Typography>
-                <LinearProgress variant="determinate" value={uploadProgress} />
-                <Typography variant="caption" color="text.secondary">
-                  {uploadProgress}% complete
-                </Typography>
-              </Paper>
-            )}
+              </Typography>
+              <LinearProgress variant="determinate" value={uploadProgress} />
+              <Typography variant="caption" color="text.secondary">
+                {uploadProgress}% complete
+              </Typography>
+            </Paper>
+          )}
           </Paper>
         </Grid>
 
@@ -924,23 +1029,36 @@ Multiple records: [record1, record2, ...]`}
       <Dialog 
         open={manualEntryDialog.open} 
         onClose={() => setManualEntryDialog({ open: false, data: {} })}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
       >
         <DialogTitle>
           Manual Network Data Entry
         </DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
+            Enter network connection details. Only Source IP and Destination IP are required - all other fields will use default values if not provided.
+          </Typography>
+          
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* Basic Connection Info */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                🌐 Basic Connection Information
+              </Typography>
+            </Grid>
+            
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Source IP"
+                label="Source IP *"
                 value={manualEntryDialog.data.src_ip || ''}
                 onChange={(e) => setManualEntryDialog({
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, src_ip: e.target.value }
                 })}
+                placeholder="192.168.1.1"
+                required
               />
             </Grid>
             <Grid item xs={6}>
@@ -953,17 +1071,20 @@ Multiple records: [record1, record2, ...]`}
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, src_port: e.target.value }
                 })}
+                placeholder="80"
               />
             </Grid>
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Destination IP"
+                label="Destination IP *"
                 value={manualEntryDialog.data.dst_ip || ''}
                 onChange={(e) => setManualEntryDialog({
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, dst_ip: e.target.value }
                 })}
+                placeholder="192.168.1.2"
+                required
               />
             </Grid>
             <Grid item xs={6}>
@@ -976,6 +1097,7 @@ Multiple records: [record1, record2, ...]`}
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, dst_port: e.target.value }
                 })}
+                placeholder="443"
               />
             </Grid>
             <Grid item xs={6}>
@@ -1002,16 +1124,25 @@ Multiple records: [record1, record2, ...]`}
                 placeholder="http, ssh, dns, -"
               />
             </Grid>
+            
+            {/* Connection Details */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 2 }}>
+                🔗 Connection Details
+              </Typography>
+            </Grid>
+            
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Duration"
+                label="Duration (seconds)"
                 type="number"
                 value={manualEntryDialog.data.duration || ''}
                 onChange={(e) => setManualEntryDialog({
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, duration: e.target.value }
                 })}
+                placeholder="1.5"
               />
             </Grid>
             <Grid item xs={6}>
@@ -1026,7 +1157,15 @@ Multiple records: [record1, record2, ...]`}
                 placeholder="SF, S0, REJ, OTH"
               />
             </Grid>
-            <Grid item xs={6}>
+            
+            {/* Data Transfer */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 2 }}>
+                📊 Data Transfer
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={4}>
               <TextField
                 fullWidth
                 label="Source Bytes"
@@ -1036,9 +1175,10 @@ Multiple records: [record1, record2, ...]`}
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, src_bytes: e.target.value }
                 })}
+                placeholder="1024"
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={4}>
               <TextField
                 fullWidth
                 label="Destination Bytes"
@@ -1048,9 +1188,31 @@ Multiple records: [record1, record2, ...]`}
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, dst_bytes: e.target.value }
                 })}
+                placeholder="2048"
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Missed Bytes"
+                type="number"
+                value={manualEntryDialog.data.missed_bytes || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, missed_bytes: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            
+            {/* Packet Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 2 }}>
+                📦 Packet Information
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Source Packets"
@@ -1060,9 +1222,23 @@ Multiple records: [record1, record2, ...]`}
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, src_pkts: e.target.value }
                 })}
+                placeholder="10"
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Source IP Bytes"
+                type="number"
+                value={manualEntryDialog.data.src_ip_bytes || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, src_ip_bytes: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Destination Packets"
@@ -1072,11 +1248,184 @@ Multiple records: [record1, record2, ...]`}
                   ...manualEntryDialog,
                   data: { ...manualEntryDialog.data, dst_pkts: e.target.value }
                 })}
+                placeholder="8"
               />
             </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Destination IP Bytes"
+                type="number"
+                value={manualEntryDialog.data.dst_ip_bytes || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dst_ip_bytes: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            
+            {/* DNS Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 2 }}>
+                🌍 DNS Information
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS Query"
+                type="number"
+                value={manualEntryDialog.data.dns_query || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_query: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS QClass"
+                type="number"
+                value={manualEntryDialog.data.dns_qclass || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_qclass: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS QType"
+                type="number"
+                value={manualEntryDialog.data.dns_qtype || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_qtype: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS RCode"
+                type="number"
+                value={manualEntryDialog.data.dns_rcode || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_rcode: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS AA"
+                value={manualEntryDialog.data.dns_AA || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_AA: e.target.value }
+                })}
+                placeholder="none, T, F"
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS RD"
+                value={manualEntryDialog.data.dns_RD || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_RD: e.target.value }
+                })}
+                placeholder="none, T, F"
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS RA"
+                value={manualEntryDialog.data.dns_RA || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_RA: e.target.value }
+                })}
+                placeholder="none, T, F"
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="DNS Rejected"
+                value={manualEntryDialog.data.dns_rejected || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, dns_rejected: e.target.value }
+                })}
+                placeholder="none, T, F"
+              />
+            </Grid>
+            
+            {/* HTTP Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 2 }}>
+                🌐 HTTP Information
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="HTTP Request Body Length"
+                type="number"
+                value={manualEntryDialog.data.http_request_body_len || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, http_request_body_len: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="HTTP Response Body Length"
+                type="number"
+                value={manualEntryDialog.data.http_response_body_len || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, http_response_body_len: e.target.value }
+                })}
+                placeholder="0"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="HTTP Status Code"
+                type="number"
+                value={manualEntryDialog.data.http_status_code || ''}
+                onChange={(e) => setManualEntryDialog({
+                  ...manualEntryDialog,
+                  data: { ...manualEntryDialog.data, http_status_code: e.target.value }
+                })}
+                placeholder="200"
+              />
+            </Grid>
+            
+
+            
             <Grid item xs={12}>
               <Typography variant="caption" color="text.secondary">
-                Fill in the required fields. Missing fields will be set to default values.
+                * Required fields. All other fields will use default values if not provided.
               </Typography>
             </Grid>
           </Grid>
@@ -1155,6 +1504,271 @@ Multiple records: [record1, record2, ...]`}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSinglePredictionDialog({ open: false, result: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Column Mapping Reference Dialog */}
+      <Dialog 
+        open={columnMappingDialog} 
+        onClose={() => setColumnMappingDialog(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          📋 Column Name Reference - Supported Formats
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            NetAegis automatically maps column names from different network monitoring tools. 
+            Use any of these column names in your CSV, JSON, or manual entry.
+          </Typography>
+          
+          <Grid container spacing={3} sx={{ mt: 2 }}>
+            {/* Source IP */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🌐 Source IP Address
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> src_ip
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  source_ip, sourceip, source_address, src_addr, origin_ip, orig_h (Zeek), 
+                  ip.src (Wireshark), srcip, saddr, source, from_ip, client_ip
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Destination IP */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🎯 Destination IP Address
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> dst_ip
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  dest_ip, destination_ip, destip, dst_addr, target_ip, resp_h (Zeek), 
+                  ip.dst (Wireshark), dstip, daddr, destination, to_ip, server_ip
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Source Port */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🔌 Source Port
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> src_port
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  source_port, sourceport, src_prt, origin_port, orig_p (Zeek), 
+                  tcp.srcport (Wireshark), udp.srcport, srcport, sport, from_port, client_port
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Destination Port */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🚪 Destination Port
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> dst_port
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  dest_port, destination_port, destport, dst_prt, target_port, resp_p (Zeek), 
+                  tcp.dstport (Wireshark), udp.dstport, dstport, dport, to_port, server_port
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Protocol */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  📡 Protocol
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> proto
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  protocol, prot, protocol_type, ip_protocol, ip.proto (Wireshark), 
+                  frame.protocols, l4_proto, transport
+                </Typography>
+                <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
+                  <strong>Values:</strong> tcp, udp, icmp, igmp, ipv6, ipv6-icmp
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Service */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🛠️ Service
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> service
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  svc, srv, service_type, application, app, protocol_service, port_service
+                </Typography>
+                <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
+                  <strong>Values:</strong> http, https, ssh, ftp, dns, smtp, ssl, mysql, etc.
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Duration */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  ⏱️ Duration
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> duration
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  time, dur, connection_time, flow_duration, session_time, elapsed, total_time
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Connection State */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🔗 Connection State
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> conn_state
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Supported formats:</strong><br/>
+                  state, connection_state, conn_status, status, tcp_state, flow_state, session_state
+                </Typography>
+                <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
+                  <strong>Values:</strong> SF, S0, REJ, RSTR, RSTO, OTH
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Bytes */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  📊 Data Transfer (Bytes)
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> src_bytes, dst_bytes
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Source bytes:</strong> source_bytes, src_size, origin_bytes, orig_bytes (Zeek), 
+                  client_bytes, upload_bytes, sent_bytes, tx_bytes<br/>
+                  <strong>Destination bytes:</strong> destination_bytes, dest_bytes, dst_size, resp_bytes (Zeek), 
+                  server_bytes, download_bytes, received_bytes, rx_bytes
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* Packets */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  📦 Packet Counts
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> src_pkts, dst_pkts
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Source packets:</strong> source_packets, src_count, origin_packets, orig_pkts (Zeek), 
+                  client_packets, upload_packets, sent_packets, tx_packets<br/>
+                  <strong>Destination packets:</strong> destination_packets, dest_packets, dst_count, resp_pkts (Zeek), 
+                  server_packets, download_packets, received_packets, rx_packets
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* DNS Fields */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🔍 DNS Information
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> dns_query, dns_qclass, dns_qtype, dns_rcode, dns_AA, dns_RD, dns_RA, dns_rejected
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Query:</strong> dns_q, dns.qry.name (Wireshark), query, dns_name<br/>
+                  <strong>Class/Type:</strong> dns_qc, dns.qry.class, dns_qt, dns.qry.type<br/>
+                  <strong>Flags:</strong> dns_aa, dns.flags.authoritative, dns_rd, dns.flags.recdesired
+                </Typography>
+              </Paper>
+            </Grid>
+            
+            {/* HTTP Fields */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  🌐 HTTP Information
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> http_request_body_len, http_response_body_len, http_status_code
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Request:</strong> http_req_len, http_request_len, request_body_length, req_body_len<br/>
+                  <strong>Response:</strong> http_resp_len, http_response_len, response_body_length, resp_body_len<br/>
+                  <strong>Status:</strong> http_code, http_status, status_code, response_code
+                </Typography>
+              </Paper>
+            </Grid>
+            
+
+            
+            {/* Other Fields */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, height: '100%' }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  📋 Other Fields
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Required:</strong> missed_bytes, src_ip_bytes, dst_ip_bytes
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Missed bytes:</strong> lost, lost_bytes, missing_bytes, dropped_bytes, retransmitted<br/>
+                  <strong>IP bytes:</strong> source_ip_bytes, src_ip_size, destination_ip_bytes, dst_ip_size
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+          
+          <Alert severity="info" sx={{ mt: 3 }}>
+            <Typography variant="body2">
+              <strong>💡 Pro Tips:</strong><br/>
+              • Column names are case-insensitive<br/>
+              • Missing columns will be filled with default values<br/>
+              • The system supports data from Wireshark, Zeek/Bro, Suricata, pfSense, and many other tools<br/>
+              • You can mix and match column names from different formats in the same file
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setColumnMappingDialog(false)}>
             Close
           </Button>
         </DialogActions>
