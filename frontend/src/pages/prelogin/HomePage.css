@@ -4,19 +4,22 @@ body {
   background-color: #111; /* Ensure body has the base background color */
 }
 
+.prelogin-bg {
+  background-color: #111;
+  color: #f8f9fa;
+  min-height: 100vh;
+  margin-top: 0;
+}
+
 #smooth-wrapper {
   /* This will contain the entire scrollable area */
 }
 
 #smooth-content {
+  padding-top: 0;
   overflow: visible; /* Required for GSAP effects to work properly */
   width: 100%;
-}
-
-.prelogin-bg {
-  background-color: #111;
-  color: #f8f9fa;
-  min-height: 100vh;
+  scroll-padding-top: 72px;
 }
 
 .homepage-main {

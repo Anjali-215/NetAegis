@@ -1,60 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from './Button';
 import './Navbar.css';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const [showNavbar, setShowNavbar] = useState(true);
-
-  useEffect(() => {
-    let ticking = false;
-    let lastY = window.scrollY;
-    const getScrollY = () => {
-      if (window.ScrollSmoother && window.ScrollSmoother.get) {
-        const smoother = window.ScrollSmoother.get();
-        return smoother ? smoother.scrollTop() : window.scrollY;
-      }
-      return window.scrollY;
-    };
-
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentY = getScrollY();
-          if (currentY < 50) {
-            setShowNavbar(true);
-          } else if (currentY > lastY) {
-            setShowNavbar(false); // scrolling down
-          } else {
-            setShowNavbar(true); // scrolling up
-          }
-          lastY = currentY;
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    // If using GSAP ScrollSmoother, listen to its events as well
-    if (window.ScrollSmoother && window.ScrollSmoother.get) {
-      const smoother = window.ScrollSmoother.get();
-      if (smoother && smoother.scrollTrigger) {
-        smoother.scrollTrigger.addEventListener('update', handleScroll);
-      }
-    }
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (window.ScrollSmoother && window.ScrollSmoother.get) {
-        const smoother = window.ScrollSmoother.get();
-        if (smoother && smoother.scrollTrigger) {
-          smoother.scrollTrigger.removeEventListener('update', handleScroll);
-        }
-      }
-    };
-  }, []);
 
   // Smooth scroll handler
   const handleNavClick = (e, selector) => {
@@ -67,7 +17,13 @@ export default function Navbar() {
       if (el) {
         const smoother = window.ScrollSmoother.get();
         if (smoother) {
-          smoother.scrollTo(el, true, 'top top');
+          // Offset by Navbar height (72px)
+          const y = el.getBoundingClientRect().top + window.scrollY - 72;
+          smoother.scrollTo(y, true);
+          // Force GSAP to recalculate scroll area after scroll
+          setTimeout(() => {
+            smoother.refresh();
+          }, 100);
           return;
         }
       }
@@ -83,7 +39,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className={`navbar-header${showNavbar ? '' : ' navbar-hidden'}`}>
+    <header className="navbar-header">
       <nav className="navbar">
         <a href="#" className="navbar-logo" onClick={e => handleNavClick(e, '#')}>NetAegis</a>
         <button className="navbar-burger" onClick={() => setOpen(!open)} aria-label="Menu">
