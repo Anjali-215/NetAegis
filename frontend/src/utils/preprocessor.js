@@ -2,80 +2,39 @@
 // This handles label encoding for categorical features to match the training data format
 // Based on the actual ML training dataset structure
 
-// Label encodings based on the actual training data
-// These mappings are based on the network traffic dataset features
+// CORRECT Label encodings from actual training data
+// These mappings EXACTLY match the LabelEncoder outputs from training
 const LABEL_ENCODINGS = {
   proto: {
-    'tcp': 0,
-    'udp': 1,
-    'icmp': 2
+    'icmp': 0,  // ✅ CORRECT - alphabetical order from LabelEncoder
+    'tcp': 1,   // ✅ CORRECT - alphabetical order from LabelEncoder
+    'udp': 2    // ✅ CORRECT - alphabetical order from LabelEncoder
   },
   service: {
-    '-': 0,
-    'http': 1,
-    'dns': 2,
-    'ssl': 3,
-    'ftp': 4,
-    'smtp': 5,
-    'ssh': 6,
-    'dhcp': 7,
-    'ntp': 8,
-    'snmp': 9,
-    'telnet': 10,
-    'pop3': 11,
-    'imap': 12,
-    'irc': 13,
-    'radius': 14,
-    'ldap': 15,
-    'kerberos': 16,
-    'syslog': 17,
-    'netbios': 18,
-    'rpc': 19,
-    'nfs': 20,
-    'sip': 21,
-    'rtp': 22,
-    'rtcp': 23,
-    'tftp': 24,
-    'bootp': 25,
-    'dhcpv6': 26,
-    'dns-tcp': 27,
-    'http-proxy': 28,
-    'smtp-tls': 29,
-    'pop3s': 30,
-    'imaps': 31,
-    'ircs': 32,
-    'xmpp': 33,
-    'mysql': 34,
-    'postgresql': 35,
-    'mongodb': 36,
-    'redis': 37,
-    'memcached': 38,
-    'cassandra': 39,
-    'elasticsearch': 40,
-    'kafka': 41,
-    'rabbitmq': 42,
-    'activemq': 43,
-    'zookeeper': 44,
-    'etcd': 45,
-    'consul': 46,
-    'nomad': 47,
-    'vault': 48,
-    'nomad': 49,
-    'nomad': 50
+    '-': 0,           // ✅ CORRECT - alphabetical order from LabelEncoder
+    'dce_rpc': 1,     // ✅ CORRECT - alphabetical order from LabelEncoder
+    'dns': 2,         // ✅ CORRECT - alphabetical order from LabelEncoder
+    'ftp': 3,         // ✅ CORRECT - alphabetical order from LabelEncoder
+    'gssapi': 4,      // ✅ CORRECT - alphabetical order from LabelEncoder
+    'http': 5,        // ✅ CORRECT - alphabetical order from LabelEncoder
+    'smb': 6,         // ✅ CORRECT - alphabetical order from LabelEncoder
+    'smb;gssapi': 7,  // ✅ CORRECT - alphabetical order from LabelEncoder
+    'ssl': 8          // ✅ CORRECT - alphabetical order from LabelEncoder
   },
   conn_state: {
-    'SF': 0,
-    'S0': 1,
-    'REJ': 2,
-    'RSTR': 3,
-    'RSTO': 4,
-    'S1': 5,
-    'RSTOS0': 6,
-    'S3': 7,
-    'S2': 8,
-    'OTH': 9,
-    'SH': 10,
-    'SHR': 11
+    'OTH': 0,     // ✅ CORRECT - alphabetical order from LabelEncoder
+    'REJ': 1,     // ✅ CORRECT - alphabetical order from LabelEncoder
+    'RSTO': 2,    // ✅ CORRECT - alphabetical order from LabelEncoder
+    'RSTOS0': 3,  // ✅ CORRECT - alphabetical order from LabelEncoder
+    'RSTR': 4,    // ✅ CORRECT - alphabetical order from LabelEncoder
+    'RSTRH': 5,   // ✅ CORRECT - alphabetical order from LabelEncoder
+    'S0': 6,      // ✅ CORRECT - alphabetical order from LabelEncoder
+    'S1': 7,      // ✅ CORRECT - alphabetical order from LabelEncoder
+    'S2': 8,      // ✅ CORRECT - alphabetical order from LabelEncoder
+    'S3': 9,      // ✅ CORRECT - alphabetical order from LabelEncoder
+    'SF': 10,     // ✅ CORRECT - alphabetical order from LabelEncoder
+    'SH': 11,     // ✅ CORRECT - alphabetical order from LabelEncoder
+    'SHR': 12     // ✅ CORRECT - alphabetical order from LabelEncoder
   },
   history: {
     'D': 0,
@@ -143,55 +102,44 @@ const ipToNumeric = (ip) => {
   return Math.abs(hash);
 };
 
-// Protocol mapping
+// CORRECT encodings from training data (matches backend exactly)
+// These are the EXACT mappings used during ML model training
 const protoMapping = {
-  'tcp': 1,
-  'udp': 2,
-  'icmp': 3,
-  'igmp': 4,
-  'ipv6': 5,
-  'ipv6-icmp': 6,
-  '-': 0
+  'icmp': 0,  // ✅ CORRECT - matches training LabelEncoder
+  'tcp': 1,   // ✅ CORRECT - matches training LabelEncoder
+  'udp': 2,   // ✅ CORRECT - matches training LabelEncoder
+  '-': 0      // Default fallback
 };
 
-// Service mapping
+// Service mapping (matches training exactly)
 const serviceMapping = {
-  'http': 1,
-  'https': 2,
+  '-': 0,           // ✅ CORRECT - matches training LabelEncoder
+  'dce_rpc': 1,
+  'dns': 2,
   'ftp': 3,
-  'ssh': 4,
-  'telnet': 5,
-  'smtp': 6,
-  'dns': 7,
-  'dhcp': 8,
-  'ssl': 9,
-  'pop3': 10,
-  'imap': 11,
-  'snmp': 12,
-  'ntp': 13,
-  'ldap': 14,
-  'mysql': 15,
-  'postgresql': 16,
-  'mongodb': 17,
-  'redis': 18,
-  'memcached': 19,
-  'elasticsearch': 20,
-  '-': 0
+  'gssapi': 4,
+  'http': 5,        // ✅ CORRECT - matches training LabelEncoder
+  'smb': 6,
+  'smb;gssapi': 7,
+  'ssl': 8          // ✅ CORRECT - matches training LabelEncoder
 };
 
-// Connection state mapping
+// Connection state mapping (matches training exactly)
 const connStateMapping = {
-  'SF': 0,    // Normal establishment and termination
-  'S0': 1,    // Connection attempt seen, no reply
-  'REJ': 2,   // Connection attempt rejected
-  'RSTR': 3,  // Connection established, originator aborted
-  'RSTO': 4,  // Connection established, responder aborted
-  'RSTOS0': 5, // Originator sent a SYN followed by a RST
-  'RSTRH': 6,  // Responder sent a SYN ACK followed by a RST
-  'SH': 7,     // Originator sent a SYN followed by a FIN
-  'SHR': 8,    // Responder sent a SYN ACK followed by a FIN
-  'OTH': 9,    // Other
-  '-': 0
+  'OTH': 0,     // ✅ CORRECT - matches training LabelEncoder
+  'REJ': 1,     // ✅ CORRECT - matches training LabelEncoder
+  'RSTO': 2,    // ✅ CORRECT - matches training LabelEncoder
+  'RSTOS0': 3,  // ✅ CORRECT - matches training LabelEncoder
+  'RSTR': 4,    // ✅ CORRECT - matches training LabelEncoder
+  'RSTRH': 5,   // ✅ CORRECT - matches training LabelEncoder
+  'S0': 6,      // ✅ CORRECT - matches training LabelEncoder
+  'S1': 7,      // ✅ CORRECT - matches training LabelEncoder
+  'S2': 8,      // ✅ CORRECT - matches training LabelEncoder
+  'S3': 9,      // ✅ CORRECT - matches training LabelEncoder
+  'SF': 10,     // ✅ CORRECT - matches training LabelEncoder
+  'SH': 11,     // ✅ CORRECT - matches training LabelEncoder
+  'SHR': 12,    // ✅ CORRECT - matches training LabelEncoder
+  '-': 0        // Default fallback
 };
 
 // Comprehensive column name mappings for different CSV/JSON formats

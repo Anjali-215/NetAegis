@@ -200,35 +200,35 @@ export const getSampleNetworkData = (threatType = 'normal') => {
 };
 
 export const testMLPrediction = async () => {
-  // Test with DDoS pattern using correct field names
+  // Test with DDoS pattern using CORRECT encodings that match training
   const testData = {
-    src_ip: 3232235777,
+    src_ip: "192.168.1.100",  // Send as string - backend will encode properly
     src_port: 80,
-    dst_ip: 3232235778,
+    dst_ip: "192.168.1.200",  // Send as string - backend will encode properly
     dst_port: 80,
-    proto: 1, // tcp
-    service: 1, // http
-    duration: 0, // Short duration typical of DDoS
-    src_bytes: 64, // Small packets
-    dst_bytes: 0, // No response
-    conn_state: 1, // S0 - connection attempt, no reply
+    proto: "tcp",             // Send as string - backend will encode to 1
+    service: "http",          // Send as string - backend will encode to 5
+    duration: 0,              // Short duration typical of DDoS
+    src_bytes: 64,            // Small packets
+    dst_bytes: 0,             // No response
+    conn_state: "S0",         // Send as string - backend will encode to 6
     missed_bytes: 0,
-    src_pkts: 1000, // High packet count - DDoS characteristic
+    src_pkts: 1000,           // High packet count - DDoS characteristic
     src_ip_bytes: 64000,
-    dst_pkts: 0, // No response packets
+    dst_pkts: 0,              // No response packets
     dst_ip_bytes: 0,
     dns_query: 0,
     dns_qclass: 0,
     dns_qtype: 0,
     dns_rcode: 0,
-    dns_AA: 0,
-    dns_RD: 0,
-    dns_RA: 0,
-    dns_rejected: 0,
+    dns_AA: "none",           // Send as string - backend will encode to 2
+    dns_RD: "none",           // Send as string - backend will encode to 2
+    dns_RA: "none",           // Send as string - backend will encode to 2
+    dns_rejected: "none",     // Send as string - backend will encode to 2
     http_request_body_len: 0,
     http_response_body_len: 0,
     http_status_code: 0,
-    label: 1 // DDoS label
+    label: 1                  // DDoS label
   };
   
   const response = await fetch(`${API_BASE_URL}/predict`, {

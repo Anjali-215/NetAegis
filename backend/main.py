@@ -42,9 +42,25 @@ ml_dir = Path(__file__).parent
 
 def preprocess_input_data(data: Dict[str, Any]) -> Dict[str, Any]:
     """Preprocess input data to match training format exactly"""
-    processed = data.copy()
     
-    # Load feature encoders if not already loaded
+    # Step 1: Convert to DataFrame (like training)
+    df = pd.DataFrame([data])
+    
+    # Step 2: Drop columns that were dropped during training
+    columns_to_drop = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp']
+    existing_columns_to_drop = [col for col in columns_to_drop if col in df.columns]
+    if existing_columns_to_drop:
+        df = df.drop(existing_columns_to_drop, axis=1)
+    
+    # Step 3: Separate features (drop 'type' if present)
+    if 'type' in df.columns:
+        df = df.drop('type', axis=1)
+    
+    # Step 4: Convert object columns to category (exactly like training)
+    for col in df.select_dtypes(include='object').columns:
+        df[col] = df[col].astype('category')
+    
+    # Step 5: Load feature encoders if not already loaded
     if not feature_encoders:
         try:
             encoder_path = ml_dir / "feature_encoders.pkl"
@@ -57,13 +73,11 @@ def preprocess_input_data(data: Dict[str, Any]) -> Dict[str, Any]:
         except Exception as e:
             logger.error(f"Error loading feature encoders: {e}")
     
-    # Use correct encoders from training
-    categorical_fields = ['proto', 'service', 'conn_state', 'dns_query', 'dns_AA', 'dns_RD', 'dns_RA', 'dns_rejected']
-    
-    for field in categorical_fields:
-        if field in processed and field in feature_encoders:
-            encoder = feature_encoders[field]
-            value = processed[field]
+    # Step 6: Apply LabelEncoder to categorical columns (exactly like training)
+    for col in df.select_dtypes(include=['object', 'category']).columns:
+        if col in feature_encoders:
+            encoder = feature_encoders[col]
+            value = df[col].iloc[0]
             
             # Convert to string for consistency
             if isinstance(value, (int, float)):
@@ -71,49 +85,27 @@ def preprocess_input_data(data: Dict[str, Any]) -> Dict[str, Any]:
             elif value is None:
                 value = "none"
             
-            # Check if value is in encoder classes
+            # Apply encoder
             if value in encoder.classes_:
-                processed[field] = encoder.transform([value])[0]
+                df[col] = encoder.transform([value])[0]
             else:
-                # Handle unknown values - use the most common value (index 0)
-                processed[field] = 0
-                logger.warning(f"Unknown value '{value}' for field '{field}', using default")
+                # Handle unknown values - use index 0 (most common)
+                df[col] = 0
+                logger.warning(f"Unknown value '{value}' for field '{col}', using default")
+        else:
+            # Fallback for missing encoders
+            logger.warning(f"No encoder found for column '{col}', using default encoding")
+            df[col] = 0
     
-    # IP address encoding (hash based on training data structure)
-    for ip_field in ['src_ip', 'dst_ip']:
-        if isinstance(processed.get(ip_field), str):
-            if ip_field in feature_encoders:
-                encoder = feature_encoders[ip_field]
-                ip_value = processed[ip_field]
-                
-                # If IP is in training data, use its encoding
-                if ip_value in encoder.classes_:
-                    processed[ip_field] = encoder.transform([ip_value])[0]
-                else:
-                    # For new IPs, use a consistent hash
-                    hash_val = hash(ip_value) % len(encoder.classes_)
-                    processed[ip_field] = abs(hash_val)
-            else:
-                # Fallback to simple hash
-                hash_val = hash(processed[ip_field]) % 1000
-                processed[ip_field] = abs(hash_val)
+    # Step 7: Ensure all numeric columns are properly typed
+    numeric_columns = df.select_dtypes(include=[np.number]).columns
+    for col in numeric_columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     
-    # Ensure numeric fields are numeric
-    numeric_fields = [
-        'src_ip', 'src_port', 'dst_ip', 'dst_port', 'duration', 'src_bytes', 'dst_bytes', 
-        'missed_bytes', 'src_pkts', 'src_ip_bytes', 'dst_pkts', 'dst_ip_bytes', 'dns_query', 
-        'dns_qclass', 'dns_qtype', 'dns_rcode', 'http_request_body_len', 'http_response_body_len', 
-        'http_status_code', 'label'
-    ]
+    # Step 8: Return as dictionary with exact same structure
+    result = df.iloc[0].to_dict()
     
-    for field in numeric_fields:
-        if field in processed:
-            try:
-                processed[field] = float(processed[field])
-            except (ValueError, TypeError):
-                processed[field] = 0.0
-    
-    return processed
+    return result
 
 def load_models():
     """Load the Random Forest model and label encoder"""
@@ -193,56 +185,61 @@ async def get_models():
 
 @app.post("/predict")
 async def predict_threat(data: Dict[str, Any]):
-    """Make threat predictions using the Random Forest model"""
+    """Make threat predictions using the Random Forest model with exact training pipeline"""
     try:
         logger.info(f"Received prediction request with data: {data}")
         
-        # Preprocess the input data
+        # Step 1: Preprocess the input data (matches training exactly)
         processed_data = preprocess_input_data(data)
         logger.info(f"Preprocessed data: {processed_data}")
         
-        # Convert to DataFrame
+        # Step 2: Convert to DataFrame (like training)
         df = pd.DataFrame([processed_data])
         
-        # Ensure all required features are present
-        required_features = [
+        # Step 3: Get the expected feature columns from training
+        # These are the columns after preprocessing in training (excluding 'type')
+        expected_features = [
             'src_ip', 'src_port', 'dst_ip', 'dst_port', 'proto', 'service', 'duration', 'src_bytes', 'dst_bytes',
             'conn_state', 'missed_bytes', 'src_pkts', 'src_ip_bytes', 'dst_pkts', 'dst_ip_bytes', 'dns_query', 
             'dns_qclass', 'dns_qtype', 'dns_rcode', 'dns_AA', 'dns_RD', 'dns_RA', 'dns_rejected', 
             'http_request_body_len', 'http_response_body_len', 'http_status_code', 'label'
         ]
         
-        # Add missing features with default values
-        for feature in required_features:
+        # Step 4: Add missing features with default values (like training handles missing data)
+        for feature in expected_features:
             if feature not in df.columns:
                 df[feature] = 0
+                logger.info(f"Added missing feature '{feature}' with default value 0")
         
-        # Reorder columns to match training data
-        df = df[required_features]
+        # Step 5: Reorder columns to match training data exactly
+        df = df[expected_features]
         logger.info(f"Final DataFrame shape: {df.shape}")
+        logger.info(f"DataFrame columns: {list(df.columns)}")
         logger.info(f"DataFrame values: {df.iloc[0].to_dict()}")
         
-        # Check if model is loaded
+        # Step 6: Check if model is loaded
         if 'random_forest' not in models:
             raise HTTPException(status_code=500, detail="Random Forest model not loaded")
         
         model = models['random_forest']
         logger.info(f"Using model with {len(model.classes_)} classes: {model.classes_}")
         
-        # Make prediction
+        # Step 7: Make prediction (exactly like training)
         try:
             pred = model.predict(df)[0]
             prob = model.predict_proba(df)[0] if hasattr(model, 'predict_proba') else None
             logger.info(f"Model prediction: {pred}, probabilities: {prob}")
         except Exception as e:
             logger.error(f"Error during model prediction: {e}")
+            logger.error(f"DataFrame dtypes: {df.dtypes}")
+            logger.error(f"DataFrame shape: {df.shape}")
             raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
         
-        # Map prediction to threat type using label encoder if available
+        # Step 8: Map prediction to threat type using label encoder (exactly like training)
         if label_encoder is not None and hasattr(label_encoder, 'classes_'):
             threat_type = label_encoder.classes_[pred] if pred < len(label_encoder.classes_) else "unknown"
         else:
-            # Fallback mapping
+            # Fallback mapping (matches training order)
             threat_types = {
                 0: "backdoor", 1: "ddos", 2: "dos", 3: "injection", 4: "mitm",
                 5: "normal", 6: "password", 7: "ransomware", 8: "scanning", 9: "xss"
@@ -251,7 +248,7 @@ async def predict_threat(data: Dict[str, Any]):
         
         logger.info(f"Threat type: {threat_type}")
         
-        # Determine threat level
+        # Step 9: Determine threat level
         high_threat_types = ["ddos", "ransomware", "backdoor", "mitm", "dos"]
         medium_threat_types = ["injection", "xss", "scanning", "password"]
         
