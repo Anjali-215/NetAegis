@@ -389,63 +389,108 @@ const CSVUpload = () => {
 
   // Handle JSON data processing
   const handleJsonProcessing = async () => {
+    setIsProcessing(true);
     try {
       const parsedData = JSON.parse(jsonData);
       const dataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
       
-      // Process each record to fill in default values
-      const processedData = dataArray.map(record => {
+      const results = [];
+      
+      // Process each record through the ML pipeline (like CSV upload)
+      for (let i = 0; i < dataArray.length; i++) {
+        const record = dataArray[i];
+        
+        // Normalize data to fill in default values (same as CSV processing)
         const completeRecord = {
-          src_ip: record.src_ip || record.source_ip || record.sourceip || '',
-          src_port: record.src_port || record.source_port || record.sourceport || 80,
-          dst_ip: record.dst_ip || record.dest_ip || record.destination_ip || record.destip || '',
-          dst_port: record.dst_port || record.dest_port || record.destination_port || record.destport || 443,
-          proto: record.proto || record.protocol || 'tcp',
-          service: record.service || record.svc || '-',
-          duration: record.duration || record.dur || 1.0,
-          src_bytes: record.src_bytes || record.source_bytes || 0,
-          dst_bytes: record.dst_bytes || record.dest_bytes || record.destination_bytes || 0,
+          src_ip: record.src_ip || record.source_ip || record.sourceip || record.orig_h || record['ip.src'] || '',
+          src_port: record.src_port || record.source_port || record.sourceport || record.orig_p || record['tcp.srcport'] || record['udp.srcport'] || 80,
+          dst_ip: record.dst_ip || record.dest_ip || record.destination_ip || record.destip || record.resp_h || record['ip.dst'] || '',
+          dst_port: record.dst_port || record.dest_port || record.destination_port || record.destport || record.resp_p || record['tcp.dstport'] || record['udp.dstport'] || 443,
+          proto: record.proto || record.protocol || record.prot || 'tcp',
+          service: record.service || record.svc || record.srv || '-',
+          duration: record.duration || record.dur || record.time || 1.0,
+          src_bytes: record.src_bytes || record.source_bytes || record.orig_bytes || 0,
+          dst_bytes: record.dst_bytes || record.dest_bytes || record.destination_bytes || record.resp_bytes || 0,
           conn_state: record.conn_state || record.connection_state || record.state || 'SF',
           missed_bytes: record.missed_bytes || 0,
-          src_pkts: record.src_pkts || record.source_packets || 1,
+          src_pkts: record.src_pkts || record.source_packets || record.orig_pkts || 1,
           src_ip_bytes: record.src_ip_bytes || 0,
-          dst_pkts: record.dst_pkts || record.dest_packets || record.destination_packets || 1,
+          dst_pkts: record.dst_pkts || record.dest_packets || record.destination_packets || record.resp_pkts || 1,
           dst_ip_bytes: record.dst_ip_bytes || 0,
-          dns_query: record.dns_query || 0,
-          dns_qclass: record.dns_qclass || 0,
-          dns_qtype: record.dns_qtype || 0,
+          dns_query: record.dns_query || record.dns_q || 0,
+          dns_qclass: record.dns_qclass || record.dns_qc || 0,
+          dns_qtype: record.dns_qtype || record.dns_qt || 0,
           dns_rcode: record.dns_rcode || 0,
-          dns_AA: record.dns_AA || 'none',
-          dns_RD: record.dns_RD || 'none',
-          dns_RA: record.dns_RA || 'none',
+          dns_AA: record.dns_AA || record.dns_aa || 'none',
+          dns_RD: record.dns_RD || record.dns_rd || 'none',
+          dns_RA: record.dns_RA || record.dns_ra || 'none',
           dns_rejected: record.dns_rejected || 'none',
-          http_request_body_len: record.http_request_body_len || 0,
-          http_response_body_len: record.http_response_body_len || 0,
-          http_status_code: record.http_status_code || 0,
-          label: 1  // Always 1 for threat detection prediction
+          http_request_body_len: record.http_request_body_len || record.http_req_len || 0,
+          http_response_body_len: record.http_response_body_len || record.http_resp_len || 0,
+          http_status_code: record.http_status_code || record.http_code || 0,
+          label: 1  // Always 1 for threat detection prediction (ignore any label from JSON)
         };
         
-        return completeRecord;
-      });
+        // Validate the normalized data (same as CSV)
+        const validation = preprocessNetworkData(completeRecord);
+        if (!validation.isValid) {
+          results.push({
+            row: i + 1,
+            status: 'error',
+            error: validation.errors.join(', '),
+            data: record
+          });
+          continue;
+        }
+        
+        // Get the preprocessed data and run ML prediction
+        const preprocessedData = validation.processedData;
+
+        try {
+          const prediction = await predictThreat(preprocessedData);
+          results.push({
+            row: i + 1,
+            status: 'completed',
+            prediction: prediction.prediction,
+            threatType: prediction.threat_type,
+            threatLevel: prediction.threat_level,
+            confidence: prediction.confidence,
+            data: record
+          });
+        } catch (error) {
+          results.push({
+            row: i + 1,
+            status: 'error',
+            error: error.message,
+            data: record
+          });
+        }
+      }
       
-      // Create a mock file object for processing
-      const mockFile = {
+      // Create a processed file object with ML results
+      const processedFile = {
         id: uploadedFiles.length + 1,
         name: 'json_data.json',
         size: `${(jsonData.length / 1024).toFixed(1)} KB`,
         status: 'completed',
         uploadDate: new Date().toLocaleString(),
-        records: processedData.length,
-        errors: 0,
+        records: dataArray.length,
+        errors: results.filter(r => r.status === 'error').length,
         warnings: 0,
-        data: processedData
+        data: dataArray,
+        mlResults: results  // Store ML prediction results
       };
       
-      setUploadedFiles([mockFile, ...uploadedFiles]);
+      setUploadedFiles([processedFile, ...uploadedFiles]);
       setJsonData('');
-      alert(`JSON data processed! ${processedData.length} records added.`);
+      
+      // Show results dialog (same as CSV upload)
+      setResultsDialog({ open: true, results: results });
+      
     } catch (error) {
       alert('Invalid JSON format: ' + error.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 

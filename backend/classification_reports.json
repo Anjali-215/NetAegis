@@ -1,82 +1,76 @@
 {
   "RandomForest": {
-    "0": {
+    "backdoor": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 3742.0
+    },
+    "ddos": {
+      "precision": 0.9937390433258202,
+      "recall": 0.9922480620155039,
+      "f1-score": 0.992992992992993,
+      "support": 3999.0
+    },
+    "dos": {
+      "precision": 0.9944605644948562,
+      "recall": 0.9926276987888363,
+      "f1-score": 0.9935432863354856,
+      "support": 3798.0
+    },
+    "injection": {
+      "precision": 0.9875187219171243,
+      "recall": 0.9907337841222139,
+      "f1-score": 0.9891236404550569,
+      "support": 3993.0
+    },
+    "mitm": {
+      "precision": 0.926829268292683,
+      "recall": 0.9134615384615384,
+      "f1-score": 0.9200968523002422,
+      "support": 208.0
+    },
+    "normal": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
       "support": 8404.0
     },
-    "1": {
+    "password": {
+      "precision": 0.9969735182849937,
+      "recall": 0.9952165156092648,
+      "f1-score": 0.9960942421569863,
+      "support": 3972.0
+    },
+    "ransomware": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 29687.0
+      "support": 2947.0
     },
-    "accuracy": 1.0,
-    "macro avg": {
-      "precision": 1.0,
+    "scanning": {
+      "precision": 0.9925131020713751,
+      "recall": 0.99425,
+      "f1-score": 0.9933807918071688,
+      "support": 4000.0
+    },
+    "xss": {
+      "precision": 0.999010227647641,
       "recall": 1.0,
-      "f1-score": 1.0,
+      "f1-score": 0.9995048687902294,
+      "support": 3028.0
+    },
+    "accuracy": 0.9959045443805623,
+    "macro avg": {
+      "precision": 0.9891044446034494,
+      "recall": 0.9878537598997357,
+      "f1-score": 0.9884736674838163,
       "support": 38091.0
     },
     "weighted avg": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
-      "support": 38091.0
-    }
-  },
-  "XGBoost": {
-    "0": {
-      "precision": 1.0,
-      "recall": 0.9998810090433127,
-      "f1-score": 0.9999405009817338,
-      "support": 8404.0
-    },
-    "1": {
-      "precision": 0.9999663163567771,
-      "recall": 1.0,
-      "f1-score": 0.9999831578947368,
-      "support": 29687.0
-    },
-    "accuracy": 0.9999737470793626,
-    "macro avg": {
-      "precision": 0.9999831581783886,
-      "recall": 0.9999405045216563,
-      "f1-score": 0.9999618294382353,
-      "support": 38091.0
-    },
-    "weighted avg": {
-      "precision": 0.9999737479636565,
-      "recall": 0.9999737470793626,
-      "f1-score": 0.9999737465194283,
-      "support": 38091.0
-    }
-  },
-  "NeuralNetwork": {
-    "0": {
-      "precision": 0.9803921568627451,
-      "recall": 0.9221799143265111,
-      "f1-score": 0.950395487154332,
-      "support": 8404.0
-    },
-    "1": {
-      "precision": 0.9783343271715365,
-      "recall": 0.994778859433422,
-      "f1-score": 0.9864880664072286,
-      "support": 29687.0
-    },
-    "accuracy": 0.9787613872043265,
-    "macro avg": {
-      "precision": 0.9793632420171408,
-      "recall": 0.9584793868799666,
-      "f1-score": 0.9684417767807803,
-      "support": 38091.0
-    },
-    "weighted avg": {
-      "precision": 0.9787883452000712,
-      "recall": 0.9787613872043265,
-      "f1-score": 0.9785249770674542,
+      "precision": 0.9959019347053615,
+      "recall": 0.9959045443805623,
+      "f1-score": 0.9959023775135776,
       "support": 38091.0
     }
   }
