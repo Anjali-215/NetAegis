@@ -205,12 +205,13 @@ export default function HomePage() {
   }, []);
 
   useLayoutEffect(() => {
-    const smoother = ScrollSmoother.create({
-      wrapper: '#smooth-wrapper',
-      content: '#smooth-content',
-      smooth: 2,
-      effects: true,
-    });
+    // DISABLED ScrollSmoother for compatibility with fixed Navbar and anchor navigation
+    // const smoother = ScrollSmoother.create({
+    //   wrapper: '#smooth-wrapper',
+    //   content: '#smooth-content',
+    //   smooth: 2,
+    //   effects: true,
+    // });
 
     // Hero Animation
     const heroTitle = heroRef.current.querySelector('.hero-title');
@@ -375,233 +376,236 @@ export default function HomePage() {
   }, [fabIntroDone]);
 
   return (
-    <div id="smooth-wrapper">
-      <div id="smooth-content">
-        <div className="prelogin-bg">
-          <Navbar />
-          <main className="homepage-main">
-            <section className="hero-container">
-              {/* Red network/graph animation background */}
-              <HeroNetworkAnimation />
-              <div className="hero-content" ref={heroRef}>
-                <h1 className="hero-title">NetAegis</h1>
-                <p className="hero-desc">Your shield against digital threats.</p>
-                
-                <div className="animated-text-container">
-                  <span className="animated-word">Monitor</span>
-                  <span className="animated-word">Detect</span>
-                  <span className="animated-word">Secure</span>
+    <>
+      <Navbar />
+      <div id="smooth-wrapper">
+        <div id="smooth-content">
+          <div className="prelogin-bg">
+            <div style={{ height: '72px', width: '100%' }} aria-hidden="true"></div>
+            <main className="homepage-main">
+              <section className="hero-container">
+                {/* Red network/graph animation background */}
+                <HeroNetworkAnimation />
+                <div className="hero-content" ref={heroRef}>
+                  <h1 className="hero-title">NetAegis</h1>
+                  <p className="hero-desc">Your shield against digital threats.</p>
+                  
+                  <div className="animated-text-container">
+                    <span className="animated-word">Monitor</span>
+                    <span className="animated-word">Detect</span>
+                    <span className="animated-word">Secure</span>
+                  </div>
+                  
+                  <div className="cta-buttons">
+                    <Button variant="secondary" href="/demo">View Demo</Button>
+                    <Button variant="primary" href="/signup">Sign Up</Button>
+                  </div>
                 </div>
-                
-                <div className="cta-buttons">
-                  <Button variant="secondary" href="/demo">View Demo</Button>
-                  <Button variant="primary" href="/signup">Sign Up</Button>
-                </div>
-              </div>
-            </section>
+              </section>
 
-            <section className="features-section">
-              <div className="features-content">
-                <h2 className="features-title"> Features</h2>
-                <p className="features-subtitle">Powerful tools to protect, monitor, and analyze your digital assets in real time.</p>
-                <div className="features-grid" ref={featuresRef}>
-                  {features.map((f, i) => (
-                    <div className="feature-card" key={i} data-speed={['0.9', '1.1', '1.0'][i % 3]}>
-                      <div className="feature-icon">{f.icon}</div>
-                      <h3 className="feature-title">{f.title}</h3>
-                      <p className="feature-desc">{f.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* About Section Carousel */}
-            <section className="about-section" id="about">
-              <div className="about-carousel-container">
-                <div className="about-carousel-quote" ref={aboutCarouselRef}>
-                  <div className="about-carousel-title">{aboutStatements[aboutIndex].title}</div>
-                  <div className="about-carousel-text">{aboutStatements[aboutIndex].text}</div>
-                </div>
-                <div className="about-carousel-dots">
-                  {aboutStatements.map((_, i) => (
-                    <span
-                      key={i}
-                      className={`about-carousel-dot${i === aboutIndex ? ' active' : ''}`}
-                      onClick={() => setAboutIndex(i)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Pricing Section */}
-            <section className="pricing-section" ref={pricingRef}>
-              <div className="pricing-content modern-pricing">
-                <h2 className="pricing-title">Find Your Perfect Plan</h2>
-                <p className="pricing-subtitle">Discover the ideal plan to fuel your business growth. Our pricing options are carefully crafted to cater to businesses.</p>
-                <div className="pricing-toggle">
-                  <button className={billingPeriod === 'monthly' ? 'active' : ''} onClick={() => setBillingPeriod('monthly')}>Monthly</button>
-                  <button className={billingPeriod === 'yearly' ? 'active' : ''} onClick={() => setBillingPeriod('yearly')}>Yearly</button>
-                </div>
-                <div className="pricing-grid modern-grid">
-                  {pricingPlans.map((plan, index) => (
-                    <div 
-                      key={index} 
-                      className={`modern-pricing-card${plan.popular ? ' best-offer' : ''}`}
-                      ref={el => pricingCardsRef.current[index] = el}
-                    >
-                      {plan.popular && (
-                        <div className="best-offer-badge">Best offer</div>
-                      )}
-                      <div className="modern-plan-header">
-                        <h3 className="modern-plan-name">{plan.name}</h3>
-                        <div className="modern-plan-price-row">
-                          <span className="modern-plan-price">{plan.prices[billingPeriod]}</span>
-                          <span className="modern-plan-period">per {billingPeriod}</span>
-                        </div>
-                        <p className="modern-plan-desc">{plan.descriptions[billingPeriod]}</p>
+              <section className="features-section">
+                <div className="features-content">
+                  <h2 className="features-title"> Features</h2>
+                  <p className="features-subtitle">Powerful tools to protect, monitor, and analyze your digital assets in real time.</p>
+                  <div className="features-grid" ref={featuresRef}>
+                    {features.map((f, i) => (
+                      <div className="feature-card" key={i} data-speed={['0.9', '1.1', '1.0'][i % 3]}>
+                        <div className="feature-icon">{f.icon}</div>
+                        <h3 className="feature-title">{f.title}</h3>
+                        <p className="feature-desc">{f.desc}</p>
                       </div>
-                      <div className="modern-features-list">
-                        {plan.features.map((feature, featureIndex) => (
-                          <div key={featureIndex} className="modern-feature">
-                            <FiCheck size={18} className="modern-feature-check" />
-                            <span>{feature}</span>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* About Section Carousel */}
+              <section className="about-section" id="about">
+                <div className="about-carousel-container">
+                  <div className="about-carousel-quote" ref={aboutCarouselRef}>
+                    <div className="about-carousel-title">{aboutStatements[aboutIndex].title}</div>
+                    <div className="about-carousel-text">{aboutStatements[aboutIndex].text}</div>
+                  </div>
+                  <div className="about-carousel-dots">
+                    {aboutStatements.map((_, i) => (
+                      <span
+                        key={i}
+                        className={`about-carousel-dot${i === aboutIndex ? ' active' : ''}`}
+                        onClick={() => setAboutIndex(i)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* Pricing Section */}
+              <section className="pricing-section" ref={pricingRef}>
+                <div className="pricing-content modern-pricing">
+                  <h2 className="pricing-title">Find Your Perfect Plan</h2>
+                  <p className="pricing-subtitle">Discover the ideal plan to fuel your business growth. Our pricing options are carefully crafted to cater to businesses.</p>
+                  <div className="pricing-toggle">
+                    <button className={billingPeriod === 'monthly' ? 'active' : ''} onClick={() => setBillingPeriod('monthly')}>Monthly</button>
+                    <button className={billingPeriod === 'yearly' ? 'active' : ''} onClick={() => setBillingPeriod('yearly')}>Yearly</button>
+                  </div>
+                  <div className="pricing-grid modern-grid">
+                    {pricingPlans.map((plan, index) => (
+                      <div 
+                        key={index} 
+                        className={`modern-pricing-card${plan.popular ? ' best-offer' : ''}`}
+                        ref={el => pricingCardsRef.current[index] = el}
+                      >
+                        {plan.popular && (
+                          <div className="best-offer-badge">Best offer</div>
+                        )}
+                        <div className="modern-plan-header">
+                          <h3 className="modern-plan-name">{plan.name}</h3>
+                          <div className="modern-plan-price-row">
+                            <span className="modern-plan-price">{plan.prices[billingPeriod]}</span>
+                            <span className="modern-plan-period">per {billingPeriod}</span>
                           </div>
-                        ))}
-                      </div>
-                      <div className="pricing-action">
-                        <Button 
-                          variant={plan.buttonVariant} 
-                          href={plan.name === 'Free' ? '/signup' : '/signup'}
-                        >
-                          {plan.buttonText}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Contact Section */}
-            <section className="contact-section">
-              <h2 className="contact-title">Contact Us</h2>
-              <div className="contact-content">
-                <form className="contact-form" onSubmit={handleContactSubmit} autoComplete="off">
-                  <div className="contact-fields">
-                    <input type="text" name="name" placeholder="Your Name" value={contactForm.name} onChange={handleContactChange} required />
-                    <input type="email" name="email" placeholder="Your Email" value={contactForm.email} onChange={handleContactChange} required />
-                  </div>
-                  <textarea name="message" placeholder="Your Message" value={contactForm.message} onChange={handleContactChange} required rows={4} />
-                  <button type="submit" className="contact-send-btn">
-                    <FiSend style={{ marginRight: 8 }} /> Send Message
-                  </button>
-                  {contactSent && <div className="contact-success">Thank you! We'll get back to you soon.</div>}
-                </form>
-                <div className="contact-info">
-                  <div className="contact-support">
-                    <FiMail className="contact-icon" />
-                    <span>support@netaegis.com</span>
-                  </div>
-                  <div className="contact-socials">
-                    <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter"><FiTwitter /></a>
-                    <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FiLinkedin /></a>
-                  </div>
-                  <a href="#" className="contact-demo-btn">Request a Demo</a>
-                </div>
-              </div>
-            </section>
-          </main>
-
-          {/* FAQ FAB Section - moved outside main for true floating behavior */}
-          <section
-            ref={faqSectionRef}
-            className="faq-fab-section"
-            style={{
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '220px',
-              overflow: 'hidden'
-            }}
-          >
-            <div className="faq-bg-animated" />
-            {/* Big ? intro animation */}
-            {!fabIntroDone && (
-              <span
-                ref={bigQRef}
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '7rem',
-                  color: '#fff',
-                  fontFamily: 'cursive, Arial, sans-serif',
-                  zIndex: 20,
-                  pointerEvents: 'none',
-                  transition: 'opacity 0.3s'
-                }}
-              >
-                ?
-              </span>
-            )}
-            <div
-              style={{
-                opacity: fabIntroDone ? 1 : 0,
-                transition: 'opacity 0.4s',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10
-              }}
-            >
-              <div style={{ textAlign: 'center', fontStyle: 'italic', fontWeight: 300, fontSize: '2.4rem', color: '#fff', marginBottom: '18px', fontFamily: 'cursive, Arial, sans-serif', letterSpacing: '0.5px', width: '70%' }}>
-                Frequently Asked Questions?
-              </div>
-              <button ref={fabRef} className="faq-fab" onClick={() => setFaqModalOpen(true)} aria-label="Open FAQs">
-                ?
-              </button>
-            </div>
-            {faqModalOpen && (
-              <div className="faq-modal-overlay" onClick={() => setFaqModalOpen(false)}>
-                <div className="faq-modal" onClick={e => e.stopPropagation()}>
-                  <div className="faq-modal-header">
-                    <span>Frequently Asked Questions</span>
-                    <button className="faq-modal-close" onClick={() => setFaqModalOpen(false)} aria-label="Close FAQ">
-                      <FiX size={24} />
-                    </button>
-                  </div>
-                  <div className="faq-modal-list">
-                    {faqs.map((faq, idx) => (
-                      <div className={`faq-modal-item${openFaq === idx ? ' open' : ''}`} key={idx}>
-                        <button className="faq-modal-question" onClick={() => setOpenFaq(openFaq === idx ? null : idx)}>
-                          <span>{faq.question}</span>
-                          <FiChevronDown className="faq-modal-chevron" />
-                        </button>
-                        <div className="faq-modal-answer" style={{ maxHeight: openFaq === idx ? '200px' : '0', opacity: openFaq === idx ? 1 : 0, transition: 'max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s' }}>
-                          <p>{faq.answer}</p>
+                          <p className="modern-plan-desc">{plan.descriptions[billingPeriod]}</p>
+                        </div>
+                        <div className="modern-features-list">
+                          {plan.features.map((feature, featureIndex) => (
+                            <div key={featureIndex} className="modern-feature">
+                              <FiCheck size={18} className="modern-feature-check" />
+                              <span>{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pricing-action">
+                          <Button 
+                            variant={plan.buttonVariant} 
+                            href={plan.name === 'Free' ? '/signup' : '/signup'}
+                          >
+                            {plan.buttonText}
+                          </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
-          </section>
+              </section>
 
-          <Footer />
+              {/* Contact Section */}
+              <section className="contact-section">
+                <h2 className="contact-title">Contact Us</h2>
+                <div className="contact-content">
+                  <form className="contact-form" onSubmit={handleContactSubmit} autoComplete="off">
+                    <div className="contact-fields">
+                      <input type="text" name="name" placeholder="Your Name" value={contactForm.name} onChange={handleContactChange} required />
+                      <input type="email" name="email" placeholder="Your Email" value={contactForm.email} onChange={handleContactChange} required />
+                    </div>
+                    <textarea name="message" placeholder="Your Message" value={contactForm.message} onChange={handleContactChange} required rows={4} />
+                    <button type="submit" className="contact-send-btn">
+                      <FiSend style={{ marginRight: 8 }} /> Send Message
+                    </button>
+                    {contactSent && <div className="contact-success">Thank you! We'll get back to you soon.</div>}
+                  </form>
+                  <div className="contact-info">
+                    <div className="contact-support">
+                      <FiMail className="contact-icon" />
+                      <span>support@netaegis.com</span>
+                    </div>
+                    <div className="contact-socials">
+                      <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter"><FiTwitter /></a>
+                      <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FiLinkedin /></a>
+                    </div>
+                    <a href="#" className="contact-demo-btn">Request a Demo</a>
+                  </div>
+                </div>
+              </section>
+            </main>
+
+            {/* FAQ FAB Section - moved outside main for true floating behavior */}
+            <section
+              ref={faqSectionRef}
+              className="faq-fab-section"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '220px',
+                overflow: 'hidden'
+              }}
+            >
+              <div className="faq-bg-animated" />
+              {/* Big ? intro animation */}
+              {!fabIntroDone && (
+                <span
+                  ref={bigQRef}
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontSize: '7rem',
+                    color: '#fff',
+                    fontFamily: 'cursive, Arial, sans-serif',
+                    zIndex: 20,
+                    pointerEvents: 'none',
+                    transition: 'opacity 0.3s'
+                  }}
+                >
+                  ?
+                </span>
+              )}
+              <div
+                style={{
+                  opacity: fabIntroDone ? 1 : 0,
+                  transition: 'opacity 0.4s',
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10
+                }}
+              >
+                <div style={{ textAlign: 'center', fontStyle: 'italic', fontWeight: 300, fontSize: '2.4rem', color: '#fff', marginBottom: '18px', fontFamily: 'cursive, Arial, sans-serif', letterSpacing: '0.5px', width: '70%' }}>
+                  Frequently Asked Questions?
+                </div>
+                <button ref={fabRef} className="faq-fab" onClick={() => setFaqModalOpen(true)} aria-label="Open FAQs">
+                  ?
+                </button>
+              </div>
+              {faqModalOpen && (
+                <div className="faq-modal-overlay" onClick={() => setFaqModalOpen(false)}>
+                  <div className="faq-modal" onClick={e => e.stopPropagation()}>
+                    <div className="faq-modal-header">
+                      <span>Frequently Asked Questions</span>
+                      <button className="faq-modal-close" onClick={() => setFaqModalOpen(false)} aria-label="Close FAQ">
+                        <FiX size={24} />
+                      </button>
+                    </div>
+                    <div className="faq-modal-list">
+                      {faqs.map((faq, idx) => (
+                        <div className={`faq-modal-item${openFaq === idx ? ' open' : ''}`} key={idx}>
+                          <button className="faq-modal-question" onClick={() => setOpenFaq(openFaq === idx ? null : idx)}>
+                            <span>{faq.question}</span>
+                            <FiChevronDown className="faq-modal-chevron" />
+                          </button>
+                          <div className="faq-modal-answer" style={{ maxHeight: openFaq === idx ? '200px' : '0', opacity: openFaq === idx ? 1 : 0, transition: 'max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s' }}>
+                            <p>{faq.answer}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <Footer />
+          </div>
+        </div>
+        <div style={{ color: 'white', fontSize: 40 }}>
+          <FaBeer />
+          <span>ICON TEST</span>
         </div>
       </div>
-      <div style={{ color: 'white', fontSize: 40 }}>
-        <FaBeer />
-        <span>ICON TEST</span>
-      </div>
-    </div>
+    </>
   );
 } 
