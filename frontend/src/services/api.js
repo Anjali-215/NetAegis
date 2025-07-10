@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000';
 
+// --- ML API FUNCTIONS ---
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -35,7 +36,6 @@ api.interceptors.response.use(
   }
 );
 
-// Health check
 export const checkApiHealth = async () => {
   try {
     const response = await api.get('/health');
@@ -45,7 +45,6 @@ export const checkApiHealth = async () => {
   }
 };
 
-// Get available models
 export const getModels = async () => {
   try {
     const response = await api.get('/models');
@@ -55,7 +54,6 @@ export const getModels = async () => {
   }
 };
 
-// Make single prediction
 export const predictThreat = async (data) => {
   try {
     const response = await api.post('/predict', data);
@@ -65,9 +63,6 @@ export const predictThreat = async (data) => {
   }
 };
 
-// Batch prediction removed - CSV uploads handled in frontend CSV upload page
-
-// Get model performance metrics
 export const getModelPerformance = async () => {
   try {
     const response = await api.get('/performance');
@@ -77,7 +72,6 @@ export const getModelPerformance = async () => {
   }
 };
 
-// Sample network data for testing different threat types
 export const getSampleNetworkData = (threatType = 'normal') => {
   const baseData = {
     src_port: 4444,
@@ -105,132 +99,60 @@ export const getSampleNetworkData = (threatType = 'normal') => {
     http_response_body_len: 0,
     http_status_code: 0
   };
-
-  // Modify data based on threat type for testing
   switch (threatType) {
     case 'ddos':
-      return {
-        ...baseData,
-        duration: 0,
-        src_bytes: 0,
-        dst_bytes: 0,
-        orig_pkts: 100,
-        resp_pkts: 100,
-        conn_state: 1 // S0
-      };
+      return { ...baseData, duration: 0, src_bytes: 0, dst_bytes: 0, orig_pkts: 100, resp_pkts: 100, conn_state: 1 };
     case 'scanning':
-      return {
-        ...baseData,
-        duration: 0,
-        src_bytes: 0,
-        dst_bytes: 0,
-        orig_pkts: 50,
-        resp_pkts: 50,
-        conn_state: 2 // REJ
-      };
+      return { ...baseData, duration: 0, src_bytes: 0, dst_bytes: 0, orig_pkts: 50, resp_pkts: 50, conn_state: 2 };
     case 'injection':
-      return {
-        ...baseData,
-        duration: 0,
-        src_bytes: 1000,
-        dst_bytes: 1000,
-        service: 1, // http
-        http_request_body_len: 500,
-        http_response_body_len: 500
-      };
+      return { ...baseData, duration: 0, src_bytes: 1000, dst_bytes: 1000, service: 1, http_request_body_len: 500, http_response_body_len: 500 };
     case 'backdoor':
-      return {
-        ...baseData,
-        duration: 1000,
-        src_bytes: 100,
-        dst_bytes: 100,
-        service: 0, // -
-        conn_state: 9 // OTH
-      };
+      return { ...baseData, duration: 1000, src_bytes: 100, dst_bytes: 100, service: 0, conn_state: 9 };
     case 'xss':
-      return {
-        ...baseData,
-        duration: 0,
-        src_bytes: 500,
-        dst_bytes: 500,
-        service: 1, // http
-        http_request_body_len: 200,
-        http_response_body_len: 200
-      };
+      return { ...baseData, duration: 0, src_bytes: 500, dst_bytes: 500, service: 1, http_request_body_len: 200, http_response_body_len: 200 };
     case 'ransomware':
-      return {
-        ...baseData,
-        duration: 5000,
-        src_bytes: 10000,
-        dst_bytes: 10000,
-        orig_pkts: 10,
-        resp_pkts: 10
-      };
+      return { ...baseData, duration: 5000, src_bytes: 10000, dst_bytes: 10000, orig_pkts: 10, resp_pkts: 10 };
     case 'mitm':
-      return {
-        ...baseData,
-        duration: 100,
-        src_bytes: 2000,
-        dst_bytes: 2000,
-        service: 3, // ssl
-        conn_state: 0 // SF
-      };
+      return { ...baseData, duration: 100, src_bytes: 2000, dst_bytes: 2000, service: 3, conn_state: 0 };
     case 'password':
-      return {
-        ...baseData,
-        duration: 50,
-        src_bytes: 300,
-        dst_bytes: 300,
-        service: 6, // ssh
-        conn_state: 0 // SF
-      };
+      return { ...baseData, duration: 50, src_bytes: 300, dst_bytes: 300, service: 6, conn_state: 0 };
     case 'dos':
-      return {
-        ...baseData,
-        duration: 0,
-        src_bytes: 0,
-        dst_bytes: 0,
-        orig_pkts: 200,
-        resp_pkts: 0,
-        conn_state: 2 // REJ
-      };
-    default: // normal
+      return { ...baseData, duration: 0, src_bytes: 0, dst_bytes: 0, orig_pkts: 200, resp_pkts: 0, conn_state: 2 };
+    default:
       return baseData;
   }
 };
 
 export const testMLPrediction = async () => {
-  // Test with DDoS pattern using CORRECT encodings that match training
   const testData = {
-    src_ip: "192.168.1.100",  // Send as string - backend will encode properly
+    src_ip: "192.168.1.100",
     src_port: 80,
-    dst_ip: "192.168.1.200",  // Send as string - backend will encode properly
+    dst_ip: "192.168.1.200",
     dst_port: 80,
-    proto: "tcp",             // Send as string - backend will encode to 1
-    service: "http",          // Send as string - backend will encode to 5
-    duration: 0,              // Short duration typical of DDoS
-    src_bytes: 64,            // Small packets
-    dst_bytes: 0,             // No response
-    conn_state: "S0",         // Send as string - backend will encode to 6
+    proto: "tcp",
+    service: "http",
+    duration: 0,
+    src_bytes: 64,
+    dst_bytes: 0,
+    conn_state: "S0",
     missed_bytes: 0,
-    src_pkts: 1000,           // High packet count - DDoS characteristic
+    src_pkts: 1000,
     src_ip_bytes: 64000,
-    dst_pkts: 0,              // No response packets
+    dst_pkts: 0,
     dst_ip_bytes: 0,
     dns_query: 0,
     dns_qclass: 0,
     dns_qtype: 0,
     dns_rcode: 0,
-    dns_AA: "none",           // Send as string - backend will encode to 2
-    dns_RD: "none",           // Send as string - backend will encode to 2
-    dns_RA: "none",           // Send as string - backend will encode to 2
-    dns_rejected: "none",     // Send as string - backend will encode to 2
+    dns_AA: "none",
+    dns_RD: "none",
+    dns_RA: "none",
+    dns_rejected: "none",
     http_request_body_len: 0,
     http_response_body_len: 0,
     http_status_code: 0,
-    label: 1                  // DDoS label
+    label: 1
   };
-  
   const response = await fetch(`${API_BASE_URL}/predict`, {
     method: 'POST',
     headers: {
@@ -238,13 +160,78 @@ export const testMLPrediction = async () => {
     },
     body: JSON.stringify(testData),
   });
-  
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
   }
-  
   return await response.json();
 };
 
-export default api; 
+// --- AUTH & USER SERVICE ---
+class ApiService {
+  constructor() {
+    this.baseURL = API_BASE_URL;
+  }
+  getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+  }
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    const config = {
+      headers: this.getAuthHeaders(),
+      ...options
+    };
+    console.log('Making API request to:', url);
+    console.log('Request config:', config);
+    try {
+      const response = await fetch(url, config);
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+      if (!response.ok) {
+        throw new Error(data.detail || 'Something went wrong');
+      }
+      return data;
+    } catch (error) {
+      console.error('API Error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+  async register(userData) {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  }
+  async login(credentials) {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
+  }
+  async getCurrentUser() {
+    return this.request('/auth/me');
+  }
+  setToken(token) {
+    localStorage.setItem('token', token);
+  }
+  getToken() {
+    return localStorage.getItem('token');
+  }
+  removeToken() {
+    localStorage.removeItem('token');
+  }
+  isAuthenticated() {
+    return !!this.getToken();
+  }
+}
+
+export default new ApiService();

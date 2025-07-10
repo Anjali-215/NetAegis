@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Button from '../../components/Button';
 import InputField from '../../components/InputField';
+import apiService from '../../services/api';
 import './AuthPage.css';
 import gsap from 'gsap';
 import NetworkAnimation from '../../components/HeroNetworkAnimation';
+import { ArrowBack } from '@mui/icons-material';
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -16,7 +19,9 @@ export default function SignupPage() {
     confirm: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const pageRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     gsap.fromTo(pageRef.current, { opacity: 0 }, { opacity: 1, duration: 1, ease: 'power3.out' });
@@ -26,7 +31,7 @@ export default function SignupPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
     if (!form.name || !form.company || !form.email || !form.password || !form.confirm) {
       setError('Please fill in all fields.');
@@ -37,7 +42,23 @@ export default function SignupPage() {
       return;
     }
     setError('');
-    // Handle signup logic here
+    setLoading(true);
+    try {
+      const userData = {
+        name: form.name,
+        company: form.company,
+        email: form.email,
+        password: form.password
+      };
+      await apiService.register(userData);
+      setError('');
+      alert('Account created successfully! Please login with your credentials.');
+      navigate('/login');
+    } catch (error) {
+      setError(error.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,63 +67,61 @@ export default function SignupPage() {
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
         <NetworkAnimation />
       </div>
-      <div className="auth-form-outer" style={{ maxWidth: '400px', padding: '2rem 2rem 1.5rem 2rem', margin: '2.5rem 0', borderRadius: '16px', zIndex: 2, background: 'rgba(24,23,28,0.98)' }}>
-        <form className="auth-form auth-form-centered" onSubmit={handleSubmit} style={{ width: '100%' }}>
-          <h2 style={{ textAlign: 'center', marginBottom: '1.2rem', color: '#fff', fontWeight: 700 }}>Sign Up.</h2>
-          <input
-            className="auth-input"
-            name="name"
-            type="text"
-            placeholder="Full Name"
-            value={form.name}
-            onChange={handleChange}
-            required
-          />
-          <input
-            className="auth-input"
-            name="company"
-            type="text"
-            placeholder="Company Name"
-            value={form.company}
-            onChange={handleChange}
-            required
-          />
-          <input
-            className="auth-input"
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            required
-          />
-          <input
-            className="auth-input"
-            name="password"
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
-            required
-          />
-          <input
-            className="auth-input"
-            name="confirm"
-            type="password"
-            placeholder="Confirm Password"
-            value={form.confirm}
-            onChange={handleChange}
-            required
-          />
-          <button className="main-auth-btn" type="submit">Sign Up</button>
-          <div className="auth-divider">or</div>
-          <button type="button" className="social-btn google-btn">
-            <span className="social-icon">G</span> Continue with Google
-          </button>
-          <div className="auth-links">
-            <span>Already have an account? <a href="/login">Login</a></span>
-          </div>
-        </form>
+      {/* Back to Home Button */}
+      <Button
+        variant="outlined"
+        onClick={() => navigate('/')}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 1000,
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          borderColor: 'rgba(255, 255, 255, 0.3)',
+          color: 'white',
+          backdropFilter: 'blur(10px)',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '14px',
+          fontWeight: '500',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+            transform: 'translateY(-2px)'
+          }
+        }}
+      >
+        <ArrowBack style={{ fontSize: '18px' }} />
+        Back to Home
+      </Button>
+      <div className="auth-container">
+        <div className="auth-branding">
+          <h2>NetAegis</h2>
+          <p>Get started by creating your account.</p>
+        </div>
+        <div className="auth-form-container">
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <h3>Create Your Account</h3>
+            <p>Join us to secure your digital assets.</p>
+            {error && <div className="form-error">{error}</div>}
+            <InputField label="Full Name" name="name" value={form.name} onChange={handleChange} required />
+            <InputField label="Company Name" name="company" value={form.company} onChange={handleChange} required />
+            <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} required />
+            <InputField label="Password" name="password" type="password" value={form.password} onChange={handleChange} required />
+            <InputField label="Confirm Password" name="confirm" type="password" value={form.confirm} onChange={handleChange} required />
+            <Button variant="primary" type="submit" style={{ width: '100%' }} disabled={loading}>
+              {loading ? 'Creating Account...' : 'Sign Up'}
+            </Button>
+            <div className="auth-switch-link">
+              <span>Already have an account? </span>
+              <a href="/login">Login</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

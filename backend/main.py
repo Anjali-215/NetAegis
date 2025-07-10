@@ -12,32 +12,37 @@ from datetime import datetime
 import logging
 from sklearn.preprocessing import LabelEncoder
 
+# Backend imports for DB and Auth
+from database import connect_to_mongo, close_mongo_connection
+from api.auth import router as auth_router
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="NetAegis ML API",
-    description="API for network threat detection using machine learning models",
+    title="NetAegis API",
+    description="Backend API for NetAegis - Network Security Platform with ML and Auth",
     version="1.0.0"
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Frontend URLs
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],  # Allow all for debug, restrict in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global variables for loaded models
+# Include authentication router
+app.include_router(auth_router)
+
+# --- ML API SECTION ---
 models = {}
 model_performance = {}
 label_encoder = None
-feature_encoders = {}  # Will store the correct encoders from training
-
-# Set ML directory to backend folder
+feature_encoders = {}
 ml_dir = Path(__file__).parent
 
 def preprocess_input_data(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -143,20 +148,31 @@ def load_models():
         logger.error(f"Error loading models: {e}")
         return False
 
+# --- Startup/Shutdown Events ---
 @app.on_event("startup")
 async def startup_event():
     """Load models on startup"""
-    logger.info("Starting NetAegis ML API...")
+    logger.info("Starting NetAegis API...")
+    # Load ML models
     if not load_models():
-        logger.error("Failed to load models. API may not function properly.")
+        logger.error("Failed to load models. ML API may not function properly.")
+    # Connect to MongoDB
+    await connect_to_mongo()
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close MongoDB connection on shutdown"""
+    await close_mongo_connection()
+
+# --- Endpoints ---
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
-        "message": "NetAegis ML API is running",
+        "message": "NetAegis API is running",
         "version": "1.0.0",
-        "available_models": list(models.keys())
+        "available_models": list(models.keys()),
+        "ml_status": "ok" if 'random_forest' in models else "not loaded"
     }
 
 @app.get("/health")
