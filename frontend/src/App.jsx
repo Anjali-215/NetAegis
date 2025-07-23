@@ -15,6 +15,8 @@ import SubscriptionManagement from './pages/admin/SubscriptionManagement';
 import Settings from './pages/admin/Settings';
 import Profile from './pages/admin/Profile';
 import Preloader from './components/Preloader';
+import { Visualization as UserVisualization, UserDashboard, CSVUpload as UserCSVUpload } from './pages/user';
+import UserLayout from './components/layout/UserLayout';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,11 @@ function App() {
               <Route path="/admin/subscription" element={<AdminLayout><SubscriptionManagement /></AdminLayout>} />
               <Route path="/admin/settings" element={<AdminLayout><Settings /></AdminLayout>} />
               <Route path="/admin/profile" element={<AdminLayout><Profile /></AdminLayout>} />
+              
+              {/* User Routes */}
+              <Route path="/user/dashboard" element={<UserLayout><UserDashboard /></UserLayout>} />
+              <Route path="/user/csv-upload" element={<UserLayout><UserCSVUpload /></UserLayout>} />
+              <Route path="/user/visualization" element={<UserLayout><UserVisualization /></UserLayout>} />
         </Routes>
       </Router>
         )}

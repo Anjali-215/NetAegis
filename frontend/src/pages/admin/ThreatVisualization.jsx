@@ -60,7 +60,9 @@ import {
   Stop,
   Analytics
 } from '@mui/icons-material';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323', '#ff867f', '#ffb300', '#388e3c'];
 // Import API services
 import { 
   checkApiHealth, 
@@ -70,15 +72,64 @@ import {
   getSampleNetworkData 
 } from '../../services/api';
 
-const ThreatVisualization = () => {
-  const [filters, setFilters] = useState({
-    dateRange: '30',
-    threatType: 'all',
-    confidence: 'all'
+function groupBy(arr, key) {
+  return arr.reduce((acc, item) => {
+    const k = item[key] || 'Unknown';
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+}
+function getThreatLevelPerType(results) {
+  const map = {};
+  results.forEach(r => {
+    const type = r.threatType || 'Unknown';
+    const level = r.threatLevel || 'Unknown';
+    if (!map[type]) map[type] = {};
+    map[type][level] = (map[type][level] || 0) + 1;
   });
+  const levels = Array.from(new Set(results.map(r => r.threatLevel || 'Unknown')));
+  return Object.entries(map).map(([type, levelsObj]) => {
+    const row = { type };
+    levels.forEach(lvl => { row[lvl] = levelsObj[lvl] || 0; });
+    return row;
+  });
+}
+const ThreatVisualization = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { results = [], fileMeta = {} } = location.state || {};
+  // If results are passed, use them for all charts and cards
+  const hasResults = results && results.length > 0;
+  // Dashboard metrics
+  const totalThreats = hasResults ? results.filter(r => r.threatType && r.threatType !== 'None').length : 0;
+  const criticalThreats = hasResults ? results.filter(r => r.threatLevel && r.threatLevel.toLowerCase() === 'critical').length : 0;
+  const processedRows = hasResults ? results.length : 0;
+  const successCount = hasResults ? results.filter(r => r.status === 'completed' || r.status === 'Success').length : 0;
+  const accuracy = processedRows ? ((successCount / processedRows) * 100).toFixed(1) : 0;
+  // Threat Type Distribution
+  const threatTypeCounts = hasResults ? groupBy(results.filter(r => r.threatType), 'threatType') : {};
+  const threatTypeData = hasResults ? Object.entries(threatTypeCounts).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })) : [];
+  // Threat Level per Type
+  const threatLevelPerType = hasResults ? getThreatLevelPerType(results) : [];
+  const allLevels = hasResults ? Array.from(new Set(results.map(r => r.threatLevel || 'Unknown'))) : [];
+  // Prediction Status
+  const statusCounts = hasResults ? groupBy(results, 'status') : {};
+  const statusData = hasResults ? Object.entries(statusCounts).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })) : [];
+  // Top Frequent Threat Types
+  const topThreatTypes = hasResults ? [...threatTypeData].sort((a, b) => b.value - a.value).slice(0, 5) : [];
+  // Threats Over Time (if timestamp available)
+  let timeData = [];
+  if (hasResults && results.some(r => r.data && r.data.timestamp)) {
+    const byTime = {};
+    results.forEach(r => {
+      const t = r.data.timestamp ? r.data.timestamp.split('T')[0] : 'Unknown';
+      if (!byTime[t]) byTime[t] = 0;
+      byTime[t] += 1;
+    });
+    timeData = Object.entries(byTime).map(([date, count]) => ({ date, count }));
+    timeData.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
 
-  const [chartType, setChartType] = useState('bar');
-  
   // ML Integration states
   const [apiStatus, setApiStatus] = useState('checking');
   const [models, setModels] = useState({});
@@ -213,7 +264,7 @@ const ThreatVisualization = () => {
   ];
 
   // For all chart series, use only these COLORS.
-  const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323'];
+  // const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323', '#ff867f', '#ffb300', '#388e3c'];
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -295,624 +346,137 @@ const ThreatVisualization = () => {
         <Box display="flex" gap={1}>
           <Button
             variant="outlined"
-            startIcon={<Download />}
-            onClick={handleDownloadChart}
+            onClick={() => navigate(-1)}
           >
-            Download Chart
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Download />}
-            onClick={handleGenerateReport}
-            sx={{ 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
-              }
-            }}
-          >
-            Generate Report
+            Back to Results
           </Button>
         </Box>
       </Box>
-
-      {/* ML API Status */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Box display="flex" alignItems="center" gap={2}>
-          <Typography variant="h6">ML API Status:</Typography>
-          <Chip
-            label={apiStatus === 'connected' ? 'Connected' : apiStatus === 'checking' ? 'Checking...' : 'Disconnected'}
-            color={apiStatus === 'connected' ? 'success' : apiStatus === 'checking' ? 'warning' : 'error'}
-            icon={apiStatus === 'checking' ? <CircularProgress size={16} /> : undefined}
-          />
-          {apiStatus === 'error' && (
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={initializeMLAPI}
-            >
-              Retry Connection
-            </Button>
-          )}
-        </Box>
-      </Paper>
-
-      {/* ML Controls */}
-      {apiStatus === 'connected' && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" mb={2}>Machine Learning Controls</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Box display="flex" gap={1}>
-                <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel>Test Threat Type</InputLabel>
-                  <Select
-                    value={testThreatType}
-                    label="Test Threat Type"
-                    onChange={(e) => setTestThreatType(e.target.value)}
-                  >
-                    <MenuItem value="normal">Normal Traffic</MenuItem>
-                    <MenuItem value="ddos">DDoS Attack</MenuItem>
-                    <MenuItem value="scanning">Port Scanning</MenuItem>
-                    <MenuItem value="injection">SQL Injection</MenuItem>
-                    <MenuItem value="backdoor">Backdoor</MenuItem>
-                    <MenuItem value="xss">XSS Attack</MenuItem>
-                    <MenuItem value="ransomware">Ransomware</MenuItem>
-                    <MenuItem value="mitm">Man-in-the-Middle</MenuItem>
-                  </Select>
-                </FormControl>
-                <Button
-                  variant="contained"
-                  startIcon={isPredicting ? <CircularProgress size={20} /> : <Analytics />}
-                  onClick={handleSinglePrediction}
-                  disabled={isPredicting}
-                  sx={{ 
-                    background: 'linear-gradient(135deg, #b71c1c 0%, #ff5252 100%)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #a01515 0%, #e64545 100%)'
-                    }
-                  }}
-                >
-                  Test Prediction
-                </Button>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" color="textSecondary" align="center">
-                CSV uploads are handled in the CSV Upload page
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Button
-                variant={isLiveMonitoring ? "contained" : "outlined"}
-                fullWidth
-                startIcon={isLiveMonitoring ? <Stop /> : <PlayArrow />}
-                onClick={isLiveMonitoring ? stopLiveMonitoring : startLiveMonitoring}
-                disabled={isPredicting}
-                color={isLiveMonitoring ? "error" : "primary"}
-              >
-                {isLiveMonitoring ? 'Stop Live Monitoring' : 'Start Live Monitoring'}
-              </Button>
-            </Grid>
+      {/* Dashboard Cards */}
+      {hasResults && (
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={3}>
+            <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #b71c1c' }}>
+              <CardContent>
+                <Typography variant="h5">Total Threats</Typography>
+                <Typography variant="h3" fontWeight="bold">{totalThreats}</Typography>
+              </CardContent>
+            </Card>
           </Grid>
-        </Paper>
+          <Grid item xs={12} md={3}>
+            <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #ff5252' }}>
+              <CardContent>
+                <Typography variant="h5">Critical Threats</Typography>
+                <Typography variant="h3" fontWeight="bold">{criticalThreats}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #388e3c' }}>
+              <CardContent>
+                <Typography variant="h5">Prediction Accuracy</Typography>
+                <Typography variant="h3" fontWeight="bold">{accuracy}%</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #ffb300' }}>
+              <CardContent>
+                <Typography variant="h5">Processed Rows</Typography>
+                <Typography variant="h3" fontWeight="bold">{processedRows}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       )}
-
-      {/* Filters */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box display="flex" alignItems="center" gap={2} mb={2}>
-          <FilterList color="primary" />
-          <Typography variant="h6">Filters</Typography>
-        </Box>
-        
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Date Range</InputLabel>
-              <Select
-                value={filters.dateRange}
-                label="Date Range"
-                onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-              >
-                <MenuItem value="7">Last 7 days</MenuItem>
-                <MenuItem value="30">Last 30 days</MenuItem>
-                <MenuItem value="90">Last 90 days</MenuItem>
-                <MenuItem value="365">Last year</MenuItem>
-              </Select>
-            </FormControl>
+      {/* Charts */}
+      {hasResults && (
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>Threat Type Distribution</Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={threatTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                    {threatTypeData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Paper>
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Threat Type</InputLabel>
-              <Select
-                value={filters.threatType}
-                label="Threat Type"
-                onChange={(e) => handleFilterChange('threatType', e.target.value)}
-              >
-                <MenuItem value="all">All Types</MenuItem>
-                <MenuItem value="malware">Malware</MenuItem>
-                <MenuItem value="ddos">DDoS</MenuItem>
-                <MenuItem value="phishing">Phishing</MenuItem>
-                <MenuItem value="sqlinjection">SQL Injection</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </Select>
-            </FormControl>
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>Prediction Status</Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                    {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Paper>
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Confidence Level</InputLabel>
-              <Select
-                value={filters.confidence}
-                label="Confidence Level"
-                onChange={(e) => handleFilterChange('confidence', e.target.value)}
-              >
-                <MenuItem value="all">All Levels</MenuItem>
-                <MenuItem value="high">High</MenuItem>
-                <MenuItem value="medium">Medium</MenuItem>
-                <MenuItem value="low">Low</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Chart Type</InputLabel>
-              <Select
-                value={chartType}
-                label="Chart Type"
-                onChange={(e) => setChartType(e.target.value)}
-              >
-                <MenuItem value="bar">Bar Chart</MenuItem>
-                <MenuItem value="line">Line Chart</MenuItem>
-                <MenuItem value="area">Area Chart</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* Main Chart */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">
-            Threat Detection Trends
-          </Typography>
-          <Tooltip title="Refresh Data">
-            <IconButton>
-              <Refresh />
-            </IconButton>
-          </Tooltip>
-        </Box>
-        {renderChart()}
-      </Paper>
-
-      {/* Summary Cards */}
-      <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
-        <Grid xs={12} md={4}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #b71c1c 0%, #ff5252 100%)',
-            color: 'white'
-          }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    1,247
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                    Total Threats
-                  </Typography>
-                </Box>
-                <Security sx={{ fontSize: 40, opacity: 0.8 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid xs={12} md={4}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #7f0000 0%, #b71c1c 100%)',
-            color: 'white'
-          }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    1,123
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                    Blocked Threats
-                  </Typography>
-                </Box>
-                <TrendingUp sx={{ fontSize: 40, opacity: 0.8 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid xs={12} md={4}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #c50e29 0%, #ff867f 100%)',
-            color: 'white'
-          }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    124
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                    Detected Threats
-                  </Typography>
-                </Box>
-                <TrendingDown sx={{ fontSize: 40, opacity: 0.8 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid xs={12} md={6}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #231417 0%, #7f0000 100%)',
-            color: 'white'
-          }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    90.1%
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                    Block Rate
-                  </Typography>
-                </Box>
-                <CheckCircle sx={{ fontSize: 40, opacity: 0.8 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Pie Charts */}
-      <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
-        <Grid xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Threat Types Distribution
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={threatTypesData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {threatTypesData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+          <Grid item xs={12} md={8}>
+            <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>Threat Level per Type</Typography>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={threatLevelPerType} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="type" />
+                  <YAxis />
+                  <RechartsTooltip />
+                  <Legend />
+                  {allLevels.map((lvl, i) => (
+                    <Bar key={lvl} dataKey={lvl} stackId="a" fill={COLORS[i % COLORS.length]} />
                   ))}
-                </Pie>
-                <RechartsTooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Paper>
+                </BarChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>Top Frequent Threat Types</Typography>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart layout="vertical" data={topThreatTypes} margin={{ left: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" />
+                  <RechartsTooltip />
+                  <Bar dataKey="value" fill="#b71c1c">
+                    {topThreatTypes.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+          {timeData.length > 0 && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Threats Over Time</Typography>
+                <ResponsiveContainer width="100%" height={350}>
+                  <LineChart data={timeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Line type="monotone" dataKey="count" stroke="#b71c1c" strokeWidth={3} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
-
-        <Grid xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Confidence Level Distribution
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={confidenceData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {confidenceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <RechartsTooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* Live Monitoring Results */}
-      {isLiveMonitoring && livePredictions.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Live Monitoring Results
-          </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                                     <TableRow>
-                       <TableCell>Time</TableCell>
-                       <TableCell>Threat Type</TableCell>
-                       <TableCell>Threat Level</TableCell>
-                       <TableCell>Final Prediction</TableCell>
-                       <TableCell>Random Forest</TableCell>
-                       <TableCell>XGBoost</TableCell>
-                       <TableCell>Neural Network</TableCell>
-                     </TableRow>
-              </TableHead>
-              <TableBody>
-                {livePredictions.map((pred) => (
-                                     <TableRow key={pred.id}>
-                     <TableCell>{pred.timestamp}</TableCell>
-                     <TableCell>
-                       <Chip
-                         label={pred.threat_type || 'Unknown'}
-                         color={pred.threat_type === 'normal' ? 'success' : 'error'}
-                         size="small"
-                       />
-                     </TableCell>
-                     <TableCell>
-                       <Chip
-                         label={pred.threat_level}
-                         color={
-                           pred.threat_level === 'Critical' ? 'error' : 
-                           pred.threat_level === 'High' ? 'warning' : 
-                           pred.threat_level === 'Normal' ? 'success' : 'default'
-                         }
-                         size="small"
-                       />
-                     </TableCell>
-                     <TableCell>{pred.final_prediction}</TableCell>
-                    <TableCell>
-                      {pred.predictions?.random_forest !== undefined ? (
-                        <Chip
-                          label={pred.predictions.random_forest ? 'Attack' : 'Normal'}
-                          color={pred.predictions.random_forest ? 'error' : 'success'}
-                          size="small"
-                        />
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {pred.predictions?.xgboost !== undefined ? (
-                        <Chip
-                          label={pred.predictions.xgboost ? 'Attack' : 'Normal'}
-                          color={pred.predictions.xgboost ? 'error' : 'success'}
-                          size="small"
-                        />
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {pred.predictions?.neural_network !== undefined ? (
-                        <Chip
-                          label={pred.predictions.neural_network ? 'Attack' : 'Normal'}
-                          color={pred.predictions.neural_network ? 'error' : 'success'}
-                          size="small"
-                        />
-                      ) : '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
       )}
-
-      {/* Prediction Results Dialog */}
-      <Dialog
-        open={predictionDialog}
-        onClose={() => setPredictionDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {batchResults ? 'Batch Prediction Results' : 'Single Prediction Results'}
-        </DialogTitle>
-        <DialogContent>
-          {predictionResult && (
-            <Box>
-              <Typography variant="h6" gutterBottom>Prediction Summary</Typography>
-                             <Grid container spacing={2} mb={3}>
-                 <Grid item xs={4}>
-                   <Typography variant="body2" color="textSecondary">Threat Type:</Typography>
-                   <Chip
-                     label={predictionResult.threat_type || 'Unknown'}
-                     color={predictionResult.threat_type === 'normal' ? 'success' : 'error'}
-                     sx={{ mt: 1 }}
-                   />
-                 </Grid>
-                 <Grid item xs={4}>
-                   <Typography variant="body2" color="textSecondary">Threat Level:</Typography>
-                   <Chip
-                     label={predictionResult.threat_level}
-                     color={
-                       predictionResult.threat_level === 'Critical' ? 'error' : 
-                       predictionResult.threat_level === 'High' ? 'warning' : 
-                       predictionResult.threat_level === 'Normal' ? 'success' : 'default'
-                     }
-                     sx={{ mt: 1 }}
-                   />
-                 </Grid>
-                 <Grid item xs={4}>
-                   <Typography variant="body2" color="textSecondary">Final Prediction:</Typography>
-                   <Typography variant="body1" sx={{ mt: 1 }}>
-                     {predictionResult.threat_type === 'normal' ? 'Normal Traffic' : `${predictionResult.threat_type.toUpperCase()} Attack`}
-                   </Typography>
-                 </Grid>
-               </Grid>
-
-              <Typography variant="h6" gutterBottom>Model Predictions</Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                                         <TableRow>
-                       <TableCell>Model</TableCell>
-                       <TableCell>Prediction</TableCell>
-                       <TableCell>Threat Type</TableCell>
-                       <TableCell>Confidence</TableCell>
-                     </TableRow>
-                  </TableHead>
-                                     <TableBody>
-                     {Object.entries(predictionResult.predictions || {}).map(([model, pred]) => {
-                       const threatTypes = {
-                         0: "normal",
-                         1: "scanning", 
-                         2: "ddos",
-                         3: "injection",
-                         4: "backdoor",
-                         5: "xss",
-                         6: "ransomware",
-                         7: "mitm"
-                       };
-                       const threatType = threatTypes[pred] || 'unknown';
-                       const confidence = predictionResult.probabilities?.[model]?.[threatType] || 
-                                        (predictionResult.probabilities?.[model] && 
-                                         Object.values(predictionResult.probabilities[model])[0]) || 0;
-                       
-                       return (
-                         <TableRow key={model}>
-                           <TableCell>{model.replace('_', ' ').toUpperCase()}</TableCell>
-                           <TableCell>
-                             <Chip
-                               label={pred !== null ? pred : 'Error'}
-                               color={threatType === 'normal' ? 'success' : 'error'}
-                               size="small"
-                             />
-                           </TableCell>
-                           <TableCell>
-                             <Chip
-                               label={threatType}
-                               color={threatType === 'normal' ? 'success' : 'error'}
-                               size="small"
-                             />
-                           </TableCell>
-                           <TableCell>
-                             {confidence ? `${(confidence * 100).toFixed(2)}%` : '-'}
-                           </TableCell>
-                         </TableRow>
-                       );
-                     })}
-                   </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>Input Data</Typography>
-              <Typography variant="body2" component="pre" sx={{ 
-                backgroundColor: '#f5f5f5', 
-                p: 2, 
-                borderRadius: 1,
-                overflow: 'auto',
-                maxHeight: 200
-              }}>
-                {JSON.stringify(predictionResult.input_data, null, 2)}
-              </Typography>
-            </Box>
-          )}
-
-          {batchResults && (
-            <Box>
-              <Typography variant="h6" gutterBottom>Batch Processing Summary</Typography>
-              <Grid container spacing={2} mb={3}>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="textSecondary">Total Rows:</Typography>
-                  <Typography variant="h6">{batchResults.total_rows}</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="textSecondary">Processed:</Typography>
-                  <Typography variant="h6">{batchResults.processed_rows}</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="textSecondary">Success Rate:</Typography>
-                  <Typography variant="h6">
-                    {((batchResults.processed_rows / batchResults.total_rows) * 100).toFixed(1)}%
-                  </Typography>
-                </Grid>
-              </Grid>
-
-              <Typography variant="h6" gutterBottom>Sample Results</Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                                         <TableRow>
-                       <TableCell>Row</TableCell>
-                       <TableCell>Threat Type</TableCell>
-                       <TableCell>Threat Level</TableCell>
-                       <TableCell>Final Prediction</TableCell>
-                       <TableCell>Status</TableCell>
-                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                                         {batchResults.results.slice(0, 10).map((result, index) => (
-                       <TableRow key={index}>
-                         <TableCell>{result.row}</TableCell>
-                         <TableCell>
-                           {result.prediction ? (
-                             <Chip
-                               label={result.prediction.threat_type || 'Unknown'}
-                               color={result.prediction.threat_type === 'normal' ? 'success' : 'error'}
-                               size="small"
-                             />
-                           ) : '-'}
-                         </TableCell>
-                         <TableCell>
-                           {result.prediction ? (
-                             <Chip
-                               label={result.prediction.threat_level}
-                               color={
-                                 result.prediction.threat_level === 'Critical' ? 'error' : 
-                                 result.prediction.threat_level === 'High' ? 'warning' : 
-                                 result.prediction.threat_level === 'Normal' ? 'success' : 'default'
-                               }
-                               size="small"
-                             />
-                           ) : '-'}
-                         </TableCell>
-                         <TableCell>
-                           {result.prediction?.threat_type 
-                             ? (result.prediction.threat_type === 'normal' ? 'Normal Traffic' : `${result.prediction.threat_type.toUpperCase()} Attack`)
-                             : '-'
-                           }
-                         </TableCell>
-                         <TableCell>
-                           {result.error ? (
-                             <Chip label="Error" color="error" size="small" />
-                           ) : (
-                             <Chip label="Success" color="success" size="small" />
-                           )}
-                         </TableCell>
-                       </TableRow>
-                     ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPredictionDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Alerts */}
-      <Box sx={{ mt: 3 }}>
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            <strong>Tip:</strong> Use the filters above to customize your threat visualization. 
-            You can download charts as images or generate comprehensive PDF reports.
-          </Typography>
-        </Alert>
-      </Box>
+      {/* Fallback to static/sample data if no results */}
+      {!hasResults && (
+        <Box textAlign="center" mt={8}>
+          <Typography variant="h5" color="text.secondary">No results to visualize. Please upload and process a CSV file first.</Typography>
+        </Box>
+      )}
     </Container>
   );
 };

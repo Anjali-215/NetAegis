@@ -40,6 +40,7 @@ import {
 import { useDropzone } from 'react-dropzone';
 import apiService from '../../services/api';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 
 const UserCSVUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -50,6 +51,7 @@ const UserCSVUpload = () => {
   const [apiStatus, setApiStatus] = useState('checking');
   const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
   const [fileMeta, setFileMeta] = useState(null); // {name, size, uploadTime, recordCount}
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     checkApiHealth()
@@ -291,6 +293,18 @@ const UserCSVUpload = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setResultsDialog({ open: false, results: null })} color="primary">Close</Button>
+            {resultsDialog.results && resultsDialog.results.length > 0 && (
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => {
+                  setResultsDialog({ open: false, results: null });
+                  navigate('/user/visualization', { state: { results: resultsDialog.results, fileMeta } });
+                }}
+              >
+                Visualize Results
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
       </Paper>

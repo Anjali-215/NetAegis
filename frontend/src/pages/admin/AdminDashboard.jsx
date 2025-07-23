@@ -30,11 +30,37 @@ import {
   Notifications,
   Visibility
 } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+
+const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323', '#ff867f', '#ffb300', '#388e3c'];
+function groupBy(arr, key) {
+  return arr.reduce((acc, item) => {
+    const k = item[key] || 'Unknown';
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+}
+function getThreatLevelPerType(results) {
+  const map = {};
+  results.forEach(r => {
+    const type = r.name || 'Unknown';
+    const level = r.level || 'Unknown';
+    if (!map[type]) map[type] = {};
+    map[type][level] = (map[type][level] || 0) + 1;
+  });
+  const levels = Array.from(new Set(results.map(r => r.level || 'Unknown')));
+  return Object.entries(map).map(([type, levelsObj]) => {
+    const row = { type };
+    levels.forEach(lvl => { row[lvl] = levelsObj[lvl] || 0; });
+    return row;
+  });
+}
 
 const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lastResults, setLastResults] = useState(null);
+  const [lastFileMeta, setLastFileMeta] = useState(null);
 
   useEffect(() => {
     setTimeout(() => {
@@ -70,6 +96,11 @@ const AdminDashboard = () => {
       });
       setLoading(false);
     }, 1200);
+    // Load last processed results from localStorage
+    const storedResults = localStorage.getItem('lastAdminResults');
+    const storedFileMeta = localStorage.getItem('lastAdminFileMeta');
+    if (storedResults) setLastResults(JSON.parse(storedResults));
+    if (storedFileMeta) setLastFileMeta(JSON.parse(storedFileMeta));
   }, []);
 
   const getActionIcon = (type) => {
@@ -93,6 +124,37 @@ const AdminDashboard = () => {
       default: return '#3a2323'; // fallback dark
     }
   };
+
+  const hasLastResults = lastResults && lastResults.length > 0;
+  // Dashboard metrics
+  const totalThreats = hasLastResults ? lastResults.filter(r => r.threatType && r.threatType !== 'None').length : (dashboardData ? dashboardData.summary.totalThreats : 0);
+  const activeUsers = hasLastResults ? lastResults.filter(r => r.threatLevel && r.threatLevel.toLowerCase() === 'critical').length : 42;
+  const processedRows = hasLastResults ? lastResults.length : (dashboardData ? dashboardData.summary.totalThreats : 0);
+  const successCount = hasLastResults ? lastResults.filter(r => r.status === 'completed' || r.status === 'Success').length : 1200;
+  const accuracy = processedRows ? ((successCount / processedRows) * 100).toFixed(1) : '97.2';
+  // Threat Type Distribution
+  const threatTypeCounts = hasLastResults ? groupBy(lastResults.filter(r => r.threatType), 'threatType') : {};
+  const threatTypeData = hasLastResults ? Object.entries(threatTypeCounts).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })) : (dashboardData ? dashboardData.threatTypes : []);
+  // Threat Level per Type
+  const threatLevelPerType = hasLastResults ? getThreatLevelPerType(lastResults.map(r => ({ name: r.threatType, level: r.threatLevel }))) : (dashboardData ? dashboardData.threatTypes.map(t => ({ type: t.name, Critical: Math.floor(t.value * 0.3), High: Math.floor(t.value * 0.5), Normal: Math.floor(t.value * 0.2) })) : []);
+  const allLevels = hasLastResults ? Array.from(new Set(lastResults.map(r => r.threatLevel || 'Unknown'))) : ['Critical', 'High', 'Normal'];
+  // Prediction Status
+  const statusCounts = hasLastResults ? groupBy(lastResults, 'status') : {};
+  const statusData = hasLastResults ? Object.entries(statusCounts).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })) : [{ name: 'Success', value: 1200, color: '#388e3c' }, { name: 'Failure', value: 47, color: '#b71c1c' }];
+  // Top Frequent Threat Types
+  const topThreatTypes = hasLastResults ? [...threatTypeData].sort((a, b) => b.value - a.value).slice(0, 5) : (dashboardData ? [...dashboardData.threatTypes].sort((a, b) => b.value - a.value).slice(0, 5) : []);
+  // Threats Over Time (if timestamp available)
+  let timeData = [];
+  if (hasLastResults && lastResults.some(r => r.data && r.data.timestamp)) {
+    const byTime = {};
+    lastResults.forEach(r => {
+      const t = r.data.timestamp ? r.data.timestamp.split('T')[0] : 'Unknown';
+      if (!byTime[t]) byTime[t] = 0;
+      byTime[t] += 1;
+    });
+    timeData = Object.entries(byTime).map(([date, count]) => ({ date, count }));
+    timeData.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
 
   return (
     <Fade in={!loading} timeout={700}>
@@ -153,7 +215,7 @@ const AdminDashboard = () => {
                       <Box display="flex" alignItems="center" justifyContent="space-between">
                         <Box>
                           <Typography variant={key === 'subscriptionPlan' ? 'h5' : 'h3'} sx={{ fontWeight: 'bold', mb: 1 }}>
-                            {loading || !dashboardData ? <Skeleton width={60} /> : dashboardData.summary[key]}
+                            {loading || !dashboardData ? <Skeleton width={60} /> : (key === 'totalThreats' ? totalThreats : (key === 'activeUsers' ? activeUsers : (key === 'subscriptionPlan' ? 'Enterprise' : dashboardData.summary[key])))}
                           </Typography>
                           <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
                             {key === 'totalThreats' && 'Total Threats'}
@@ -264,6 +326,128 @@ const AdminDashboard = () => {
                     </PieChart>
                   </ResponsiveContainer>
                 )}
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Important Visualizations Section */}
+          <Grid container spacing={4} sx={{ mt: 2 }}>
+            {/* Dashboard Cards */}
+            <Grid item xs={12}>
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                <Grid item xs={12} md={3}>
+                  <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #b71c1c' }}>
+                    <CardContent>
+                      <Typography variant="h5">Total Threats</Typography>
+                      <Typography variant="h3" fontWeight="bold">{totalThreats}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #ff5252' }}>
+                    <CardContent>
+                      <Typography variant="h5">Critical Threats</Typography>
+                      <Typography variant="h3" fontWeight="bold">{activeUsers}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #388e3c' }}>
+                    <CardContent>
+                      <Typography variant="h5">Prediction Accuracy</Typography>
+                      <Typography variant="h3" fontWeight="bold">{accuracy}%</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #ffb300' }}>
+                    <CardContent>
+                      <Typography variant="h5">Processed Rows</Typography>
+                      <Typography variant="h3" fontWeight="bold">{processedRows}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Grid>
+            {/* Threat Type Distribution Pie Chart */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Threat Type Distribution</Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie data={threatTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                      {threatTypeData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <RechartsTooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+            {/* Prediction Status Pie/Donut Chart (using static data for demo) */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Prediction Status</Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                      <Cell fill="#388e3c" />
+                      <Cell fill="#b71c1c" />
+                    </Pie>
+                    <RechartsTooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+            {/* Threat Level per Type (Stacked Bar) - using static data for demo */}
+            <Grid item xs={12} md={8}>
+              <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Threat Level per Type</Typography>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={threatLevelPerType} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="type" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="Critical" stackId="a" fill="#b71c1c" />
+                    <Bar dataKey="High" stackId="a" fill="#ff5252" />
+                    <Bar dataKey="Normal" stackId="a" fill="#388e3c" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+            {/* Top Frequent Threat Types (Horizontal Bar) */}
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Top Frequent Threat Types</Typography>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart layout="vertical" data={topThreatTypes} margin={{ left: 30 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" />
+                    <RechartsTooltip />
+                    <Bar dataKey="value" fill="#b71c1c">
+                      {topThreatTypes.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+            {/* Threats Over Time (Line Chart) */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Threats Over Time</Typography>
+                <ResponsiveContainer width="100%" height={350}>
+                  <LineChart data={timeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Line type="monotone" dataKey="count" stroke="#b71c1c" strokeWidth={3} />
+                  </LineChart>
+                </ResponsiveContainer>
               </Paper>
             </Grid>
           </Grid>

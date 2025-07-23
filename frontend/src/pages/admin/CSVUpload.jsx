@@ -51,6 +51,7 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom';
 
 const CSVUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState([
@@ -100,6 +101,8 @@ const CSVUpload = () => {
   const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
   const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
   const [columnMappingDialog, setColumnMappingDialog] = useState(false);
+
+  const navigate = useNavigate();
 
   // Check API status on component mount
   React.useEffect(() => {
@@ -1067,6 +1070,23 @@ Multiple records: [record1, record2, ...]`}
           <Button onClick={() => setResultsDialog({ open: false, results: null })}>
             Close
           </Button>
+          {resultsDialog.results && resultsDialog.results.length > 0 && (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => {
+                setResultsDialog({ open: false, results: null });
+                // Save results and fileMeta to localStorage
+                if (resultsDialog.results && resultsDialog.results.length > 0) {
+                  localStorage.setItem('lastAdminResults', JSON.stringify(resultsDialog.results));
+                  localStorage.setItem('lastAdminFileMeta', JSON.stringify(selectedFile));
+                }
+                navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: selectedFile } });
+              }}
+            >
+              Visualize Results
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
       
