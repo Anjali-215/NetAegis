@@ -65,10 +65,10 @@ const Chatbot = () => {
         sx={{
           flex: 1,
           width: '100vw',
-          px: 0,
-          pl: `${SIDEBAR_WIDTH}px`,
+          px: 3,
+          pl: `${SIDEBAR_WIDTH + 24}px`,
           pt: 3,
-          pb: 7.5,
+          pb: 12,
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'auto',
@@ -159,15 +159,14 @@ const Chatbot = () => {
         onSubmit={handleSend}
         sx={{
           width: `calc(100vw - ${SIDEBAR_WIDTH}px)`,
-          px: 0,
-          pl: `${SIDEBAR_WIDTH}px`,
-          py: 1.2,
+          px: 3,
+          py: 2,
           display: 'flex',
-          gap: 10,
+          gap: 2,
+          justifyContent: 'center',
           position: 'fixed',
           bottom: 0,
-          left: 0,
-          right: 0,
+          left: `${SIDEBAR_WIDTH}px`,
           bgcolor: '#18191a',
           borderTop: '1.5px solid #ff0000',
           zIndex: 20,
@@ -181,16 +180,30 @@ const Chatbot = () => {
           variant="outlined"
           size="small"
           sx={{
-            bgcolor: '#18191a',
+            bgcolor: '#232425',
             borderRadius: 2,
-            input: { color: '#ff0000', fontSize: 15, fontWeight: 500, py: 1.2, px: 1.5 },
-            border: '1.5px solid #ff0000',
-            '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-            '&:hover': { bgcolor: '#232425' },
-            transition: 'background 0.3s, box-shadow 0.3s',
-            width: { xs: '70vw', sm: '60vw', md: '50vw', lg: '40vw' },
-            minWidth: 180,
-            maxWidth: 600,
+            input: { 
+              color: '#fff', 
+              fontSize: 15, 
+              fontWeight: 500, 
+              py: 1.5, 
+              px: 2 
+            },
+            '& .MuiOutlinedInput-root': {
+              border: '1.5px solid #ff0000',
+              '&:hover': {
+                border: '1.5px solid #ff3333',
+              },
+              '&.Mui-focused': {
+                border: '1.5px solid #ff6666',
+              }
+            },
+            '& .MuiOutlinedInput-notchedOutline': { 
+              border: 'none' 
+            },
+            width: '60%',
+            minWidth: 300,
+            maxWidth: 500,
           }}
           disabled={loading}
           autoFocus
@@ -201,14 +214,23 @@ const Chatbot = () => {
           disabled={loading || !input.trim()}
           size="medium"
           sx={{
-            bgcolor: '#18191a',
-            color: '#ff0000',
+            bgcolor: '#ff0000',
+            color: '#fff',
             border: '1.5px solid #ff0000',
             borderRadius: 2,
-            '&:hover': { bgcolor: '#232425' },
-            transition: 'background 0.3s, box-shadow 0.3s',
-            width: 44,
-            height: 44,
+            '&:hover': { 
+              bgcolor: '#ff3333',
+              border: '1.5px solid #ff3333'
+            },
+            '&:disabled': {
+              bgcolor: '#666',
+              border: '1.5px solid #666',
+              color: '#999'
+            },
+            transition: 'all 0.3s ease',
+            width: 48,
+            height: 48,
+            flexShrink: 0,
           }}
         >
           <SendIcon />
