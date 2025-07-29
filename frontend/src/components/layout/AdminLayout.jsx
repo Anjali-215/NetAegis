@@ -207,6 +207,12 @@ const AdminLayout = ({ children }) => {
       icon: <Settings />,
       path: '/admin/settings',
       description: 'System settings'
+    },
+    {
+      text: 'Chatbot',
+      icon: <Security />,
+      path: '/admin/phishing-chatbot',
+      description: 'Ask questions or check links'
     }
   ];
 
