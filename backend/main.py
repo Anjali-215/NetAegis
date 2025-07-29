@@ -15,7 +15,7 @@ from sklearn.preprocessing import LabelEncoder
 # Backend imports for DB and Auth
 from database import connect_to_mongo, close_mongo_connection
 from api.auth import router as auth_router
-from api import phishing_router
+from api import phishing_router, reports_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +40,8 @@ app.add_middleware(
 app.include_router(auth_router)
 # Include phishing detection/chatbot router
 app.include_router(phishing_router)
+# Include reports generation router
+app.include_router(reports_router, prefix="/api")
 
 # --- ML API SECTION ---
 models = {}

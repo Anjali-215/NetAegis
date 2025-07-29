@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
 import api, { testMLPrediction, checkApiHealth, predictThreat } from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
+import ReportGenerator from '../../components/ReportGenerator';
 import {
   Box,
   Container,
@@ -48,7 +49,8 @@ import {
   Refresh,
   Add as AddIcon,
   DataObject as JsonIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Assessment
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
@@ -98,6 +100,8 @@ const CSVUpload = () => {
   const [isTestingML, setIsTestingML] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [jsonData, setJsonData] = useState('');
+  const [showReportGenerator, setShowReportGenerator] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
   const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
   const [columnMappingDialog, setColumnMappingDialog] = useState(false);
@@ -242,6 +246,7 @@ const CSVUpload = () => {
 
     setIsProcessing(true);
     const results = [];
+    const processedData = []; // Store processed data for database
 
     try {
       // Process each row with ML
@@ -305,6 +310,7 @@ const CSVUpload = () => {
             confidence: prediction.confidence,
             data: row
           });
+          processedData.push(preprocessedData); // Store processed data for DB
         } catch (error) {
           results.push({
             row: i + 1,
@@ -316,6 +322,26 @@ const CSVUpload = () => {
       }
 
       setResultsDialog({ open: true, results: results });
+
+      // If processedData is not empty, send it to the backend for storage
+      if (processedData.length > 0) {
+        try {
+          await api.post('/api/admin/store-ml-results', {
+            processedData: processedData,
+            fileName: file.name,
+            totalRecords: file.data.length,
+            processedRecords: processedData.length,
+            errors: results.filter(r => r.status === 'error').length,
+            warnings: results.filter(r => r.status === 'warning').length, // Assuming warnings are handled here
+            uploadDate: new Date().toISOString()
+          });
+          console.log('Processed data stored successfully.');
+        } catch (error) {
+          console.error('Error storing processed data:', error);
+          alert('Error storing processed data: ' + error.message);
+        }
+      }
+      
     } catch (error) {
       console.error('ML processing error:', error);
       alert('Error processing with ML: ' + error.message);
@@ -558,6 +584,23 @@ const CSVUpload = () => {
     setActiveTab(newValue);
   };
 
+  const downloadTemplate = () => {
+    const templateContent = `src_ip,src_port,dst_ip,dst_port,proto,service,duration,src_bytes,dst_bytes,conn_state,missed_bytes,src_pkts,src_ip_bytes,dst_pkts,dst_ip_bytes,dns_query,dns_qclass,dns_qtype,dns_rcode,dns_AA,dns_RD,dns_RA,dns_rejected,http_request_body_len,http_response_body_len,http_status_code,label
+192.168.1.100,80,192.168.1.200,443,tcp,http,1.5,1024,2048,SF,0,10,1024,8,2048,0,0,0,0,none,none,none,none,0,0,200,0
+192.168.1.101,22,192.168.1.201,22,tcp,ssh,0.1,64,0,REJ,0,1,64,1,40,0,0,0,0,none,none,none,none,0,0,0,1
+192.168.1.102,53,8.8.8.8,53,udp,dns,0.05,86,235,SF,0,2,142,2,291,google.com,1,1,0,F,T,T,F,0,0,0,0`;
+
+    const blob = new Blob([templateContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'netaegis_csv_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   // Analyze CSV headers and show mapping info
   const analyzeCSVHeaders = (headers) => {
     const mappings = detectColumnMappings(headers);
@@ -597,6 +640,7 @@ const CSVUpload = () => {
             Test ML
           </Button>
           {/* Column Mapping Help */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <Button 
             variant="outlined" 
             color="info" 
@@ -604,6 +648,7 @@ const CSVUpload = () => {
           >
             Column Reference
           </Button>
+        </Box>
         </Box>
       </Box>
 
@@ -764,7 +809,7 @@ Multiple records: [record1, record2, ...]`}
           </Paper>
         </Grid>
 
-        {/* Upload Guidelines */}
+        {/* Upload Guidelines - Now parallel to upload area */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -787,7 +832,16 @@ Multiple records: [record1, record2, ...]`}
                   </ListItemIcon>
                   <ListItemText 
                     primary="Required Columns" 
-                    secondary="Timestamp, Source IP, Destination IP, Threat Type, Confidence" 
+                    secondary="27 columns including src_ip, dst_ip, proto, service, duration, etc. Download template for exact structure." 
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <Download sx={{ color: '#4caf50' }} />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="CSV Template" 
+                    secondary="Download the official template with proper column structure and example data" 
                   />
                 </ListItem>
                 <ListItem>
@@ -872,7 +926,7 @@ Multiple records: [record1, record2, ...]`}
                     onClick={() => handlePreviewFile(file)}
                     disabled={file.status !== 'completed'}
                   >
-                    <Visibility sx={{ color: '#ff5252' }} />
+                    <Visibility />
                   </IconButton>
                 </Tooltip>
                 
@@ -880,38 +934,51 @@ Multiple records: [record1, record2, ...]`}
                   <IconButton 
                     size="small" 
                     onClick={() => handleProcessWithML(file)}
-                    disabled={file.status !== 'completed' || apiStatus !== 'connected' || isProcessing}
+                    disabled={file.status !== 'completed'}
+                    color="primary"
                   >
-                    {isProcessing ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <Refresh sx={{ color: '#ff5252' }} />
-                    )}
+                    <Assessment />
                   </IconButton>
                 </Tooltip>
                 
-                <Tooltip title="Download">
-                  <IconButton size="small" disabled={file.status !== 'completed'}>
-                    <Download sx={{ color: '#ff5252' }} />
-                  </IconButton>
-                </Tooltip>
-                
-                <Tooltip title="Delete">
+                <Tooltip title="Delete File">
                   <IconButton 
                     size="small" 
                     onClick={() => handleDeleteFile(file.id)}
                     color="error"
                   >
-                    <Delete sx={{ color: '#ff5252' }} />
+                    <Delete />
                   </IconButton>
                 </Tooltip>
               </Box>
             </Box>
-            
-            {getFileValidationStatus(file)}
           </Paper>
         ))}
       </Box>
+
+      {/* Report Generator */}
+      {showReportGenerator && (
+        <Box sx={{ mt: 4 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Typography variant="h5" gutterBottom>
+              Generate Threat Analysis Report
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => setShowReportGenerator(false)}
+            >
+              Close Report Generator
+            </Button>
+          </Box>
+          <ReportGenerator 
+            onReportGenerated={(reportData) => {
+              setShowReportGenerator(false);
+              // You can add additional logic here
+            }}
+            userProfile={userProfile}
+          />
+        </Box>
+      )}
 
       {/* File Preview Dialog */}
       <Dialog 
@@ -1071,21 +1138,34 @@ Multiple records: [record1, record2, ...]`}
             Close
           </Button>
           {resultsDialog.results && resultsDialog.results.length > 0 && (
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => {
-                setResultsDialog({ open: false, results: null });
-                // Save results and fileMeta to localStorage
-                if (resultsDialog.results && resultsDialog.results.length > 0) {
-                  localStorage.setItem('lastAdminResults', JSON.stringify(resultsDialog.results));
-                  localStorage.setItem('lastAdminFileMeta', JSON.stringify(selectedFile));
-                }
-                navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: selectedFile } });
-              }}
-            >
-              Visualize Results
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => {
+                  setResultsDialog({ open: false, results: null });
+                  // Save results and fileMeta to localStorage
+                  if (resultsDialog.results && resultsDialog.results.length > 0) {
+                    localStorage.setItem('lastAdminResults', JSON.stringify(resultsDialog.results));
+                    localStorage.setItem('lastAdminFileMeta', JSON.stringify(selectedFile));
+                  }
+                  navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: selectedFile } });
+                }}
+              >
+                Visualize Results
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Assessment />}
+                onClick={() => {
+                  setResultsDialog({ open: false, results: null });
+                  setShowReportGenerator(true);
+                }}
+              >
+                Generate Report
+              </Button>
+            </>
           )}
         </DialogActions>
       </Dialog>
@@ -1585,6 +1665,33 @@ Multiple records: [record1, record2, ...]`}
           📋 Column Name Reference - Supported Formats
         </DialogTitle>
         <DialogContent>
+          {/* Template Download Section - Now First and Most Prominent */}
+          <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.light', color: 'white' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
+              📥 Download CSV Template
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2, color: 'white' }}>
+              Get the exact CSV template with proper column structure and example data for NetAegis threat detection.
+            </Typography>
+            <Button 
+              variant="contained" 
+              onClick={downloadTemplate}
+              startIcon={<Download />}
+              sx={{ 
+                bgcolor: 'white', 
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'grey.100'
+                }
+              }}
+            >
+              Download Template (netaegis_csv_template.csv)
+            </Button>
+            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'white' }}>
+              Template includes: 27 columns, example data for normal traffic, DNS queries, and suspicious connections
+            </Typography>
+          </Paper>
+
           <Typography variant="body2" color="text.secondary" gutterBottom>
             NetAegis automatically maps column names from different network monitoring tools. 
             Use any of these column names in your CSV, JSON, or manual entry.
