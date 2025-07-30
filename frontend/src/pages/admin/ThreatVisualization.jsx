@@ -141,11 +141,21 @@ const ThreatVisualization = () => {
   const [isLiveMonitoring, setIsLiveMonitoring] = useState(false);
   const [livePredictions, setLivePredictions] = useState([]);
   const [testThreatType, setTestThreatType] = useState('normal');
+  const [intervalId, setIntervalId] = useState(null);
 
   // Initialize ML API connection
   useEffect(() => {
     initializeMLAPI();
   }, []);
+
+  // Cleanup interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [intervalId]);
 
   const initializeMLAPI = async () => {
     try {
@@ -189,13 +199,20 @@ const ThreatVisualization = () => {
 
   // Batch prediction removed - handled in CSV upload page
 
-  // Live monitoring simulation
+  // Live monitoring simulation - TEMPORARILY DISABLED to debug 422 errors
   const startLiveMonitoring = () => {
+    console.log('Live monitoring disabled for debugging');
+    setIsLiveMonitoring(false);
+    setLivePredictions([]);
+    
+    // TODO: Re-enable after fixing 422 errors
+    /*
     setIsLiveMonitoring(true);
     setLivePredictions([]);
     
     // Simulate live predictions every 5 seconds
     const interval = setInterval(async () => {
+      // Check if monitoring is still active
       if (!isLiveMonitoring) {
         clearInterval(interval);
         return;
@@ -222,11 +239,17 @@ const ThreatVisualization = () => {
       }
     }, 5000);
 
-    return () => clearInterval(interval);
+    // Store interval ID for cleanup
+    setIntervalId(interval);
+    */
   };
 
   const stopLiveMonitoring = () => {
     setIsLiveMonitoring(false);
+    if (intervalId) {
+      clearInterval(intervalId);
+      setIntervalId(null);
+    }
   };
 
   // Chart data - will be populated from API

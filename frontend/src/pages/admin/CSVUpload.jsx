@@ -44,7 +44,6 @@ import {
   Info as InfoIcon,
   Delete,
   Visibility,
-  Download,
   Refresh,
   Add as AddIcon,
   DataObject as JsonIcon,
@@ -59,7 +58,7 @@ const CSVUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewDialog, setPreviewDialog] = useState({ open: false, data: null });
+  const [previewDialog, setPreviewDialog] = useState({ open: false, data: null, fileName: '' });
   const [apiStatus, setApiStatus] = useState('checking');
   const [predictionResults, setPredictionResults] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -199,7 +198,9 @@ const CSVUpload = () => {
 
   const handlePreviewFile = (file) => {
     if (file.data) {
-      setPreviewDialog({ open: true, data: file.data.slice(0, 10) });
+      // Show top 5 records of the uploaded file
+      const top5Records = file.data.slice(0, 5);
+      setPreviewDialog({ open: true, data: top5Records, fileName: file.name });
     }
   };
 
@@ -861,11 +862,7 @@ Multiple records: [record1, record2, ...]`}
                   </IconButton>
                 </Tooltip>
                 
-                <Tooltip title="Download">
-                  <IconButton size="small" disabled={file.status !== 'completed'}>
-                    <Download sx={{ color: '#ff5252' }} />
-                  </IconButton>
-                </Tooltip>
+
                 
                 <Tooltip title="Delete">
                   <IconButton 
@@ -887,70 +884,79 @@ Multiple records: [record1, record2, ...]`}
       {/* File Preview Dialog */}
       <Dialog 
         open={previewDialog.open} 
-        onClose={() => setPreviewDialog({ open: false, data: null })}
+        onClose={() => setPreviewDialog({ open: false, data: null, fileName: '' })}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          File Preview
+          File Preview - {previewDialog.fileName}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Showing first 5 records of the uploaded file:
+              Showing top 5 records of the uploaded file:
             </Typography>
             <Paper sx={{ overflow: 'auto', maxHeight: 400 }}>
-              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                <Box component="thead">
-                  <Box component="tr" sx={{ backgroundColor: 'grey.100' }}>
-                    <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'grey.300' }}>
-                      Timestamp
-                    </Box>
-                    <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'grey.300' }}>
-                      Source IP
-                    </Box>
-                    <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'grey.300' }}>
-                      Destination IP
-                    </Box>
-                    <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'grey.300' }}>
-                      Threat Type
-                    </Box>
-                    <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'grey.300' }}>
-                      Confidence
+              {previewDialog.data && previewDialog.data.length > 0 ? (
+                <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <Box component="thead">
+                    <Box component="tr" sx={{ backgroundColor: 'grey.100' }}>
+                      {Object.keys(previewDialog.data[0]).map((header) => (
+                        <Box 
+                          key={header} 
+                          component="th" 
+                          sx={{ 
+                            p: 1, 
+                            textAlign: 'left', 
+                            borderBottom: 1, 
+                            borderColor: 'grey.300',
+                            fontSize: '0.875rem',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {header}
+                        </Box>
+                      ))}
                     </Box>
                   </Box>
+                  <Box component="tbody">
+                    {previewDialog.data.map((row, index) => (
+                      <Box component="tr" key={index} sx={{ '&:hover': { backgroundColor: 'grey.50' } }}>
+                        {Object.values(row).map((value, cellIndex) => (
+                          <Box 
+                            key={cellIndex} 
+                            component="td" 
+                            sx={{ 
+                              p: 1, 
+                              borderBottom: 1, 
+                              borderColor: 'grey.200',
+                              fontSize: '0.875rem',
+                              maxWidth: 150,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title={String(value)}
+                          >
+                            {String(value)}
+                          </Box>
+                        ))}
+                      </Box>
+                    ))}
+                  </Box>
                 </Box>
-                <Box component="tbody">
-                  {previewDialog.data?.map((row, index) => (
-                    <Box component="tr" key={index} sx={{ '&:hover': { backgroundColor: 'grey.50' } }}>
-                      <Box component="td" sx={{ p: 1, borderBottom: 1, borderColor: 'grey.200' }}>
-                        {row.timestamp}
-                      </Box>
-                      <Box component="td" sx={{ p: 1, borderBottom: 1, borderColor: 'grey.200' }}>
-                        {row.sourceIP}
-                      </Box>
-                      <Box component="td" sx={{ p: 1, borderBottom: 1, borderColor: 'grey.200' }}>
-                        {row.destIP}
-                      </Box>
-                      <Box component="td" sx={{ p: 1, borderBottom: 1, borderColor: 'grey.200' }}>
-                        {row.threatType}
-                      </Box>
-                      <Box component="td" sx={{ p: 1, borderBottom: 1, borderColor: 'grey.200' }}>
-                        <Chip 
-                          label={row.confidence} 
-                          color={row.confidence === 'High' ? 'error' : row.confidence === 'Medium' ? 'warning' : 'success'}
-                          size="small"
-                        />
-                      </Box>
-                    </Box>
-                  ))}
+              ) : (
+                <Box sx={{ p: 2, textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No data available to preview
+                  </Typography>
                 </Box>
-              </Box>
+              )}
             </Paper>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPreviewDialog({ open: false, data: null })}>
+          <Button onClick={() => setPreviewDialog({ open: false, data: null, fileName: '' })}>
             Close
           </Button>
         </DialogActions>

@@ -214,6 +214,51 @@ class PredictionRequest(BaseModel):
     user_email: Optional[str] = None
     user_name: Optional[str] = None
 
+
+
+# Batch prediction removed - CSV uploads handled in frontend
+
+@app.get("/performance")
+async def get_model_performance():
+    """Get model performance metrics"""
+    return {
+        "model_performance": model_performance,
+        "summary": {
+            "total_models": len(model_performance),
+            "best_accuracy": max(
+                [perf.get('accuracy', 0) for perf in model_performance.values()],
+                default=0
+            )
+        }
+    }
+
+@app.post("/test-email")
+async def test_email():
+    """Test email notification functionality"""
+    try:
+        result = await email_service.send_threat_alert(
+            "test@example.com",
+            "Test User",
+            {
+                "threat_type": "ddos",
+                "confidence": 85.5,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "threat_level": "Critical"
+            }
+        )
+        return {"success": result, "message": "Test email sent successfully"}
+    except Exception as e:
+        logger.error(f"Test email failed: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.get("/debug/requests")
+async def debug_requests():
+    """Debug endpoint to check if requests are being made"""
+    logger.info(f"=== DEBUG REQUEST RECEIVED ===")
+    logger.info(f"Timestamp: {datetime.now().isoformat()}")
+    logger.info(f"=============================")
+    return {"message": "Debug request received", "timestamp": datetime.now().isoformat()}
+
 @app.post("/predict")
 async def predict_threat(request: PredictionRequest):
     """
@@ -346,41 +391,6 @@ async def predict_threat(request: PredictionRequest):
     except Exception as e:
         logger.error(f"Unexpected error in prediction: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-# Batch prediction removed - CSV uploads handled in frontend
-
-@app.get("/performance")
-async def get_model_performance():
-    """Get model performance metrics"""
-    return {
-        "model_performance": model_performance,
-        "summary": {
-            "total_models": len(model_performance),
-            "best_accuracy": max(
-                [perf.get('accuracy', 0) for perf in model_performance.values()],
-                default=0
-            )
-        }
-    }
-
-@app.post("/test-email")
-async def test_email():
-    """Test email notification functionality"""
-    try:
-        result = await email_service.send_threat_alert(
-            "test@example.com",
-            "Test User",
-            {
-                "threat_type": "ddos",
-                "confidence": 85.5,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "threat_level": "Critical"
-            }
-        )
-        return {"success": result, "message": "Test email sent successfully"}
-    except Exception as e:
-        logger.error(f"Test email failed: {e}")
-        return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
