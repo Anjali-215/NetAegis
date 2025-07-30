@@ -124,47 +124,68 @@ export const getSampleNetworkData = (threatType = 'normal') => {
 };
 
 export const testMLPrediction = async () => {
-  const testData = {
-    src_ip: "192.168.1.100",
-    src_port: 80,
-    dst_ip: "192.168.1.200",
-    dst_port: 80,
-    proto: "tcp",
-    service: "http",
-    duration: 0,
-    src_bytes: 64,
-    dst_bytes: 0,
-    conn_state: "S0",
-    missed_bytes: 0,
-    src_pkts: 1000,
-    src_ip_bytes: 64000,
-    dst_pkts: 0,
-    dst_ip_bytes: 0,
-    dns_query: 0,
-    dns_qclass: 0,
-    dns_qtype: 0,
-    dns_rcode: 0,
-    dns_AA: "none",
-    dns_RD: "none",
-    dns_RA: "none",
-    dns_rejected: "none",
-    http_request_body_len: 0,
-    http_response_body_len: 0,
-    http_status_code: 0,
-    label: 1
-  };
-  const response = await fetch(`${API_BASE_URL}/predict`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(testData),
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+  try {
+    const response = await api.post('/test-prediction');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Test prediction failed');
   }
-  return await response.json();
+};
+
+// --- CSV File Management Functions ---
+export const saveCSVFile = async (fileData) => {
+  try {
+    const response = await api.post('/api/save-csv-file', fileData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to save CSV file');
+  }
+};
+
+export const getSavedCSVFiles = async () => {
+  try {
+    const response = await api.get('/api/saved-csv-files');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to fetch saved CSV files');
+  }
+};
+
+export const deleteSavedCSVFile = async (fileId) => {
+  try {
+    const response = await api.delete(`/api/saved-csv-files/${fileId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to delete saved CSV file');
+  }
+};
+
+// --- Visualization Management Functions ---
+export const saveVisualization = async (visualizationData) => {
+  try {
+    const response = await api.post('/api/save-visualization', visualizationData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to save visualization');
+  }
+};
+
+export const getSavedVisualizations = async (userId) => {
+  try {
+    const response = await api.get(`/api/saved-visualizations/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to fetch saved visualizations');
+  }
+};
+
+export const deleteSavedVisualization = async (visualizationId) => {
+  try {
+    const response = await api.delete(`/api/saved-visualizations/${visualizationId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to delete saved visualization');
+  }
 };
 
 // --- AUTH & USER SERVICE ---
@@ -235,3 +256,24 @@ class ApiService {
 }
 
 export default new ApiService();
+
+export const adminAddUser = async (userData, token) => {
+  const response = await api.post('/auth/admin/add_user', userData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const adminListUsers = async (token) => {
+  const response = await api.get('/auth/admin/users', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const adminDeleteUser = async (userId, token) => {
+  const response = await api.delete(`/auth/admin/users/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};

@@ -667,41 +667,7 @@ export const validateData = (data) => {
   };
 };
 
-/**
- * Get sample data structure for testing
- * @returns {Object} - Sample data with all required features
- */
-export const getSampleData = () => {
-  return {
-    src_ip: '192.168.1.37',
-    src_port: 4444,
-    dst_ip: '192.168.1.193',
-    dst_port: 49178,
-    proto: 'tcp',
-    service: '-',
-    duration: 290.371539,
-    src_bytes: 101568,
-    dst_bytes: 2592,
-    conn_state: 'OTH',
-    missed_bytes: 0,
-    src_pkts: 1,
-    src_ip_bytes: 0,
-    dst_pkts: 1,
-    dst_ip_bytes: 0,
-    dns_query: 0,
-    dns_qclass: 0,
-    dns_qtype: 0,
-    dns_rcode: 0,
-    dns_AA: 'none',
-    dns_RD: 'none',
-    dns_RA: 'none',
-    dns_rejected: 'none',
-    http_request_body_len: 0,
-    http_response_body_len: 0,
-    http_status_code: 0,
-    label: 1
-  };
-};
+
 
 export const preprocessNetworkData = (data) => {
   // First, normalize column names to handle different CSV formats

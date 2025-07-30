@@ -229,39 +229,11 @@ const ThreatVisualization = () => {
     setIsLiveMonitoring(false);
   };
 
-  // Sample data
-  const threatData = [
-    { name: 'Jan', Malware: 65, DDoS: 45, Phishing: 30, SQLInjection: 20, Other: 10 },
-    { name: 'Feb', Malware: 89, DDoS: 52, Phishing: 38, SQLInjection: 25, Other: 12 },
-    { name: 'Mar', Malware: 120, DDoS: 78, Phishing: 45, SQLInjection: 32, Other: 15 },
-    { name: 'Apr', Malware: 95, DDoS: 65, Phishing: 42, SQLInjection: 28, Other: 13 },
-    { name: 'May', Malware: 150, DDoS: 95, Phishing: 58, SQLInjection: 40, Other: 18 },
-    { name: 'Jun', Malware: 180, DDoS: 120, Phishing: 72, SQLInjection: 48, Other: 22 }
-  ];
-
-  // For all chart series and pie segments, replace colors like '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', etc. with '#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323'.
-  const threatTypesData = [
-    { name: 'Malware', value: 35, color: '#b71c1c' },
-    { name: 'DDoS', value: 25, color: '#ff5252' },
-    { name: 'Phishing', value: 20, color: '#c50e29' },
-    { name: 'SQL Injection', value: 15, color: '#7f0000' },
-    { name: 'Other', value: 5, color: '#3a2323' }
-  ];
-
-  const confidenceData = [
-    { name: 'High', value: 45, color: '#b71c1c' },
-    { name: 'Medium', value: 35, color: '#ff5252' },
-    { name: 'Low', value: 20, color: '#3a2323' }
-  ];
-
-  const trendData = [
-    { name: 'Jan', threats: 65, blocked: 60, detected: 5 },
-    { name: 'Feb', threats: 89, blocked: 82, detected: 7 },
-    { name: 'Mar', threats: 120, blocked: 108, detected: 12 },
-    { name: 'Apr', threats: 95, blocked: 87, detected: 8 },
-    { name: 'May', threats: 150, blocked: 135, detected: 15 },
-    { name: 'Jun', threats: 180, blocked: 162, detected: 18 }
-  ];
+  // Chart data - will be populated from API
+  const threatData = [];
+  const threatTypesData = [];
+  const confidenceData = [];
+  const trendData = [];
 
   // For all chart series, use only these COLORS.
   // const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323', '#ff867f', '#ffb300', '#388e3c'];

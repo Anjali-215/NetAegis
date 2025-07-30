@@ -9,8 +9,8 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiService from '../../services/api';
 import UserCSVUpload from '../../pages/user/CSVUpload';
-import Footer from '../Footer';
 import ChatBot from '../ChatBot';
+import UserProfile from '../../pages/user/UserProfile';
 
 const drawerWidth = 280;
 
@@ -48,6 +48,7 @@ const UserLayout = ({ children }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [user, setUser] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
+  const [profileOpen, setProfileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
@@ -65,10 +66,8 @@ const UserLayout = ({ children }) => {
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/user/dashboard', description: 'Overview and analytics' },
     { text: 'CSV Upload', icon: <Upload />, path: '/user/csv-upload', description: 'Upload threat data' },
-    { text: 'Threat Visualization', icon: <Assessment />, path: '/user/threat-visualization', description: 'Visualize threats' },
-    { text: 'Notifications', icon: <Notifications />, path: '/user/notifications', description: 'System notifications' },
-    { text: 'Reports', icon: <ReportsIcon />, path: '/user/reports', description: 'Generate reports' },
-    { text: 'Settings', icon: <Settings />, path: '/user/settings', description: 'System settings' },
+    { text: 'Threat Visualization', icon: <Assessment />, path: '/user/visualization', description: 'Visualize threats' },
+    { text: 'Profile', icon: <AccountCircle />, path: '/user/profile', description: 'User profile' },
   ];
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
@@ -77,6 +76,10 @@ const UserLayout = ({ children }) => {
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleProfileMenuClose = () => setAnchorEl(null);
   const handleLogout = () => { navigate('/login'); };
+  const handleProfileOpen = () => {
+    setProfileOpen(true);
+    setAnchorEl(null);
+  };
 
   const drawer = (
     <Box>
@@ -141,7 +144,9 @@ const UserLayout = ({ children }) => {
                       <>
                         <Typography variant="subtitle1" fontWeight="bold">{user.name}</Typography>
                         <Typography variant="body2" color="text.secondary">{user.email}</Typography>
-                        <Typography variant="caption" color="text.secondary">Normal User</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Joined: {user.created_at ? new Date(user.created_at).toLocaleDateString('en-GB') : 'N/A'}
+                        </Typography>
                       </>
                     ) : (
                       <>
@@ -154,9 +159,9 @@ const UserLayout = ({ children }) => {
                 </Box>
               </MenuItem>
               <Divider />
-              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/user/settings'); }}>
-                <ListItemIcon><Settings fontSize="small" /></ListItemIcon>
-                Settings
+              <MenuItem onClick={handleProfileOpen}>
+                <ListItemIcon><AccountCircle fontSize="small" /></ListItemIcon>
+                Profile
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon><Logout fontSize="small" /></ListItemIcon>
@@ -178,7 +183,9 @@ const UserLayout = ({ children }) => {
           {children}
         </Box>
         <ChatBot />
-        <Footer />
+        <Dialog open={profileOpen} onClose={() => setProfileOpen(false)} maxWidth="sm" fullWidth>
+          <UserProfile />
+        </Dialog>
       </Box>
     </ThemeProvider>
   );

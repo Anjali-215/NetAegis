@@ -51,6 +51,7 @@ const UserCSVUpload = () => {
   const [apiStatus, setApiStatus] = useState('checking');
   const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
   const [fileMeta, setFileMeta] = useState(null); // {name, size, uploadTime, recordCount}
+  const [processingProgress, setProcessingProgress] = useState(0);
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -175,82 +176,118 @@ const UserCSVUpload = () => {
                         return row;
                       });
                     }
+                    
                     const results = [];
-                    for (let i = 0; i < data.length; i++) {
-                      const row = data[i];
-                      // Normalize and fill defaults like admin
-                      const completeRecord = {
-                        src_ip: row.src_ip || row.source_ip || row.sourceip || row.orig_h || row['ip.src'] || '',
-                        src_port: row.src_port || row.source_port || row.sourceport || row.orig_p || row['tcp.srcport'] || row['udp.srcport'] || 80,
-                        dst_ip: row.dst_ip || row.dest_ip || row.destination_ip || row.destip || row.resp_h || row['ip.dst'] || '',
-                        dst_port: row.dst_port || row.dest_port || row.destination_port || row.destport || row.resp_p || row['tcp.dstport'] || row['udp.dstport'] || 443,
-                        proto: row.proto || row.protocol || row.prot || 'tcp',
-                        service: row.service || row.svc || row.srv || '-',
-                        duration: row.duration || row.dur || row.time || 1.0,
-                        src_bytes: row.src_bytes || row.source_bytes || row.orig_bytes || 0,
-                        dst_bytes: row.dst_bytes || row.dest_bytes || row.destination_bytes || row.resp_bytes || 0,
-                        conn_state: row.conn_state || row.connection_state || row.state || 'SF',
-                        missed_bytes: row.missed_bytes || 0,
-                        src_pkts: row.src_pkts || row.source_packets || row.orig_pkts || 1,
-                        src_ip_bytes: row.src_ip_bytes || 0,
-                        dst_pkts: row.dst_pkts || row.dest_packets || row.destination_packets || row.resp_pkts || 1,
-                        dst_ip_bytes: row.dst_ip_bytes || 0,
-                        dns_query: row.dns_query || row.dns_q || 0,
-                        dns_qclass: row.dns_qclass || row.dns_qc || 0,
-                        dns_qtype: row.dns_qtype || row.dns_qt || 0,
-                        dns_rcode: row.dns_rcode || 0,
-                        dns_AA: row.dns_AA || row.dns_aa || 'none',
-                        dns_RD: row.dns_RD || row.dns_rd || 'none',
-                        dns_RA: row.dns_RA || row.dns_ra || 'none',
-                        dns_rejected: row.dns_rejected || 'none',
-                        http_request_body_len: row.http_request_body_len || row.http_req_len || 0,
-                        http_response_body_len: row.http_response_body_len || row.http_resp_len || 0,
-                        http_status_code: row.http_status_code || row.http_code || 0,
-                        label: 1
-                      };
-                      // Validate
-                      const validation = preprocessNetworkData(completeRecord);
-                      if (!validation.isValid) {
-                        results.push({
-                          row: i + 1,
-                          status: 'error',
-                          error: validation.errors.join(', '),
-                          data: row
-                        });
-                        continue;
-                      }
-                      const preprocessedData = validation.processedData;
-                      try {
-                        const prediction = await predictThreat(preprocessedData);
-                        results.push({
-                          row: i + 1,
-                          status: 'completed',
-                          prediction: prediction.prediction,
-                          threatType: prediction.threat_type,
-                          threatLevel: prediction.threat_level,
-                          confidence: prediction.confidence,
-                          data: row
-                        });
-                      } catch (error) {
-                        results.push({
-                          row: i + 1,
-                          status: 'error',
-                          error: error.message,
-                          data: row
-                        });
-                      }
+                    const batchSize = 10; // Process in batches of 10
+                    
+                    for (let i = 0; i < data.length; i += batchSize) {
+                      const batch = data.slice(i, i + batchSize);
+                      
+                      // Update progress
+                      const progress = Math.round((i / data.length) * 100);
+                      setProcessingProgress(progress);
+                      
+                      // Process batch in parallel
+                      const batchPromises = batch.map(async (row, batchIndex) => {
+                        const actualIndex = i + batchIndex;
+                        try {
+                          // Normalize and fill defaults
+                          const completeRecord = {
+                            src_ip: row.src_ip || row.source_ip || row.sourceip || row.orig_h || row['ip.src'] || '192.168.1.1',
+                            src_port: parseInt(row.src_port || row.source_port || row.sourceport || row.orig_p || row['tcp.srcport'] || row['udp.srcport'] || 80),
+                            dst_ip: row.dst_ip || row.dest_ip || row.destination_ip || row.destip || row.resp_h || row['ip.dst'] || '10.0.0.1',
+                            dst_port: parseInt(row.dst_port || row.dest_port || row.destination_port || row.destport || row.resp_p || row['tcp.dstport'] || row['udp.dstport'] || 443),
+                            proto: row.proto || row.protocol || row.prot || 'tcp',
+                            service: row.service || row.svc || row.srv || '-',
+                            duration: parseFloat(row.duration || row.dur || row.time || 1.0),
+                            src_bytes: parseInt(row.src_bytes || row.source_bytes || row.orig_bytes || 0),
+                            dst_bytes: parseInt(row.dst_bytes || row.dest_bytes || row.destination_bytes || row.resp_bytes || 0),
+                            conn_state: row.conn_state || row.connection_state || row.state || 'SF',
+                            missed_bytes: parseInt(row.missed_bytes || 0),
+                            src_pkts: parseInt(row.src_pkts || row.source_packets || row.orig_pkts || 1),
+                            src_ip_bytes: parseInt(row.src_ip_bytes || 0),
+                            dst_pkts: parseInt(row.dst_pkts || row.dest_packets || row.destination_packets || row.resp_pkts || 1),
+                            dst_ip_bytes: parseInt(row.dst_ip_bytes || 0),
+                            dns_query: parseInt(row.dns_query || row.dns_q || 0),
+                            dns_qclass: parseInt(row.dns_qclass || row.dns_qc || 0),
+                            dns_qtype: parseInt(row.dns_qtype || row.dns_qt || 0),
+                            dns_rcode: parseInt(row.dns_rcode || 0),
+                            dns_AA: row.dns_AA || row.dns_aa || 'none',
+                            dns_RD: row.dns_RD || row.dns_rd || 'none',
+                            dns_RA: row.dns_RA || row.dns_ra || 'none',
+                            dns_rejected: row.dns_rejected || 'none',
+                            http_request_body_len: parseInt(row.http_request_body_len || row.http_req_len || 0),
+                            http_response_body_len: parseInt(row.http_response_body_len || row.http_resp_len || 0),
+                            http_status_code: parseInt(row.http_status_code || row.http_code || 0),
+                            label: 1
+                          };
+                          
+                          // Validate
+                          const validation = preprocessNetworkData(completeRecord);
+                          if (!validation.isValid) {
+                            return {
+                              row: actualIndex + 1,
+                              status: 'error',
+                              error: validation.errors.join(', '),
+                              data: row
+                            };
+                          }
+                          
+                          const preprocessedData = validation.processedData;
+                          const prediction = await predictThreat(preprocessedData);
+                          
+                          return {
+                            row: actualIndex + 1,
+                            status: 'completed',
+                            prediction: prediction.prediction,
+                            threatType: prediction.threat_type,
+                            threatLevel: prediction.threat_level,
+                            confidence: prediction.confidence,
+                            emailSent: prediction.email_sent,
+                            data: row
+                          };
+                        } catch (error) {
+                          return {
+                            row: actualIndex + 1,
+                            status: 'error',
+                            error: error.message,
+                            data: row
+                          };
+                        }
+                      });
+                      
+                      // Wait for batch to complete
+                      const batchResults = await Promise.all(batchPromises);
+                      results.push(...batchResults);
+                      
+                      // Update progress (optional - you can add a progress bar)
+                      console.log(`Processed ${Math.min(i + batchSize, data.length)} of ${data.length} records`);
                     }
+                    
+                    setProcessingProgress(100);
                     setResultsDialog({ open: true, results });
                   } catch (err) {
+                    console.error('Processing error:', err);
                     alert('Failed to process file: ' + err.message);
+                  } finally {
+                    setIsProcessing(false);
+                    setProcessingProgress(0);
                   }
-                  setIsProcessing(false);
                 }}
                 disabled={isProcessing || apiStatus !== 'connected'}
                 sx={{ minWidth: 180, fontWeight: 'bold' }}
               >
-                {isProcessing ? <CircularProgress size={24} /> : 'Process with ML'}
+                {isProcessing ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={20} />
+                    <span>Processing... {processingProgress}%</span>
+                  </Box>
+                ) : (
+                  'Process with ML'
+                )}
               </Button>
+              
+
             </Box>
           </Paper>
         )}
@@ -271,6 +308,7 @@ const UserCSVUpload = () => {
                       <TableCell>Threat Type</TableCell>
                       <TableCell>Threat Level</TableCell>
                       <TableCell>Confidence</TableCell>
+                      <TableCell>Email Alert</TableCell>
                       <TableCell>Error</TableCell>
                     </TableRow>
                   </TableHead>
@@ -283,6 +321,17 @@ const UserCSVUpload = () => {
                         <TableCell>{row.threatType || '-'}</TableCell>
                         <TableCell>{row.threatLevel || '-'}</TableCell>
                         <TableCell>{row.confidence !== undefined ? row.confidence : '-'}</TableCell>
+                        <TableCell>
+                          {row.threatType && row.threatType !== 'normal' ? (
+                            row.emailSent ? (
+                              <Chip label="Sent" color="success" size="small" />
+                            ) : (
+                              <Chip label="Failed" color="error" size="small" />
+                            )
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
                         <TableCell style={{ color: row.status === 'error' ? 'red' : undefined }}>{row.error || '-'}</TableCell>
                       </TableRow>
                     ))}

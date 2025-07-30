@@ -54,3 +54,16 @@ class UserService:
         if user_dict:
             return UserResponse(**user_dict)
         return None 
+
+    async def list_users(self) -> list:
+        # Only return users with role 'user', not admins
+        users_cursor = self.collection.find({"role": "user"})
+        users = []
+        async for user_dict in users_cursor:
+            users.append(UserResponse(**user_dict))
+        return users
+
+    async def delete_user(self, user_id: str) -> bool:
+        """Delete a user by ID. Returns True if deleted, False if not found."""
+        result = await self.collection.delete_one({"_id": ObjectId(user_id)})
+        return result.deleted_count > 0 

@@ -18,6 +18,7 @@ import Preloader from './components/Preloader';
 import { Visualization as UserVisualization, UserDashboard, CSVUpload as UserCSVUpload } from './pages/user';
 import UserLayout from './components/layout/UserLayout';
 import Chatbot from './pages/admin/PhishingChatbot';
+import UserProfile from './pages/user/UserProfile';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -34,8 +35,8 @@ function App() {
       {loading && <Preloader onComplete={() => setLoading(false)} />}
       <div className={`app-container ${appVisible ? 'visible' : ''}`}>
         {!loading && (
-      <Router>
-        <Routes>
+          <Router>
+            <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/login" element={<LoginPage />} />
@@ -58,8 +59,9 @@ function App() {
               <Route path="/user/dashboard" element={<UserLayout><UserDashboard /></UserLayout>} />
               <Route path="/user/csv-upload" element={<UserLayout><UserCSVUpload /></UserLayout>} />
               <Route path="/user/visualization" element={<UserLayout><UserVisualization /></UserLayout>} />
-        </Routes>
-      </Router>
+              <Route path="/user/profile" element={<UserLayout><UserProfile /></UserLayout>} />
+            </Routes>
+          </Router>
         )}
       </div>
     </>

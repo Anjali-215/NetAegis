@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import pandas as pd
@@ -6,16 +6,20 @@ import numpy as np
 import pickle
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 from datetime import datetime
 import logging
 from sklearn.preprocessing import LabelEncoder
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
 
 # Backend imports for DB and Auth
-from database import connect_to_mongo, close_mongo_connection
+from database import connect_to_mongo, close_mongo_connection, get_database
 from api.auth import router as auth_router
 from api import phishing_router
+from utils.email_service import EmailService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -202,10 +206,24 @@ async def get_models():
         "performance": model_performance
     }
 
+# Initialize email service
+email_service = EmailService()
+
+class PredictionRequest(BaseModel):
+    data: Dict[str, Any]
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+
 @app.post("/predict")
-async def predict_threat(data: Dict[str, Any]):
-    """Make threat predictions using the Random Forest model with exact training pipeline"""
+async def predict_threat(request: PredictionRequest):
+    """
+    Predict threat type from network data
+    """
     try:
+        data = request.data
+        user_email = request.user_email
+        user_name = request.user_name
+        
         logger.info(f"Received prediction request with data: {data}")
         
         # Step 1: Preprocess the input data (matches training exactly)
@@ -292,6 +310,35 @@ async def predict_threat(data: Dict[str, Any]):
         }
         
         logger.info(f"Final prediction result: {result}")
+        
+        # Send email notification if threat is detected
+        if threat_type != "normal" and user_email and user_name:
+            try:
+                threat_details = {
+                    "threat_type": threat_type,
+                    "confidence": float(prob[pred]) if prob is not None else None,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "threat_level": threat_level
+                }
+                
+                # Send email notification
+                email_sent = await email_service.send_threat_alert(
+                    user_email, user_name, threat_details
+                )
+                
+                if email_sent:
+                    logger.info(f"Threat alert email sent to {user_email}")
+                    result["email_sent"] = True
+                else:
+                    logger.warning(f"Failed to send threat alert email to {user_email}")
+                    result["email_sent"] = False
+                    
+            except Exception as e:
+                logger.error(f"Error sending email notification: {e}")
+                result["email_sent"] = False
+        else:
+            result["email_sent"] = False
+        
         return result
         
     except HTTPException:
@@ -315,6 +362,25 @@ async def get_model_performance():
             )
         }
     }
+
+@app.post("/test-email")
+async def test_email():
+    """Test email notification functionality"""
+    try:
+        result = await email_service.send_threat_alert(
+            "test@example.com",
+            "Test User",
+            {
+                "threat_type": "ddos",
+                "confidence": 85.5,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "threat_level": "Critical"
+            }
+        )
+        return {"success": result, "message": "Test email sent successfully"}
+    except Exception as e:
+        logger.error(f"Test email failed: {e}")
+        return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

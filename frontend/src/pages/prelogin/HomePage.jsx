@@ -601,10 +601,7 @@ export default function HomePage() {
             <Footer />
           </div>
         </div>
-        <div style={{ color: 'white', fontSize: 40 }}>
-          <FaBeer />
-          <span>ICON TEST</span>
-        </div>
+        
       </div>
     </>
   );

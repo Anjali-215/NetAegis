@@ -15,45 +15,43 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert
+  Alert,
+  Skeleton,
+  CircularProgress
 } from '@mui/material';
 import { AccountCircle, Logout, Edit } from '@mui/icons-material';
 import apiService from '../../services/api';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState({
-    name: 'Jane Doe',
-    email: 'jane.doe@company.com',
-    role: 'Administrator',
-    department: 'Security',
-    location: 'New York, NY',
-    joined: '2023-01-15',
-    avatar: 'JD',
-  });
+  const [user, setUser] = useState(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     // Load user data from API
     const loadUserData = async () => {
       try {
+        setLoading(true);
         if (apiService.isAuthenticated()) {
           const userData = await apiService.getCurrentUser();
           setUser({
             name: userData.name,
             email: userData.email,
             role: userData.role,
-            department: userData.company || 'Security',
-            location: 'New York, NY',
-            joined: new Date(userData.created_at).toLocaleDateString(),
+            company: userData.company || 'Security',
+            joined: new Date(userData.created_at).toLocaleDateString('en-GB'), // dd/mm/yyyy format
             avatar: userData.name.split(' ').map(n => n[0]).join(''),
           });
+        } else {
+          setError('Not authenticated');
         }
       } catch (error) {
         console.error('Error loading user data:', error);
         setError('Failed to load user data');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -85,14 +83,99 @@ const Profile = () => {
   const closeLogoutDialog = () => {
     setLogoutDialogOpen(false);
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 6 }}>
+        <Card sx={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #231417 100%)',
+          color: 'white',
+          borderRadius: 4,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          p: 4
+        }}>
+          <CardContent>
+            <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+              <Skeleton variant="circular" width={96} height={96} sx={{ mb: 2 }} />
+              <Skeleton variant="text" width={200} height={40} sx={{ mb: 1 }} />
+              <Skeleton variant="rectangular" width={120} height={32} sx={{ mb: 1 }} />
+              <Skeleton variant="text" width={180} height={24} />
+            </Box>
+            
+            <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.10)' }} />
+            
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Skeleton variant="text" width={80} height={20} />
+                <Skeleton variant="text" width={120} height={24} />
+              </Grid>
+              <Grid item xs={6}>
+                <Skeleton variant="text" width={80} height={20} />
+                <Skeleton variant="text" width={120} height={24} />
+              </Grid>
+              <Grid item xs={6}>
+                <Skeleton variant="text" width={80} height={20} />
+                <Skeleton variant="text" width={120} height={24} />
+              </Grid>
+              <Grid item xs={6}>
+                <Skeleton variant="text" width={80} height={20} />
+                <Skeleton variant="text" width={120} height={24} />
+              </Grid>
+            </Grid>
+            
+            <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.10)' }} />
+            
+            <Box display="flex" gap={2} justifyContent="center">
+              <Skeleton variant="rectangular" width={120} height={40} />
+              <Skeleton variant="rectangular" width={120} height={40} />
+            </Box>
+          </CardContent>
+        </Card>
+      </Container>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 6 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error || 'Failed to load user profile'}
+        </Alert>
+        <Card sx={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #231417 100%)',
+          color: 'white',
+          borderRadius: 4,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          p: 4
+        }}>
+          <CardContent>
+            <Box display="flex" flexDirection="column" alignItems="center">
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Unable to load profile
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => window.location.reload()}
+                sx={{
+                  backgroundColor: '#b71c1c',
+                  '&:hover': {
+                    backgroundColor: '#8e0000'
+                  }
+                }}
+              >
+                Retry
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="sm" sx={{ py: 6 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      
       <Card sx={{
         background: 'linear-gradient(135deg, #1a1a1a 0%, #231417 100%)',
         color: 'white',
@@ -117,12 +200,8 @@ const Profile = () => {
           
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Typography variant="subtitle2" color="text.secondary">Department</Typography>
-              <Typography variant="body1">{user.department}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="subtitle2" color="text.secondary">Location</Typography>
-              <Typography variant="body1">{user.location}</Typography>
+              <Typography variant="subtitle2" color="text.secondary">Company</Typography>
+              <Typography variant="body1">{user.company}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary">Joined</Typography>
@@ -131,6 +210,10 @@ const Profile = () => {
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary">Role</Typography>
               <Typography variant="body1">{user.role}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary">Email</Typography>
+              <Typography variant="body1">{user.email}</Typography>
             </Grid>
           </Grid>
           

@@ -44,58 +44,41 @@ import {
   Security,
   People
 } from '@mui/icons-material';
+import { adminAddUser, adminListUsers, adminDeleteUser } from '../../services/api';
+import { useEffect } from 'react';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john.doe@company.com',
-      role: 'Network Engineer',
-      status: 'active',
-      lastLogin: '2024-01-15 10:30',
-      avatar: 'JD'
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      email: 'jane.smith@company.com',
-      role: 'Security Analyst',
-      status: 'active',
-      lastLogin: '2024-01-15 09:15',
-      avatar: 'JS'
-    },
-    {
-      id: 3,
-      name: 'Mike Johnson',
-      email: 'mike.johnson@company.com',
-      role: 'Network Engineer',
-      status: 'inactive',
-      lastLogin: '2024-01-14 16:45',
-      avatar: 'MJ'
-    },
-    {
-      id: 4,
-      name: 'Sarah Wilson',
-      email: 'sarah.wilson@company.com',
-      role: 'Security Analyst',
-      status: 'active',
-      lastLogin: '2024-01-15 11:20',
-      avatar: 'SW'
-    }
-  ]);
-
+  const [users, setUsers] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [formErrors, setFormErrors] = useState({});
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
+    company: '',
     email: '',
-    role: 'Network Engineer'
+    password: '',
+    role: 'user', // always user in backend
   });
 
   const roles = ['Network Engineer', 'Security Analyst', 'System Administrator', 'Security Manager'];
+
+  // Fetch users from backend
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const data = await adminListUsers(token);
+      setUsers(data);
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const handleOpenDialog = (user = null) => {
     if (user) {
@@ -126,28 +109,47 @@ const UserManagement = () => {
     });
   };
 
-  const handleSubmit = () => {
-    if (editingUser) {
-      // Update existing user
-      setUsers(users.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, ...formData }
-          : user
-      ));
-      setSnackbar({ open: true, message: 'User updated successfully!', severity: 'success' });
-    } else {
-      // Add new user
-      const newUser = {
-        id: users.length + 1,
-        ...formData,
-        status: 'active',
-        lastLogin: 'Never',
-        avatar: formData.name.split(' ').map(n => n[0]).join('')
-      };
-      setUsers([...users, newUser]);
-      setSnackbar({ open: true, message: 'User added successfully!', severity: 'success' });
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name.trim()) errors.name = 'Name is required';
+    if (!formData.company.trim()) errors.company = 'Company is required';
+    if (!formData.email.trim()) errors.email = 'Email is required';
+    if (!formData.password.trim()) errors.password = 'Password is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      setValidationDialogOpen(true);
+      console.log('Validation failed: showing dialog');
+      return;
     }
-    handleCloseDialog();
+    try {
+      const token = localStorage.getItem('token');
+      // Always send all required fields
+      const payload = {
+        name: formData.name,
+        company: formData.company,
+        email: formData.email,
+        password: formData.password,
+        role: 'user', // always user in backend
+      };
+      await adminAddUser(payload, token);
+      setSnackbar({ open: true, message: 'User added successfully', severity: 'success' });
+      setOpenDialog(false);
+      fetchUsers(); // Just refresh the list, do not navigate
+    } catch (err) {
+      if (err?.response?.status === 422) {
+        setSnackbar({ open: true, message: 'Invalid input: Please fill all fields correctly.', severity: 'error' });
+      } else {
+        setSnackbar({ open: true, message: err?.response?.data?.detail || 'Failed to add user', severity: 'error' });
+      }
+    }
   };
 
   const handleToggleStatus = (userId) => {
@@ -159,9 +161,19 @@ const UserManagement = () => {
     setSnackbar({ open: true, message: 'User status updated!', severity: 'success' });
   };
 
-  const handleDeleteUser = (userId) => {
-    setUsers(users.filter(user => user.id !== userId));
-    setSnackbar({ open: true, message: 'User deleted successfully!', severity: 'success' });
+  const handleDeleteUser = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await adminDeleteUser(userId, token);
+      setSnackbar({ open: true, message: 'User deleted successfully!', severity: 'success' });
+      fetchUsers(); // Refresh the list after deletion
+    } catch (err) {
+      setSnackbar({ 
+        open: true, 
+        message: err?.response?.data?.detail || 'Failed to delete user', 
+        severity: 'error' 
+      });
+    }
   };
 
   const handleResetPassword = (userId) => {
@@ -182,8 +194,9 @@ const UserManagement = () => {
     return colors[role] || 'default';
   };
 
-  const activeUsers = users.filter(user => user.status === 'active').length;
+  const activeUsers = users.filter(user => user.is_active).length;
   const totalUsers = users.length;
+  const uniqueRoles = [...new Set(users.map(user => user.role))].length;
 
   return (
     <Fade in timeout={700}>
@@ -295,7 +308,7 @@ const UserManagement = () => {
                 <CardContent sx={{ p: 3, textAlign: 'center' }}>
                   <Security sx={{ fontSize: 48, color: '#ff5252', mb: 2 }} />
                   <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {roles.length}
+                    {uniqueRoles}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
                     User Roles
@@ -342,7 +355,7 @@ const UserManagement = () => {
                             width: 48,
                             height: 48
                           }}>
-                            {user.avatar}
+                            {user.name.charAt(0)}
                           </Avatar>
                           <Box>
                             <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
@@ -363,14 +376,14 @@ const UserManagement = () => {
                       </TableCell>
                       <TableCell>
                         <Chip 
-                          label={user.status} 
-                          color={getStatusColor(user.status)}
+                          label={user.is_active ? 'active' : 'inactive'} 
+                          color={getStatusColor(user.is_active ? 'active' : 'inactive')}
                           sx={{ fontWeight: 'bold' }}
                         />
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {user.lastLogin}
+                          {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Never'}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -385,24 +398,16 @@ const UserManagement = () => {
                           </Tooltip>
                           <Tooltip title="Reset Password">
                             <IconButton 
-                              onClick={() => handleResetPassword(user.id)}
-                              sx={{ color: '#ff5252' }}
+                              onClick={() => handleResetPassword(user._id)}
+                              sx={{ color: '#ff9800' }}
                             >
-                              <Email />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title={user.status === 'active' ? 'Deactivate' : 'Activate'}>
-                            <IconButton 
-                              onClick={() => handleToggleStatus(user.id)}
-                              sx={{ color: user.status === 'active' ? '#3a2323' : '#b71c1c' }}
-                            >
-                              {user.status === 'active' ? <Block /> : <CheckCircle />}
+                              <Security />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Delete User">
                             <IconButton 
-                              onClick={() => handleDeleteUser(user.id)}
-                              sx={{ color: '#ff5252' }}
+                              onClick={() => handleDeleteUser(user._id)}
+                              sx={{ color: '#f44336' }}
                             >
                               <Delete />
                             </IconButton>
@@ -439,7 +444,8 @@ const UserManagement = () => {
                   fullWidth
                   label="Name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={handleChange}
+                  name="name"
                   sx={{ mb: 3 }}
                   InputProps={{
                     sx: { color: 'white' }
@@ -447,13 +453,16 @@ const UserManagement = () => {
                   InputLabelProps={{
                     sx: { color: 'rgba(255,255,255,0.7)' }
                   }}
+                  error={!!formErrors.name}
+                  helperText={formErrors.name}
                 />
                 <TextField
                   fullWidth
                   label="Email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={handleChange}
+                  name="email"
                   sx={{ mb: 3 }}
                   InputProps={{
                     sx: { color: 'white' }
@@ -461,12 +470,48 @@ const UserManagement = () => {
                   InputLabelProps={{
                     sx: { color: 'rgba(255,255,255,0.7)' }
                   }}
+                  error={!!formErrors.email}
+                  helperText={formErrors.email}
+                />
+                <TextField
+                  fullWidth
+                  label="Password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  name="password"
+                  sx={{ mb: 3 }}
+                  InputProps={{
+                    sx: { color: 'white' }
+                  }}
+                  InputLabelProps={{
+                    sx: { color: 'rgba(255,255,255,0.7)' }
+                  }}
+                  error={!!formErrors.password}
+                  helperText={formErrors.password}
+                />
+                <TextField
+                  fullWidth
+                  label="Company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  name="company"
+                  sx={{ mb: 3 }}
+                  InputProps={{
+                    sx: { color: 'white' }
+                  }}
+                  InputLabelProps={{
+                    sx: { color: 'rgba(255,255,255,0.7)' }
+                  }}
+                  error={!!formErrors.company}
+                  helperText={formErrors.company}
                 />
                 <FormControl fullWidth>
                   <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Role</InputLabel>
                   <Select
                     value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    onChange={handleChange}
+                    name="role"
                     sx={{ color: 'white' }}
                   >
                     {roles.map((role) => (
@@ -492,6 +537,27 @@ const UserManagement = () => {
               >
                 {editingUser ? 'Update' : 'Add'}
               </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Validation Dialog */}
+          <Dialog
+            open={validationDialogOpen}
+            onClose={() => setValidationDialogOpen(false)}
+            PaperProps={{
+              sx: {
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
+                borderRadius: 3,
+                border: '1px solid rgba(255,255,255,0.1)'
+              }
+            }}
+          >
+            <DialogTitle sx={{ color: 'white', fontWeight: 'bold' }}>Incomplete Information</DialogTitle>
+            <DialogContent>
+              Please fill in all required fields before adding a user.
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setValidationDialogOpen(false)} color="primary" autoFocus>OK</Button>
             </DialogActions>
           </Dialog>
 
