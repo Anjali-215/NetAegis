@@ -302,6 +302,163 @@ async def upload_file(file: UploadFile = File(...)):
         logger.error(f"Error uploading file: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
 
+@router.post("/save-csv-file")
+async def save_csv_file(file_data: Dict[str, Any]):
+    """Save CSV file data with metadata for later access"""
+    try:
+        db = await get_database()
+        file_id = str(ObjectId())
+        
+        # Store file data in MongoDB
+        file_doc = {
+            "_id": ObjectId(file_id),
+            "filename": file_data.get("name", "unknown.csv"),
+            "size": file_data.get("size", "0 MB"),
+            "status": file_data.get("status", "completed"),
+            "upload_date": datetime.fromisoformat(file_data.get("uploadDate", datetime.now().isoformat())),
+            "records": file_data.get("records", 0),
+            "errors": file_data.get("errors", 0),
+            "warnings": file_data.get("warnings", 0),
+            "data": file_data.get("data", []),  # Store the actual CSV data
+            "created_at": datetime.now()
+        }
+        
+        await db.saved_csv_files.insert_one(file_doc)
+        
+        return {
+            "message": "CSV file saved successfully",
+            "file_id": file_id,
+            "filename": file_doc["filename"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error saving CSV file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save CSV file: {str(e)}")
+
+@router.get("/saved-csv-files")
+async def get_saved_csv_files():
+    """Get list of saved CSV files"""
+    try:
+        db = await get_database()
+        files = await db.saved_csv_files.find({}).sort("created_at", -1).to_list(length=100)
+        
+        # Serialize files for JSON response
+        serialized_files = []
+        for file in files:
+            serialized_files.append({
+                "id": str(file["_id"]),
+                "name": file["filename"],
+                "size": file["size"],
+                "status": file["status"],
+                "uploadDate": file["upload_date"].isoformat(),
+                "records": file["records"],
+                "errors": file["errors"],
+                "warnings": file["warnings"],
+                "data": file.get("data", [])  # Include the actual data
+            })
+        
+        return {"files": serialized_files}
+        
+    except Exception as e:
+        logger.error(f"Error fetching saved CSV files: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch saved CSV files: {str(e)}")
+
+@router.delete("/saved-csv-files/{file_id}")
+async def delete_saved_csv_file(file_id: str):
+    """Delete a saved CSV file"""
+    try:
+        db = await get_database()
+        
+        # Check if file exists
+        file = await db.saved_csv_files.find_one({"_id": ObjectId(file_id)})
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Delete the file
+        await db.saved_csv_files.delete_one({"_id": ObjectId(file_id)})
+        
+        return {"message": "File deleted successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting saved CSV file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete saved CSV file: {str(e)}")
+
+@router.post("/save-visualization")
+async def save_visualization(visualization_data: Dict[str, Any]):
+    """Save threat visualization data"""
+    try:
+        db = await get_database()
+        visualization_id = str(ObjectId())
+        
+        # Store visualization data in MongoDB
+        visualization_doc = {
+            "_id": ObjectId(visualization_id),
+            "user_id": visualization_data.get("userId", "default-user"),
+            "file_meta": visualization_data.get("fileMeta", {}),
+            "results": visualization_data.get("results", []),
+            "charts_data": visualization_data.get("chartsData", {}),
+            "created_at": datetime.now(),
+            "title": visualization_data.get("title", "Threat Analysis"),
+            "description": visualization_data.get("description", "")
+        }
+        
+        await db.saved_visualizations.insert_one(visualization_doc)
+        
+        return {
+            "message": "Visualization saved successfully",
+            "visualization_id": visualization_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error saving visualization: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save visualization: {str(e)}")
+
+@router.get("/saved-visualizations/{user_id}")
+async def get_saved_visualizations(user_id: str):
+    """Get saved visualizations for a user"""
+    try:
+        db = await get_database()
+        visualizations = await db.saved_visualizations.find({"user_id": user_id}).sort("created_at", -1).to_list(length=50)
+        
+        # Serialize visualizations for JSON response
+        serialized_visualizations = []
+        for vis in visualizations:
+            serialized_visualizations.append({
+                "id": str(vis["_id"]),
+                "fileMeta": vis["file_meta"],
+                "results": vis["results"],
+                "chartsData": vis.get("charts_data", {}),
+                "createdAt": vis["created_at"].isoformat(),
+                "title": vis.get("title", "Threat Analysis"),
+                "description": vis.get("description", "")
+            })
+        
+        return {"visualizations": serialized_visualizations}
+        
+    except Exception as e:
+        logger.error(f"Error fetching saved visualizations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch saved visualizations: {str(e)}")
+
+@router.delete("/saved-visualizations/{visualization_id}")
+async def delete_saved_visualization(visualization_id: str):
+    """Delete a saved visualization"""
+    try:
+        db = await get_database()
+        
+        # Check if visualization exists
+        visualization = await db.saved_visualizations.find_one({"_id": ObjectId(visualization_id)})
+        if not visualization:
+            raise HTTPException(status_code=404, detail="Visualization not found")
+        
+        # Delete the visualization
+        await db.saved_visualizations.delete_one({"_id": ObjectId(visualization_id)})
+        
+        return {"message": "Visualization deleted successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting saved visualization: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete saved visualization: {str(e)}")
+
 @router.post("/admin/store-ml-results")
 async def store_ml_results(data: Dict[str, Any]):
     """Store ML processing results for report generation"""

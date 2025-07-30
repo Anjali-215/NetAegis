@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
-import api, { testMLPrediction, checkApiHealth, predictThreat } from '../../services/api';
+import api, { testMLPrediction, checkApiHealth, predictThreat, saveCSVFile, getSavedCSVFiles, deleteSavedCSVFile, saveVisualization } from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
 import ReportGenerator from '../../components/ReportGenerator';
 import {
@@ -105,14 +105,32 @@ const CSVUpload = () => {
   const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
   const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
   const [columnMappingDialog, setColumnMappingDialog] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
 
   const navigate = useNavigate();
 
-  // Check API status on component mount
+  // Check API status and load saved files on component mount
   React.useEffect(() => {
-    checkApiHealth()
-      .then(() => setApiStatus('connected'))
-      .catch(() => setApiStatus('error'));
+    const initializeComponent = async () => {
+      try {
+        // Check API health
+        await checkApiHealth();
+        setApiStatus('connected');
+        
+        // Load saved CSV files
+        const savedFilesResponse = await getSavedCSVFiles();
+        if (savedFilesResponse.files && savedFilesResponse.files.length > 0) {
+          setUploadedFiles(savedFilesResponse.files);
+        }
+      } catch (error) {
+        console.error('Error initializing component:', error);
+        setApiStatus('error');
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+    
+    initializeComponent();
   }, []);
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -197,21 +215,46 @@ const CSVUpload = () => {
           clearInterval(interval);
           setIsUploading(false);
           
-          // Add file to uploaded files list
+          // Create file object for saving
           const newFile = {
-            id: uploadedFiles.length + 1,
             name: file.name,
             size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
             status: 'completed',
-            uploadDate: new Date().toLocaleString(),
-              records: data.length,
-              errors: 0,
-              warnings: 0,
-              data: data // Store the actual data
+            uploadDate: new Date().toISOString(),
+            records: data.length,
+            errors: 0,
+            warnings: 0,
+            data: data // Store the actual data
           };
           
-          setUploadedFiles([newFile, ...uploadedFiles]);
-            console.log("Uploaded files state:", [newFile, ...uploadedFiles]);
+          // Save file to backend (async operation)
+          saveCSVFile(newFile)
+            .then((saveResponse) => {
+              console.log('File saved successfully:', saveResponse);
+              
+              // Add the saved file to the list with the backend ID
+              const savedFile = {
+                ...newFile,
+                id: saveResponse.file_id,
+                uploadDate: new Date().toLocaleString()
+              };
+              
+              setUploadedFiles([savedFile, ...uploadedFiles]);
+              console.log("Uploaded files state:", [savedFile, ...uploadedFiles]);
+            })
+            .catch((error) => {
+              console.error('Error saving file:', error);
+              alert('File uploaded but failed to save: ' + error.message);
+              
+              // Still add to local state even if save failed
+              const localFile = {
+                ...newFile,
+                id: Date.now(), // Use timestamp as temporary ID
+                uploadDate: new Date().toLocaleString()
+              };
+              setUploadedFiles([localFile, ...uploadedFiles]);
+            });
+          
           setSelectedFile(null);
           return 100;
         }
@@ -227,7 +270,19 @@ const CSVUpload = () => {
     }
   };
 
-  const handleDeleteFile = (fileId) => {
+  const handleDeleteFile = async (fileId) => {
+    try {
+      // Try to delete from backend if it's a saved file (has a proper ID)
+      if (typeof fileId === 'string' && fileId.length > 10) {
+        await deleteSavedCSVFile(fileId);
+        console.log('File deleted from backend successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting file from backend:', error);
+      // Continue with local deletion even if backend deletion fails
+    }
+    
+    // Remove from local state
     setUploadedFiles(uploadedFiles.filter(file => file.id !== fileId));
   };
 
@@ -359,6 +414,36 @@ const CSVUpload = () => {
       alert(`Test failed: ${error.message}`);
     } finally {
       setIsTestingML(false);
+    }
+  };
+
+  const handleSaveVisualization = async (results, fileMeta) => {
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      
+      // Ensure fileMeta has safe defaults
+      const safeFileMeta = fileMeta || {};
+      const fileName = safeFileMeta.name || 'Unknown File';
+      
+      // Add upload time if not present
+      if (!safeFileMeta.uploadDate) {
+        safeFileMeta.uploadDate = new Date().toISOString();
+      }
+      
+      const visualizationData = {
+        userId: user.id || 'test-user',
+        fileMeta: safeFileMeta,
+        results: results,
+        title: `Threat Analysis - ${fileName}`,
+        description: `Analysis of ${results.length} records with ${results.filter(r => r.threatType && r.threatType !== 'normal').length} threats detected`
+      };
+
+      const response = await saveVisualization(visualizationData);
+      console.log('Visualization saved:', response);
+      alert('Visualization saved successfully! You can view it in the Threat Visualization page.');
+    } catch (error) {
+      console.error('Error saving visualization:', error);
+      alert('Failed to save visualization: ' + error.message);
     }
   };
 
@@ -498,11 +583,10 @@ const CSVUpload = () => {
       
       // Create a processed file object with ML results
       const processedFile = {
-        id: uploadedFiles.length + 1,
         name: 'json_data.json',
         size: `${(jsonData.length / 1024).toFixed(1)} KB`,
         status: 'completed',
-        uploadDate: new Date().toLocaleString(),
+        uploadDate: new Date().toISOString(),
         records: dataArray.length,
         errors: results.filter(r => r.status === 'error').length,
         warnings: 0,
@@ -510,7 +594,32 @@ const CSVUpload = () => {
         mlResults: results  // Store ML prediction results
       };
       
-      setUploadedFiles([processedFile, ...uploadedFiles]);
+      try {
+        // Save file to backend
+        const saveResponse = await saveCSVFile(processedFile);
+        console.log('JSON file saved successfully:', saveResponse);
+        
+        // Add the saved file to the list with the backend ID
+        const savedFile = {
+          ...processedFile,
+          id: saveResponse.file_id,
+          uploadDate: new Date().toLocaleString()
+        };
+        
+        setUploadedFiles([savedFile, ...uploadedFiles]);
+      } catch (error) {
+        console.error('Error saving JSON file:', error);
+        alert('JSON processed but failed to save: ' + error.message);
+        
+        // Still add to local state even if save failed
+        const localFile = {
+          ...processedFile,
+          id: Date.now(), // Use timestamp as temporary ID
+          uploadDate: new Date().toLocaleString()
+        };
+        setUploadedFiles([localFile, ...uploadedFiles]);
+      }
+      
       setJsonData('');
       
       // Show results dialog (same as CSV upload)
@@ -874,7 +983,18 @@ Multiple records: [record1, record2, ...]`}
           Recent Uploads
         </Typography>
         
-        {uploadedFiles.map((file) => (
+        {isLoadingFiles ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : uploadedFiles.length === 0 ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="body1" color="text.secondary">
+              No files uploaded yet. Upload a CSV or JSON file to get started.
+            </Typography>
+          </Paper>
+        ) : (
+          uploadedFiles.map((file) => (
           <Paper key={file.id} sx={{ p: 2, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box display="flex" alignItems="center" gap={2}>
@@ -953,7 +1073,8 @@ Multiple records: [record1, record2, ...]`}
               </Box>
             </Box>
           </Paper>
-        ))}
+        ))
+        )}
       </Box>
 
       {/* Report Generator */}
@@ -1153,6 +1274,15 @@ Multiple records: [record1, record2, ...]`}
                 }}
               >
                 Visualize Results
+              </Button>
+              <Button
+                variant="contained"
+                color="info"
+                onClick={() => {
+                  handleSaveVisualization(resultsDialog.results, selectedFile);
+                }}
+              >
+                Save Visualization
               </Button>
               <Button
                 variant="contained"
