@@ -234,7 +234,14 @@ const UserCSVUpload = () => {
                           }
                           
                           const preprocessedData = validation.processedData;
-                          const prediction = await predictThreat(preprocessedData);
+                          
+                          // Get user info from localStorage
+                          const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+                          const prediction = await predictThreat(
+                            preprocessedData, 
+                            userInfo.email || null, 
+                            userInfo.name || null
+                          );
                           
                           return {
                             row: actualIndex + 1,

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
-import api, { checkApiHealth, predictThreat } from '../../services/api';
+import api, { checkApiHealth, predictThreat, saveMLResults } from '../../services/api';
+import apiService from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
 import {
   Box,
@@ -212,6 +213,7 @@ const CSVUpload = () => {
     }
 
     setIsProcessing(true);
+    const startTime = Date.now(); // Track processing start time
     const results = [];
     const batchSize = 10; // Process in batches of 10
     
@@ -272,7 +274,14 @@ const CSVUpload = () => {
             
             // Get the preprocessed data
             const preprocessedData = validation.processedData;
-            const prediction = await predictThreat(preprocessedData);
+            
+            // Get user info from localStorage
+            const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+            const prediction = await predictThreat(
+              preprocessedData, 
+              userInfo.email || null, 
+              userInfo.name || null
+            );
             
             return {
               row: actualIndex + 1,
@@ -303,6 +312,62 @@ const CSVUpload = () => {
       }
 
       setProcessingProgress(100);
+      
+      // Calculate processing statistics
+      const processedRecords = results.filter(r => r.status === 'completed').length;
+      const failedRecords = results.filter(r => r.status === 'error').length;
+      const threatSummary = {};
+      
+      // Count threat types
+      results.forEach(result => {
+        if (result.status === 'completed' && result.threatType) {
+          threatSummary[result.threatType] = (threatSummary[result.threatType] || 0) + 1;
+        }
+      });
+      
+      // Save results to database
+      try {
+        const endTime = Date.now();
+        const processingDuration = (endTime - startTime) / 1000; // Convert to seconds
+        
+        // Get user info from localStorage or API
+        let userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        // If no user info in localStorage, try to get from API
+        if (!userInfo.email || !userInfo.name) {
+          try {
+            const currentUser = await apiService.getCurrentUser();
+            userInfo = currentUser;
+            // Store the user info for future use
+            localStorage.setItem('user', JSON.stringify(currentUser));
+          } catch (error) {
+            console.warn('Could not get current user from API:', error);
+          }
+        }
+        
+        const mlResultData = {
+          user_email: userInfo.email || "admin@netaegis.com", // Use actual user email
+          user_name: userInfo.name || "Admin User", // Use actual user name
+          file_name: file.name,
+          total_records: file.data.length,
+          processed_records: processedRecords,
+          failed_records: failedRecords,
+          threat_summary: threatSummary,
+          processing_duration: processingDuration,
+          results: results
+        };
+        
+        const savedResult = await saveMLResults(mlResultData);
+        console.log('ML results saved to database:', savedResult);
+        
+        // Show success message
+        alert(`ML processing completed! Results saved to database.\n\nProcessed: ${processedRecords} records\nFailed: ${failedRecords} records\nDuration: ${processingDuration.toFixed(2)} seconds`);
+        
+      } catch (dbError) {
+        console.error('Error saving to database:', dbError);
+        alert('ML processing completed, but failed to save to database: ' + dbError.message);
+      }
+      
       setResultsDialog({ open: true, results: results });
     } catch (error) {
       console.error('ML processing error:', error);

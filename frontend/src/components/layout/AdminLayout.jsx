@@ -52,6 +52,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Profile from '../../pages/admin/Profile';
+import apiService from '../../services/api';
 
 const drawerWidth = 280;
 
@@ -237,7 +238,9 @@ const AdminLayout = ({ children }) => {
   };
 
   const handleLogout = () => {
-    // Handle logout logic here
+    // Clear token and user data
+    apiService.removeToken();
+    localStorage.removeItem('user');
     navigate('/login');
   };
 

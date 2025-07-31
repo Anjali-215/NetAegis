@@ -75,7 +75,12 @@ const UserLayout = ({ children }) => {
   const handleAppDrawerToggle = () => setAppDrawerOpen(!appDrawerOpen);
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleProfileMenuClose = () => setAnchorEl(null);
-  const handleLogout = () => { navigate('/login'); };
+  const handleLogout = () => { 
+    // Clear token and user data
+    apiService.removeToken();
+    localStorage.removeItem('user');
+    navigate('/login'); 
+  };
   const handleProfileOpen = () => {
     setProfileOpen(true);
     setAnchorEl(null);

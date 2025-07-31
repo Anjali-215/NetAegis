@@ -14,6 +14,7 @@ from sklearn.preprocessing import LabelEncoder
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from models.ml_results import MLResultCreate, MLResultResponse, MLResultSummary
 
 # Backend imports for DB and Auth
 from database import connect_to_mongo, close_mongo_connection, get_database
@@ -391,6 +392,133 @@ async def predict_threat(request: PredictionRequest):
     except Exception as e:
         logger.error(f"Unexpected error in prediction: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# --- ML Results Database Endpoints ---
+
+@app.post("/ml-results", response_model=MLResultResponse)
+async def save_ml_results(result_data: MLResultCreate):
+    """Save ML processing results to database"""
+    try:
+        db = await get_database()
+        collection = db["ml_results"]
+        
+        # Convert to dict for MongoDB
+        result_dict = result_data.model_dump()
+        
+        # Set the created_at timestamp to current local time
+        result_dict["created_at"] = datetime.now()
+        
+        # Insert into database
+        result = await collection.insert_one(result_dict)
+        
+        # Get the inserted document
+        inserted_doc = await collection.find_one({"_id": result.inserted_id})
+        
+        logger.info(f"ML results saved to database with ID: {result.inserted_id}")
+        return MLResultResponse(**inserted_doc)
+        
+    except Exception as e:
+        logger.error(f"Error saving ML results: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save ML results: {str(e)}")
+
+@app.get("/ml-results", response_model=List[MLResultSummary])
+async def get_ml_results(user_email: Optional[str] = None, limit: int = 50):
+    """Get ML processing results from database"""
+    try:
+        db = await get_database()
+        collection = db["ml_results"]
+        
+        # Build query
+        query = {}
+        if user_email:
+            query["user_email"] = user_email
+        
+        # Get results, sorted by creation date (newest first)
+        cursor = collection.find(query).sort("created_at", -1).limit(limit)
+        results = await cursor.to_list(length=limit)
+        
+        # Convert to response models
+        response_results = []
+        for result in results:
+            # Create summary without the detailed results
+            summary = MLResultSummary(
+                _id=result["_id"],  # Use _id to match the alias
+                user_email=result["user_email"],
+                user_name=result["user_name"],
+                file_name=result["file_name"],
+                total_records=result["total_records"],
+                processed_records=result["processed_records"],
+                failed_records=result["failed_records"],
+                threat_summary=result["threat_summary"],
+                processing_duration=result["processing_duration"],
+                created_at=result["created_at"]
+            )
+            response_results.append(summary)
+        
+        logger.info(f"Retrieved {len(response_results)} ML results")
+        return response_results
+        
+    except Exception as e:
+        logger.error(f"Error retrieving ML results: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve ML results: {str(e)}")
+
+@app.get("/ml-results/{result_id}", response_model=MLResultResponse)
+async def get_ml_result_detail(result_id: str):
+    """Get detailed ML processing result by ID"""
+    try:
+        from bson import ObjectId
+        
+        db = await get_database()
+        collection = db["ml_results"]
+        
+        # Find the specific result
+        result = await collection.find_one({"_id": ObjectId(result_id)})
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="ML result not found")
+        
+        logger.info(f"Retrieved ML result detail for ID: {result_id}")
+        return MLResultResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving ML result detail: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve ML result detail: {str(e)}")
+
+@app.delete("/ml-results/{result_id}")
+async def delete_ml_result(result_id: str):
+    """Delete ML processing result by ID"""
+    try:
+        from bson import ObjectId
+        
+        # Validate ObjectId format
+        try:
+            object_id = ObjectId(result_id)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid result ID format: {result_id}")
+        
+        db = await get_database()
+        collection = db["ml_results"]
+        
+        # Check if the document exists first
+        existing_doc = await collection.find_one({"_id": object_id})
+        if not existing_doc:
+            raise HTTPException(status_code=404, detail="ML result not found")
+        
+        # Delete the result
+        result = await collection.delete_one({"_id": object_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="ML result not found")
+        
+        return {"message": "ML result deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting ML result: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete ML result: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

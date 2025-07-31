@@ -33,6 +33,12 @@ export default function LoginPage() {
     try {
       const response = await apiService.login({ email, password });
       apiService.setToken(response.access_token);
+      
+      // Store user information in localStorage
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+      
       navigate('/admin/dashboard');
     } catch (error) {
       setError(error.message || 'Login failed. Please try again.');

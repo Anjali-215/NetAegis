@@ -3,6 +3,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import timedelta
 from database import get_database
+
+async def get_db():
+    return await get_database()
 from services.user_service import UserService
 from models.user import UserCreate, UserLogin, Token, UserResponse
 from utils.auth import create_access_token, verify_token
@@ -13,7 +16,7 @@ security = HTTPBearer()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    database: AsyncIOMotorDatabase = Depends(get_database)
+    database: AsyncIOMotorDatabase = Depends(get_db)
 ) -> UserResponse:
     token_data = verify_token(credentials.credentials)
     if token_data is None:
@@ -42,7 +45,7 @@ async def require_admin(current_user: UserResponse = Depends(get_current_user)):
 @router.post("/register", response_model=UserResponse)
 async def register(
     user: UserCreate,
-    database: AsyncIOMotorDatabase = Depends(get_database)
+    database: AsyncIOMotorDatabase = Depends(get_db)
 ):
     try:
         user_service = UserService(database)
@@ -59,7 +62,7 @@ async def register(
 @router.post("/login", response_model=Token)
 async def login(
     user_credentials: UserLogin,
-    database: AsyncIOMotorDatabase = Depends(get_database)
+    database: AsyncIOMotorDatabase = Depends(get_db)
 ):
     user_service = UserService(database)
     user = await user_service.authenticate_user(user_credentials.email, user_credentials.password)
@@ -93,7 +96,7 @@ async def login(
 @router.post("/admin/add_user", response_model=UserResponse)
 async def admin_add_user(
     user: UserCreate = Body(...),
-    database: AsyncIOMotorDatabase = Depends(get_database),
+    database: AsyncIOMotorDatabase = Depends(get_db),
     admin_user: UserResponse = Depends(require_admin)
 ):
     # Force role to 'user' regardless of input
@@ -107,7 +110,7 @@ async def admin_add_user(
 
 @router.get("/admin/users", response_model=list[UserResponse])
 async def admin_list_users(
-    database: AsyncIOMotorDatabase = Depends(get_database),
+    database: AsyncIOMotorDatabase = Depends(get_db),
     admin_user: UserResponse = Depends(require_admin)
 ):
     user_service = UserService(database)
@@ -116,7 +119,7 @@ async def admin_list_users(
 @router.delete("/admin/users/{user_id}")
 async def admin_delete_user(
     user_id: str,
-    database: AsyncIOMotorDatabase = Depends(get_database),
+    database: AsyncIOMotorDatabase = Depends(get_db),
     admin_user: UserResponse = Depends(require_admin)
 ):
     user_service = UserService(database)
