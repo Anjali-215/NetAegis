@@ -19,7 +19,7 @@ import { Visualization as UserVisualization, UserDashboard, CSVUpload as UserCSV
 import UserLayout from './components/layout/UserLayout';
 import Chatbot from './pages/admin/PhishingChatbot';
 import UserProfile from './pages/user/UserProfile';
-import DetectionLogs from './pages/user/DetectionLogs';
+import UserDetectionLogs from './pages/user/DetectionLogs';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -60,7 +60,7 @@ function App() {
               <Route path="/user/dashboard" element={<UserLayout><UserDashboard /></UserLayout>} />
               <Route path="/user/csv-upload" element={<UserLayout><UserCSVUpload /></UserLayout>} />
               <Route path="/user/visualization" element={<UserLayout><UserVisualization /></UserLayout>} />
-              <Route path="/user/detection-logs" element={<UserLayout><DetectionLogs /></UserLayout>} />
+              <Route path="/user/detection-logs" element={<UserLayout><UserDetectionLogs /></UserLayout>} />
               <Route path="/user/profile" element={<UserLayout><UserProfile /></UserLayout>} />
             </Routes>
           </Router>

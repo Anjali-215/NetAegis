@@ -58,9 +58,11 @@ import {
   CheckCircle,
   PlayArrow,
   Stop,
-  Analytics
+  Analytics,
+  Delete
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getSavedVisualizations, saveVisualization, deleteSavedVisualization } from '../../services/api';
 
 const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323', '#ff867f', '#ffb300', '#388e3c'];
 // Import API services
@@ -141,13 +143,19 @@ const ThreatVisualization = () => {
   const [isLiveMonitoring, setIsLiveMonitoring] = useState(false);
   const [livePredictions, setLivePredictions] = useState([]);
   const [testThreatType, setTestThreatType] = useState('normal');
+<<<<<<< HEAD
   const [intervalId, setIntervalId] = useState(null);
+=======
+  const [savedVisualizations, setSavedVisualizations] = useState([]);
+  const [isSavingVisualization, setIsSavingVisualization] = useState(false);
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 
   // Initialize ML API connection
   useEffect(() => {
     initializeMLAPI();
   }, []);
 
+<<<<<<< HEAD
   // Cleanup interval on component unmount
   useEffect(() => {
     return () => {
@@ -156,6 +164,84 @@ const ThreatVisualization = () => {
       }
     };
   }, [intervalId]);
+=======
+  useEffect(() => {
+    // Fetch saved visualizations for the user
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    getSavedVisualizations(user.id || 'test-user').then(data => {
+      setSavedVisualizations(data.visualizations || []);
+    }).catch(error => {
+      console.error('Error fetching saved visualizations:', error);
+      setSavedVisualizations([]);
+    });
+  }, []);
+
+  const handleSaveVisualization = async () => {
+    if (!hasResults) {
+      alert('No results to save. Please process a CSV file first.');
+      return;
+    }
+
+    setIsSavingVisualization(true);
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      
+      // Ensure fileMeta has safe defaults
+      const safeFileMeta = fileMeta || {};
+      const fileName = safeFileMeta.name || 'Unknown File';
+      
+      // Add upload time if not present
+      if (!safeFileMeta.uploadDate) {
+        safeFileMeta.uploadDate = new Date().toISOString();
+      }
+      
+      const visualizationData = {
+        userId: user.id || 'test-user',
+        fileMeta: safeFileMeta,
+        results: results,
+        chartsData: {
+          threatTypeData,
+          threatLevelPerType,
+          statusData,
+          topThreatTypes,
+          timeData
+        },
+        title: `Threat Analysis - ${fileName}`,
+        description: `Analysis of ${results.length} records with ${totalThreats} threats detected`
+      };
+
+      const response = await saveVisualization(visualizationData);
+      console.log('Visualization saved:', response);
+      
+      // Refresh saved visualizations
+      const updatedVisualizations = await getSavedVisualizations(user.id || 'test-user');
+      setSavedVisualizations(updatedVisualizations.visualizations || []);
+      
+      alert('Visualization saved successfully!');
+    } catch (error) {
+      console.error('Error saving visualization:', error);
+      alert('Failed to save visualization: ' + error.message);
+    } finally {
+      setIsSavingVisualization(false);
+    }
+  };
+
+  const handleDeleteVisualization = async (visualizationId) => {
+    try {
+      await deleteSavedVisualization(visualizationId);
+      
+      // Refresh saved visualizations
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      const updatedVisualizations = await getSavedVisualizations(user.id || 'test-user');
+      setSavedVisualizations(updatedVisualizations.visualizations || []);
+      
+      alert('Visualization deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting visualization:', error);
+      alert('Failed to delete visualization: ' + error.message);
+    }
+  };
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 
   const initializeMLAPI = async () => {
     try {
@@ -338,7 +424,18 @@ const ThreatVisualization = () => {
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
           Threat Visualization
         </Typography>
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={2}>
+          {hasResults && results && results.length > 0 && (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleSaveVisualization}
+              disabled={isSavingVisualization}
+              startIcon={isSavingVisualization ? <CircularProgress size={20} /> : <Analytics />}
+            >
+              {isSavingVisualization ? 'Saving...' : 'Save Visualization'}
+            </Button>
+          )}
           <Button
             variant="outlined"
             onClick={() => navigate(-1)}
@@ -350,7 +447,7 @@ const ThreatVisualization = () => {
       {/* Dashboard Cards */}
       {hasResults && (
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={3}>
+          <Grid xs={12} md={3}>
             <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #b71c1c' }}>
               <CardContent>
                 <Typography variant="h5">Total Threats</Typography>
@@ -358,7 +455,7 @@ const ThreatVisualization = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid xs={12} md={3}>
             <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #ff5252' }}>
               <CardContent>
                 <Typography variant="h5">Critical Threats</Typography>
@@ -366,7 +463,7 @@ const ThreatVisualization = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid xs={12} md={3}>
             <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #388e3c' }}>
               <CardContent>
                 <Typography variant="h5">Prediction Accuracy</Typography>
@@ -374,7 +471,7 @@ const ThreatVisualization = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid xs={12} md={3}>
             <Card sx={{ background: '#232323', color: '#fff', borderLeft: '6px solid #ffb300' }}>
               <CardContent>
                 <Typography variant="h5">Processed Rows</Typography>
@@ -387,7 +484,7 @@ const ThreatVisualization = () => {
       {/* Charts */}
       {hasResults && (
         <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
+          <Grid xs={12} md={6}>
             <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>Threat Type Distribution</Typography>
               <ResponsiveContainer width="100%" height={300}>
@@ -401,7 +498,7 @@ const ThreatVisualization = () => {
               </ResponsiveContainer>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid xs={12} md={6}>
             <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>Prediction Status</Typography>
               <ResponsiveContainer width="100%" height={300}>
@@ -415,7 +512,7 @@ const ThreatVisualization = () => {
               </ResponsiveContainer>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={8}>
+          <Grid xs={12} md={8}>
             <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>Threat Level per Type</Typography>
               <ResponsiveContainer width="100%" height={350}>
@@ -432,7 +529,7 @@ const ThreatVisualization = () => {
               </ResponsiveContainer>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid xs={12} md={4}>
             <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>Top Frequent Threat Types</Typography>
               <ResponsiveContainer width="100%" height={350}>
@@ -449,7 +546,7 @@ const ThreatVisualization = () => {
             </Paper>
           </Grid>
           {timeData.length > 0 && (
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <Paper sx={{ p: 3, borderRadius: 3, background: '#222', mb: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>Threats Over Time</Typography>
                 <ResponsiveContainer width="100%" height={350}>
@@ -472,8 +569,104 @@ const ThreatVisualization = () => {
           <Typography variant="h5" color="text.secondary">No results to visualize. Please upload and process a CSV file first.</Typography>
         </Box>
       )}
+      <Box sx={{ mt: 6 }}>
+        <Typography variant="h5" gutterBottom>Saved Visualizations</Typography>
+        {savedVisualizations.length === 0 ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              No saved visualizations yet. Process a CSV file and save the visualization to see it here.
+            </Typography>
+          </Paper>
+        ) : (
+          <Grid container spacing={2}>
+            {savedVisualizations.map(vis => (
+              <Grid xs={12} md={6} lg={4} key={vis.id}>
+                <Card sx={{ 
+                  background: '#232323', 
+                  color: '#fff',
+                  '&:hover': { transform: 'translateY(-2px)', transition: 'transform 0.2s' }
+                }}>
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        {vis.title || vis.fileMeta?.name || 'Threat Analysis'}
+                      </Typography>
+                      <IconButton 
+                        size="small" 
+                        color="error"
+                        onClick={() => handleDeleteVisualization(vis.id)}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </Box>
+                    
+                    {/* File Information */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <strong>File:</strong> {vis.fileMeta?.name || 'Unknown File'}
+                      </Typography>
+                      {vis.fileMeta?.size && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                          <strong>Size:</strong> {vis.fileMeta.size}
+                        </Typography>
+                      )}
+                      {vis.fileMeta?.uploadDate && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                          <strong>Uploaded:</strong> {new Date(vis.fileMeta.uploadDate).toLocaleString()}
+                        </Typography>
+                      )}
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <strong>Records:</strong> {vis.results.length} processed
+                      </Typography>
+                    </Box>
+                    
+                    {/* Analysis Summary */}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      {vis.description || `Analysis of ${vis.results.length} records`}
+                    </Typography>
+                    
+                    {/* Creation Time */}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                      <strong>Analysis Created:</strong> {new Date(vis.createdAt).toLocaleString()}
+                    </Typography>
+                    
+                    {/* Action Buttons */}
+                    <Box display="flex" gap={1} flexWrap="wrap">
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => navigate('/admin/threat-visualization', { 
+                          state: { 
+                            results: vis.results, 
+                            fileMeta: vis.fileMeta 
+                          } 
+                        })}
+                      >
+                        View Analysis
+                      </Button>
+                      <Chip 
+                        label={`${vis.results.length} records`} 
+                        size="small" 
+                        color="primary"
+                      />
+                      {vis.fileMeta?.records && (
+                        <Chip 
+                          label={`${vis.fileMeta.records} total`} 
+                          size="small" 
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Box>
     </Container>
   );
 };
 
-export default ThreatVisualization; 
+export default ThreatVisualization;

@@ -13,4 +13,10 @@ pydantic-settings>=2.1.0
 motor>=3.3.2
 pymongo>=4.6.0
 email-validator>=2.1.0
+<<<<<<< HEAD
 fastapi-mail>=1.4.1
+=======
+reportlab>=4.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1

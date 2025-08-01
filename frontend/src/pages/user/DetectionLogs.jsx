@@ -22,7 +22,8 @@ import {
   Security,
   Warning,
   CheckCircle,
-  Info
+  Info,
+  Refresh
 } from '@mui/icons-material';
 import apiService from '../../services/api';
 
@@ -34,20 +35,37 @@ const DetectionLogs = () => {
   useEffect(() => {
     fetchUserLogs();
   }, []);
+  
+  // Add a refresh button for debugging
+  const handleRefresh = () => {
+    fetchUserLogs();
+  };
 
   const fetchUserLogs = async () => {
     try {
       setLoading(true);
+      setError('');
+      
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('You are not logged in. Please log in to view your detection logs.');
+        return;
+      }
+      
       // Get current user's email to filter logs
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const userEmail = user.email;
       
+      console.log('Fetching logs for user:', userEmail);
+      
       // Fetch ML results for the current user only
       const response = await apiService.getMLResults(userEmail, 100);
+      console.log('ML results response:', response);
       setLogs(response || []);
     } catch (error) {
       console.error('Error fetching user logs:', error);
-      setError('Failed to load your detection logs');
+      setError(`Failed to load your detection logs: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -123,11 +141,25 @@ const DetectionLogs = () => {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               View your personal threat detection history and analysis results
             </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={handleRefresh}
+              sx={{ mt: 2 }}
+            >
+              Refresh
+            </Button>
           </Box>
 
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
+            </Alert>
+          )}
+          
+          {!error && logs.length === 0 && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              No detection logs found. Upload and process a CSV file to see your detection logs here.
             </Alert>
           )}
 

@@ -153,11 +153,33 @@ const UserCSVUpload = () => {
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Chip label="ready" color="success" sx={{ mr: 2 }} />
+              {isProcessing && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 250 }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={processingProgress} 
+                    sx={{ 
+                      flexGrow: 1, 
+                      height: 10, 
+                      borderRadius: 5,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#ff5252',
+                        transition: 'transform 0.3s ease'
+                      }
+                    }} 
+                  />
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 50, fontWeight: 'bold' }}>
+                    {processingProgress}%
+                  </Typography>
+                </Box>
+              )}
               <Button
                 variant="contained"
                 color="error"
                 onClick={async () => {
                   setIsProcessing(true);
+                  setProcessingProgress(0); // Start at 0%
                   const startTime = Date.now(); // Track processing start time
                   try {
                     const text = await selectedFile.text();
@@ -179,18 +201,19 @@ const UserCSVUpload = () => {
                     }
                     
                     const results = [];
-                    const batchSize = 10; // Process in batches of 10
+                    const batchSize = 2; // Process in smaller batches for better progress tracking
                     
                     for (let i = 0; i < data.length; i += batchSize) {
                       const batch = data.slice(i, i + batchSize);
                       
-                      // Update progress
+                      // Update progress at start of batch
                       const progress = Math.round((i / data.length) * 100);
                       setProcessingProgress(progress);
                       
                       // Process batch in parallel
                       const batchPromises = batch.map(async (row, batchIndex) => {
                         const actualIndex = i + batchIndex;
+                        
                         try {
                           // Normalize and fill defaults
                           const completeRecord = {
@@ -268,11 +291,21 @@ const UserCSVUpload = () => {
                       const batchResults = await Promise.all(batchPromises);
                       results.push(...batchResults);
                       
+                      // Update progress after batch completion
+                      const batchProgress = Math.round(((i + batchSize) / data.length) * 100);
+                      setProcessingProgress(Math.min(batchProgress, 95)); // Keep at 95% until final completion
+                      
+                      // Add a small delay to make progress visible
+                      await new Promise(resolve => setTimeout(resolve, 100));
+                      
                       // Update progress (optional - you can add a progress bar)
                       console.log(`Processed ${Math.min(i + batchSize, data.length)} of ${data.length} records`);
                     }
                     
                     setProcessingProgress(100);
+                    
+                    // Add a small delay to show 100% completion
+                    await new Promise(resolve => setTimeout(resolve, 200));
                     
                     // Calculate processing statistics
                     const processedRecords = results.filter(r => r.status === 'completed').length;
@@ -339,12 +372,16 @@ const UserCSVUpload = () => {
                   }
                 }}
                 disabled={isProcessing || apiStatus !== 'connected'}
-                sx={{ minWidth: 180, fontWeight: 'bold' }}
+                sx={{ 
+                  minWidth: 180, 
+                  fontWeight: 'bold',
+                  opacity: isProcessing ? 0.7 : 1
+                }}
               >
                 {isProcessing ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CircularProgress size={20} />
-                    <span>Processing... {processingProgress}%</span>
+                    <span>Processing...</span>
                   </Box>
                 ) : (
                   'Process with ML'

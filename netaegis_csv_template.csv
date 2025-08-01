@@ -1,0 +1,4 @@
+src_ip,src_port,dst_ip,dst_port,proto,service,duration,src_bytes,dst_bytes,conn_state,missed_bytes,src_pkts,src_ip_bytes,dst_pkts,dst_ip_bytes,dns_query,dns_qclass,dns_qtype,dns_rcode,dns_AA,dns_RD,dns_RA,dns_rejected,http_request_body_len,http_response_body_len,http_status_code,label
+192.168.1.100,80,192.168.1.200,443,tcp,http,1.5,1024,2048,SF,0,10,1024,8,2048,0,0,0,0,none,none,none,none,0,0,200,0
+192.168.1.101,22,192.168.1.201,22,tcp,ssh,0.1,64,0,REJ,0,1,64,1,40,0,0,0,0,none,none,none,none,0,0,0,1
+192.168.1.102,53,8.8.8.8,53,udp,dns,0.05,86,235,SF,0,2,142,2,291,google.com,1,1,0,F,T,T,F,0,0,0,0 

@@ -182,6 +182,7 @@ export const getSampleNetworkData = (threatType = 'normal') => {
   }
 };
 
+<<<<<<< HEAD
 // Removed test-prediction endpoint as it doesn't exist in backend
 
 // --- CSV File Management Functions ---
@@ -216,6 +217,71 @@ export const getSavedVisualizations = async (userId) => {
 export const deleteSavedVisualization = async (visualizationId) => {
   console.warn('deleteSavedVisualization endpoint not implemented in backend');
   return { success: false, message: 'Endpoint not implemented' };
+=======
+export const testMLPrediction = async () => {
+  try {
+    const response = await api.post('/test-prediction');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Test prediction failed');
+  }
+};
+
+// --- CSV File Management Functions ---
+export const saveCSVFile = async (fileData) => {
+  try {
+    const response = await api.post('/api/save-csv-file', fileData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to save CSV file');
+  }
+};
+
+export const getSavedCSVFiles = async () => {
+  try {
+    const response = await api.get('/api/saved-csv-files');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to fetch saved CSV files');
+  }
+};
+
+export const deleteSavedCSVFile = async (fileId) => {
+  try {
+    const response = await api.delete(`/api/saved-csv-files/${fileId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to delete saved CSV file');
+  }
+};
+
+// --- Visualization Management Functions ---
+export const saveVisualization = async (visualizationData) => {
+  try {
+    const response = await api.post('/api/save-visualization', visualizationData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to save visualization');
+  }
+};
+
+export const getSavedVisualizations = async (userId) => {
+  try {
+    const response = await api.get(`/api/saved-visualizations/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to fetch saved visualizations');
+  }
+};
+
+export const deleteSavedVisualization = async (visualizationId) => {
+  try {
+    const response = await api.delete(`/api/saved-visualizations/${visualizationId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to delete saved visualization');
+  }
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 };
 
 // --- AUTH & USER SERVICE ---

@@ -1,8 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
+<<<<<<< HEAD
 import api, { checkApiHealth, predictThreat, saveMLResults } from '../../services/api';
 import apiService from '../../services/api';
+=======
+import api, { testMLPrediction, checkApiHealth, predictThreat, saveCSVFile, getSavedCSVFiles, deleteSavedCSVFile, saveVisualization } from '../../services/api';
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
+import ReportGenerator from '../../components/ReportGenerator';
 import {
   Box,
   Container,
@@ -48,7 +53,8 @@ import {
   Refresh,
   Add as AddIcon,
   DataObject as JsonIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Assessment
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
@@ -67,18 +73,41 @@ const CSVUpload = () => {
 
   const [activeTab, setActiveTab] = useState(0);
   const [jsonData, setJsonData] = useState('');
+  const [showReportGenerator, setShowReportGenerator] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
   const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
   const [columnMappingDialog, setColumnMappingDialog] = useState(false);
+<<<<<<< HEAD
   const [processingProgress, setProcessingProgress] = useState(0);
+=======
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 
   const navigate = useNavigate();
 
-  // Check API status on component mount
+  // Check API status and load saved files on component mount
   React.useEffect(() => {
-    checkApiHealth()
-      .then(() => setApiStatus('connected'))
-      .catch(() => setApiStatus('error'));
+    const initializeComponent = async () => {
+      try {
+        // Check API health
+        await checkApiHealth();
+        setApiStatus('connected');
+        
+        // Load saved CSV files
+        const savedFilesResponse = await getSavedCSVFiles();
+        if (savedFilesResponse.files && savedFilesResponse.files.length > 0) {
+          setUploadedFiles(savedFilesResponse.files);
+        }
+      } catch (error) {
+        console.error('Error initializing component:', error);
+        setApiStatus('error');
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+    
+    initializeComponent();
   }, []);
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -163,21 +192,46 @@ const CSVUpload = () => {
           clearInterval(interval);
           setIsUploading(false);
           
-          // Add file to uploaded files list
+          // Create file object for saving
           const newFile = {
-            id: uploadedFiles.length + 1,
             name: file.name,
             size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
             status: 'completed',
-            uploadDate: new Date().toLocaleString(),
-              records: data.length,
-              errors: 0,
-              warnings: 0,
-              data: data // Store the actual data
+            uploadDate: new Date().toISOString(),
+            records: data.length,
+            errors: 0,
+            warnings: 0,
+            data: data // Store the actual data
           };
           
-          setUploadedFiles([newFile, ...uploadedFiles]);
-            console.log("Uploaded files state:", [newFile, ...uploadedFiles]);
+          // Save file to backend (async operation)
+          saveCSVFile(newFile)
+            .then((saveResponse) => {
+              console.log('File saved successfully:', saveResponse);
+              
+              // Add the saved file to the list with the backend ID
+              const savedFile = {
+                ...newFile,
+                id: saveResponse.file_id,
+                uploadDate: new Date().toLocaleString()
+              };
+              
+              setUploadedFiles([savedFile, ...uploadedFiles]);
+              console.log("Uploaded files state:", [savedFile, ...uploadedFiles]);
+            })
+            .catch((error) => {
+              console.error('Error saving file:', error);
+              alert('File uploaded but failed to save: ' + error.message);
+              
+              // Still add to local state even if save failed
+              const localFile = {
+                ...newFile,
+                id: Date.now(), // Use timestamp as temporary ID
+                uploadDate: new Date().toLocaleString()
+              };
+              setUploadedFiles([localFile, ...uploadedFiles]);
+            });
+          
           setSelectedFile(null);
           return 100;
         }
@@ -193,7 +247,19 @@ const CSVUpload = () => {
     }
   };
 
-  const handleDeleteFile = (fileId) => {
+  const handleDeleteFile = async (fileId) => {
+    try {
+      // Try to delete from backend if it's a saved file (has a proper ID)
+      if (typeof fileId === 'string' && fileId.length > 10) {
+        await deleteSavedCSVFile(fileId);
+        console.log('File deleted from backend successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting file from backend:', error);
+      // Continue with local deletion even if backend deletion fails
+    }
+    
+    // Remove from local state
     setUploadedFiles(uploadedFiles.filter(file => file.id !== fileId));
   };
 
@@ -215,8 +281,13 @@ const CSVUpload = () => {
     setIsProcessing(true);
     const startTime = Date.now(); // Track processing start time
     const results = [];
+<<<<<<< HEAD
     const batchSize = 10; // Process in batches of 10
     
+=======
+    const processedData = []; // Store processed data for database
+
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
     try {
       // Process each row with ML
       for (let i = 0; i < file.data.length; i += batchSize) {
@@ -303,12 +374,38 @@ const CSVUpload = () => {
           }
         });
         
+<<<<<<< HEAD
         // Wait for batch to complete
         const batchResults = await Promise.all(batchPromises);
         results.push(...batchResults);
         
         // Update progress
         console.log(`Processed ${Math.min(i + batchSize, file.data.length)} of ${file.data.length} records`);
+=======
+        // Get the preprocessed data
+        const preprocessedData = validation.processedData;
+
+        try {
+          const prediction = await predictThreat(preprocessedData);
+          results.push({
+            row: i + 1,
+            status: 'completed',
+            prediction: prediction.prediction,
+            threatType: prediction.threat_type,
+            threatLevel: prediction.threat_level,
+            confidence: prediction.confidence,
+            data: row
+          });
+          processedData.push(preprocessedData); // Store processed data for DB
+        } catch (error) {
+          results.push({
+            row: i + 1,
+            status: 'error',
+            error: error.message,
+            data: row
+          });
+        }
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
       }
 
       setProcessingProgress(100);
@@ -369,6 +466,26 @@ const CSVUpload = () => {
       }
       
       setResultsDialog({ open: true, results: results });
+
+      // If processedData is not empty, send it to the backend for storage
+      if (processedData.length > 0) {
+        try {
+          await api.post('/api/admin/store-ml-results', {
+            processedData: processedData,
+            fileName: file.name,
+            totalRecords: file.data.length,
+            processedRecords: processedData.length,
+            errors: results.filter(r => r.status === 'error').length,
+            warnings: results.filter(r => r.status === 'warning').length, // Assuming warnings are handled here
+            uploadDate: new Date().toISOString()
+          });
+          console.log('Processed data stored successfully.');
+        } catch (error) {
+          console.error('Error storing processed data:', error);
+          alert('Error storing processed data: ' + error.message);
+        }
+      }
+      
     } catch (error) {
       console.error('ML processing error:', error);
       alert('Error processing with ML: ' + error.message);
@@ -379,6 +496,36 @@ const CSVUpload = () => {
   };
 
 
+
+  const handleSaveVisualization = async (results, fileMeta) => {
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      
+      // Ensure fileMeta has safe defaults
+      const safeFileMeta = fileMeta || {};
+      const fileName = safeFileMeta.name || 'Unknown File';
+      
+      // Add upload time if not present
+      if (!safeFileMeta.uploadDate) {
+        safeFileMeta.uploadDate = new Date().toISOString();
+      }
+      
+      const visualizationData = {
+        userId: user.id || 'test-user',
+        fileMeta: safeFileMeta,
+        results: results,
+        title: `Threat Analysis - ${fileName}`,
+        description: `Analysis of ${results.length} records with ${results.filter(r => r.threatType && r.threatType !== 'normal').length} threats detected`
+      };
+
+      const response = await saveVisualization(visualizationData);
+      console.log('Visualization saved:', response);
+      alert('Visualization saved successfully! You can view it in the Threat Visualization page.');
+    } catch (error) {
+      console.error('Error saving visualization:', error);
+      alert('Failed to save visualization: ' + error.message);
+    }
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -517,11 +664,10 @@ const CSVUpload = () => {
       
       // Create a processed file object with ML results
       const processedFile = {
-        id: uploadedFiles.length + 1,
         name: 'json_data.json',
         size: `${(jsonData.length / 1024).toFixed(1)} KB`,
         status: 'completed',
-        uploadDate: new Date().toLocaleString(),
+        uploadDate: new Date().toISOString(),
         records: dataArray.length,
         errors: results.filter(r => r.status === 'error').length,
         warnings: 0,
@@ -529,7 +675,32 @@ const CSVUpload = () => {
         mlResults: results  // Store ML prediction results
       };
       
-      setUploadedFiles([processedFile, ...uploadedFiles]);
+      try {
+        // Save file to backend
+        const saveResponse = await saveCSVFile(processedFile);
+        console.log('JSON file saved successfully:', saveResponse);
+        
+        // Add the saved file to the list with the backend ID
+        const savedFile = {
+          ...processedFile,
+          id: saveResponse.file_id,
+          uploadDate: new Date().toLocaleString()
+        };
+        
+        setUploadedFiles([savedFile, ...uploadedFiles]);
+      } catch (error) {
+        console.error('Error saving JSON file:', error);
+        alert('JSON processed but failed to save: ' + error.message);
+        
+        // Still add to local state even if save failed
+        const localFile = {
+          ...processedFile,
+          id: Date.now(), // Use timestamp as temporary ID
+          uploadDate: new Date().toLocaleString()
+        };
+        setUploadedFiles([localFile, ...uploadedFiles]);
+      }
+      
       setJsonData('');
       
       // Show results dialog (same as CSV upload)
@@ -603,6 +774,23 @@ const CSVUpload = () => {
     setActiveTab(newValue);
   };
 
+  const downloadTemplate = () => {
+    const templateContent = `src_ip,src_port,dst_ip,dst_port,proto,service,duration,src_bytes,dst_bytes,conn_state,missed_bytes,src_pkts,src_ip_bytes,dst_pkts,dst_ip_bytes,dns_query,dns_qclass,dns_qtype,dns_rcode,dns_AA,dns_RD,dns_RA,dns_rejected,http_request_body_len,http_response_body_len,http_status_code,label
+192.168.1.100,80,192.168.1.200,443,tcp,http,1.5,1024,2048,SF,0,10,1024,8,2048,0,0,0,0,none,none,none,none,0,0,200,0
+192.168.1.101,22,192.168.1.201,22,tcp,ssh,0.1,64,0,REJ,0,1,64,1,40,0,0,0,0,none,none,none,none,0,0,0,1
+192.168.1.102,53,8.8.8.8,53,udp,dns,0.05,86,235,SF,0,2,142,2,291,google.com,1,1,0,F,T,T,F,0,0,0,0`;
+
+    const blob = new Blob([templateContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'netaegis_csv_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   // Analyze CSV headers and show mapping info
   const analyzeCSVHeaders = (headers) => {
     const mappings = detectColumnMappings(headers);
@@ -634,6 +822,7 @@ const CSVUpload = () => {
           />
 
           {/* Column Mapping Help */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <Button 
             variant="outlined" 
             color="info" 
@@ -641,6 +830,7 @@ const CSVUpload = () => {
           >
             Column Reference
           </Button>
+        </Box>
         </Box>
       </Box>
 
@@ -801,7 +991,7 @@ Multiple records: [record1, record2, ...]`}
           </Paper>
         </Grid>
 
-        {/* Upload Guidelines */}
+        {/* Upload Guidelines - Now parallel to upload area */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -824,7 +1014,16 @@ Multiple records: [record1, record2, ...]`}
                   </ListItemIcon>
                   <ListItemText 
                     primary="Required Columns" 
-                    secondary="Timestamp, Source IP, Destination IP, Threat Type, Confidence" 
+                    secondary="27 columns including src_ip, dst_ip, proto, service, duration, etc. Download template for exact structure." 
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <Download sx={{ color: '#4caf50' }} />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="CSV Template" 
+                    secondary="Download the official template with proper column structure and example data" 
                   />
                 </ListItem>
                 <ListItem>
@@ -857,7 +1056,18 @@ Multiple records: [record1, record2, ...]`}
           Recent Uploads
         </Typography>
         
-        {uploadedFiles.map((file) => (
+        {isLoadingFiles ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : uploadedFiles.length === 0 ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="body1" color="text.secondary">
+              No files uploaded yet. Upload a CSV or JSON file to get started.
+            </Typography>
+          </Paper>
+        ) : (
+          uploadedFiles.map((file) => (
           <Paper key={file.id} sx={{ p: 2, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box display="flex" alignItems="center" gap={2}>
@@ -909,7 +1119,7 @@ Multiple records: [record1, record2, ...]`}
                     onClick={() => handlePreviewFile(file)}
                     disabled={file.status !== 'completed'}
                   >
-                    <Visibility sx={{ color: '#ff5252' }} />
+                    <Visibility />
                   </IconButton>
                 </Tooltip>
                 
@@ -917,34 +1127,58 @@ Multiple records: [record1, record2, ...]`}
                   <IconButton 
                     size="small" 
                     onClick={() => handleProcessWithML(file)}
-                    disabled={file.status !== 'completed' || apiStatus !== 'connected' || isProcessing}
+                    disabled={file.status !== 'completed'}
+                    color="primary"
                   >
-                    {isProcessing ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <Refresh sx={{ color: '#ff5252' }} />
-                    )}
+                    <Assessment />
                   </IconButton>
                 </Tooltip>
                 
+<<<<<<< HEAD
 
                 
                 <Tooltip title="Delete">
+=======
+                <Tooltip title="Delete File">
+>>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
                   <IconButton 
                     size="small" 
                     onClick={() => handleDeleteFile(file.id)}
                     color="error"
                   >
-                    <Delete sx={{ color: '#ff5252' }} />
+                    <Delete />
                   </IconButton>
                 </Tooltip>
               </Box>
             </Box>
-            
-            {getFileValidationStatus(file)}
           </Paper>
-        ))}
+        ))
+        )}
       </Box>
+
+      {/* Report Generator */}
+      {showReportGenerator && (
+        <Box sx={{ mt: 4 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Typography variant="h5" gutterBottom>
+              Generate Threat Analysis Report
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => setShowReportGenerator(false)}
+            >
+              Close Report Generator
+            </Button>
+          </Box>
+          <ReportGenerator 
+            onReportGenerated={(reportData) => {
+              setShowReportGenerator(false);
+              // You can add additional logic here
+            }}
+            userProfile={userProfile}
+          />
+        </Box>
+      )}
 
       {/* File Preview Dialog */}
       <Dialog 
@@ -1125,21 +1359,43 @@ Multiple records: [record1, record2, ...]`}
             Close
           </Button>
           {resultsDialog.results && resultsDialog.results.length > 0 && (
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => {
-                setResultsDialog({ open: false, results: null });
-                // Save results and fileMeta to localStorage
-                if (resultsDialog.results && resultsDialog.results.length > 0) {
-                  localStorage.setItem('lastAdminResults', JSON.stringify(resultsDialog.results));
-                  localStorage.setItem('lastAdminFileMeta', JSON.stringify(selectedFile));
-                }
-                navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: selectedFile } });
-              }}
-            >
-              Visualize Results
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => {
+                  setResultsDialog({ open: false, results: null });
+                  // Save results and fileMeta to localStorage
+                  if (resultsDialog.results && resultsDialog.results.length > 0) {
+                    localStorage.setItem('lastAdminResults', JSON.stringify(resultsDialog.results));
+                    localStorage.setItem('lastAdminFileMeta', JSON.stringify(selectedFile));
+                  }
+                  navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: selectedFile } });
+                }}
+              >
+                Visualize Results
+              </Button>
+              <Button
+                variant="contained"
+                color="info"
+                onClick={() => {
+                  handleSaveVisualization(resultsDialog.results, selectedFile);
+                }}
+              >
+                Save Visualization
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Assessment />}
+                onClick={() => {
+                  setResultsDialog({ open: false, results: null });
+                  setShowReportGenerator(true);
+                }}
+              >
+                Generate Report
+              </Button>
+            </>
           )}
         </DialogActions>
       </Dialog>
@@ -1639,6 +1895,33 @@ Multiple records: [record1, record2, ...]`}
           📋 Column Name Reference - Supported Formats
         </DialogTitle>
         <DialogContent>
+          {/* Template Download Section - Now First and Most Prominent */}
+          <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.light', color: 'white' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
+              📥 Download CSV Template
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2, color: 'white' }}>
+              Get the exact CSV template with proper column structure and example data for NetAegis threat detection.
+            </Typography>
+            <Button 
+              variant="contained" 
+              onClick={downloadTemplate}
+              startIcon={<Download />}
+              sx={{ 
+                bgcolor: 'white', 
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'grey.100'
+                }
+              }}
+            >
+              Download Template (netaegis_csv_template.csv)
+            </Button>
+            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'white' }}>
+              Template includes: 27 columns, example data for normal traffic, DNS queries, and suspicious connections
+            </Typography>
+          </Paper>
+
           <Typography variant="body2" color="text.secondary" gutterBottom>
             NetAegis automatically maps column names from different network monitoring tools. 
             Use any of these column names in your CSV, JSON, or manual entry.
