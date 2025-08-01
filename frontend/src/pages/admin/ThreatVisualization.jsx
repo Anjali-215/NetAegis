@@ -143,19 +143,15 @@ const ThreatVisualization = () => {
   const [isLiveMonitoring, setIsLiveMonitoring] = useState(false);
   const [livePredictions, setLivePredictions] = useState([]);
   const [testThreatType, setTestThreatType] = useState('normal');
-<<<<<<< HEAD
   const [intervalId, setIntervalId] = useState(null);
-=======
   const [savedVisualizations, setSavedVisualizations] = useState([]);
   const [isSavingVisualization, setIsSavingVisualization] = useState(false);
->>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 
   // Initialize ML API connection
   useEffect(() => {
     initializeMLAPI();
   }, []);
 
-<<<<<<< HEAD
   // Cleanup interval on component unmount
   useEffect(() => {
     return () => {
@@ -164,7 +160,7 @@ const ThreatVisualization = () => {
       }
     };
   }, [intervalId]);
-=======
+
   useEffect(() => {
     // Fetch saved visualizations for the user
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -241,7 +237,6 @@ const ThreatVisualization = () => {
       alert('Failed to delete visualization: ' + error.message);
     }
   };
->>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 
   const initializeMLAPI = async () => {
     try {

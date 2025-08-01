@@ -21,12 +21,8 @@ from api.auth import get_current_user
 # Backend imports for DB and Auth
 from database import connect_to_mongo, close_mongo_connection, get_database
 from api.auth import router as auth_router
-<<<<<<< HEAD
-from api import phishing_router
-from utils.email_service import EmailService
-=======
 from api import phishing_router, reports_router
->>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
+from utils.email_service import EmailService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -268,6 +264,23 @@ async def debug_requests():
     logger.info(f"=============================")
     return {"message": "Debug request received", "timestamp": datetime.now().isoformat()}
 
+@app.get("/debug/auth")
+async def debug_auth(current_user: UserResponse = Depends(get_current_user)):
+    """Debug endpoint to check authentication"""
+    logger.info(f"=== AUTH DEBUG ===")
+    logger.info(f"User: {current_user.email}")
+    logger.info(f"Role: {current_user.role}")
+    logger.info(f"=============================")
+    return {
+        "message": "Authentication successful",
+        "user": {
+            "email": current_user.email,
+            "name": current_user.name,
+            "role": current_user.role
+        },
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.post("/predict")
 async def predict_threat(request: PredictionRequest):
     """
@@ -465,27 +478,35 @@ async def get_ml_results(
         # Convert to response models
         response_results = []
         for result in results:
-            # Create summary without the detailed results
-            summary = MLResultSummary(
-                _id=result["_id"],  # Use _id to match the alias
-                user_email=result["user_email"],
-                user_name=result["user_name"],
-                file_name=result["file_name"],
-                total_records=result["total_records"],
-                processed_records=result["processed_records"],
-                failed_records=result["failed_records"],
-                threat_summary=result["threat_summary"],
-                processing_duration=result["processing_duration"],
-                created_at=result["created_at"]
-            )
-            response_results.append(summary)
+            try:
+                # Create summary without the detailed results
+                # Handle missing fields with defaults
+                summary = MLResultSummary(
+                    _id=result.get("_id"),  # Use _id to match the alias
+                    user_email=result.get("user_email", "unknown@example.com"),
+                    user_name=result.get("user_name", "Unknown User"),
+                    file_name=result.get("file_name", "Unknown File"),
+                    total_records=result.get("total_records", 0),
+                    processed_records=result.get("processed_records", 0),
+                    failed_records=result.get("failed_records", 0),
+                    threat_summary=result.get("threat_summary", {}),
+                    processing_duration=result.get("processing_duration", 0.0),
+                    created_at=result.get("created_at", datetime.now())
+                )
+                response_results.append(summary)
+            except Exception as e:
+                logger.warning(f"Skipping malformed result document: {e}")
+                continue
         
         logger.info(f"Retrieved {len(response_results)} ML results")
         return response_results
         
     except Exception as e:
         logger.error(f"Error retrieving ML results: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve ML results: {str(e)}")
+        if "user_email" in str(e):
+            raise HTTPException(status_code=500, detail="Database contains malformed ML result records. Please contact administrator.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve ML results: {str(e)}")
 
 @app.get("/ml-results/{result_id}", response_model=MLResultResponse)
 async def get_ml_result_detail(

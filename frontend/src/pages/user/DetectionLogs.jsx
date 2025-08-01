@@ -16,7 +16,8 @@ import {
   CircularProgress,
   Card,
   CardContent,
-  Grid
+  Grid,
+  Button
 } from '@mui/material';
 import {
   Security,
@@ -25,7 +26,7 @@ import {
   Info,
   Refresh
 } from '@mui/icons-material';
-import apiService from '../../services/api';
+import { getMLResults } from '../../services/api';
 
 const DetectionLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -60,7 +61,7 @@ const DetectionLogs = () => {
       console.log('Fetching logs for user:', userEmail);
       
       // Fetch ML results for the current user only
-      const response = await apiService.getMLResults(userEmail, 100);
+      const response = await getMLResults(userEmail, 100);
       console.log('ML results response:', response);
       setLogs(response || []);
     } catch (error) {
@@ -71,29 +72,7 @@ const DetectionLogs = () => {
     }
   };
 
-  const getThreatIcon = (threatType) => {
-    switch (threatType?.toLowerCase()) {
-      case 'ddos':
-      case 'dos':
-        return <Warning sx={{ color: '#ff9800' }} />;
-      case 'normal':
-        return <CheckCircle sx={{ color: '#4caf50' }} />;
-      default:
-        return <Security sx={{ color: '#2196f3' }} />;
-    }
-  };
 
-  const getThreatColor = (threatType) => {
-    switch (threatType?.toLowerCase()) {
-      case 'ddos':
-      case 'dos':
-        return 'warning';
-      case 'normal':
-        return 'success';
-      default:
-        return 'info';
-    }
-  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString('en-GB', {
@@ -103,6 +82,13 @@ const DetectionLogs = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const formatDuration = (seconds) => {
+    if (seconds < 60) return `${seconds.toFixed(2)}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
   };
 
   if (loading) {
@@ -182,7 +168,7 @@ const DetectionLogs = () => {
                     {logs.length}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    Total Detections
+                    Total Files Processed
                   </Typography>
                 </CardContent>
               </Card>
@@ -201,10 +187,13 @@ const DetectionLogs = () => {
                 <CardContent sx={{ p: 3, textAlign: 'center' }}>
                   <Warning sx={{ fontSize: 48, color: '#ff9800', mb: 2 }} />
                   <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>
-                    {logs.filter(log => log.predicted_threat_type?.toLowerCase() !== 'normal').length}
+                    {logs.filter(log => {
+                      const threatSummary = log.threat_summary || {};
+                      return Object.keys(threatSummary).some(threat => threat.toLowerCase() !== 'normal');
+                    }).length}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    Threats Detected
+                    Files with Threats
                   </Typography>
                 </CardContent>
               </Card>
@@ -223,10 +212,13 @@ const DetectionLogs = () => {
                 <CardContent sx={{ p: 3, textAlign: 'center' }}>
                   <CheckCircle sx={{ fontSize: 48, color: '#4caf50', mb: 2 }} />
                   <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>
-                    {logs.filter(log => log.predicted_threat_type?.toLowerCase() === 'normal').length}
+                    {logs.filter(log => {
+                      const threatSummary = log.threat_summary || {};
+                      return Object.keys(threatSummary).every(threat => threat.toLowerCase() === 'normal');
+                    }).length}
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    Safe Connections
+                    Safe Files Only
                   </Typography>
                 </CardContent>
               </Card>
@@ -260,8 +252,10 @@ const DetectionLogs = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Threat Type</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Confidence</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>File Name</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Records</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Threat Summary</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Duration</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
                     </TableRow>
                   </TableHead>
@@ -272,21 +266,56 @@ const DetectionLogs = () => {
                           {formatDate(log.created_at)}
                         </TableCell>
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {getThreatIcon(log.predicted_threat_type)}
-                            <Typography variant="body2" sx={{ color: 'white' }}>
-                              {log.predicted_threat_type || 'Unknown'}
-                            </Typography>
+                          <Typography variant="body2" sx={{ color: 'white' }}>
+                            {log.file_name || 'Unknown File'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          <Box>
+                            <Chip 
+                              label={`${log.processed_records}/${log.total_records}`}
+                              color="primary"
+                              size="small"
+                              sx={{ mb: 0.5 }}
+                            />
+                            {log.failed_records > 0 && (
+                              <Chip 
+                                label={`${log.failed_records} failed`}
+                                color="error"
+                                size="small"
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" flexWrap="wrap" gap={0.5}>
+                            {Object.entries(log.threat_summary || {}).slice(0, 3).map(([threat, count]) => (
+                              <Chip
+                                key={threat}
+                                label={`${threat}: ${count}`}
+                                size="small"
+                                color={threat === 'normal' ? 'success' : 'error'}
+                              />
+                            ))}
+                            {Object.keys(log.threat_summary || {}).length > 3 && (
+                              <Chip
+                                label={`+${Object.keys(log.threat_summary || {}).length - 3} more`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ color: 'white', borderColor: 'white' }}
+                              />
+                            )}
                           </Box>
                         </TableCell>
                         <TableCell sx={{ color: 'text.secondary' }}>
-                          {log.confidence ? `${(log.confidence * 100).toFixed(1)}%` : 'N/A'}
+                          {formatDuration(log.processing_duration)}
                         </TableCell>
                         <TableCell>
-                          <Chip
-                            label={log.predicted_threat_type?.toLowerCase() === 'normal' ? 'Safe' : 'Threat'}
-                            color={getThreatColor(log.predicted_threat_type)}
+                          <Chip 
+                            label={log.failed_records === 0 ? 'Completed' : 'Partial'} 
+                            color={log.failed_records === 0 ? 'success' : 'warning'}
                             size="small"
+                            icon={log.failed_records === 0 ? <CheckCircle /> : <Warning />}
                           />
                         </TableCell>
                       </TableRow>

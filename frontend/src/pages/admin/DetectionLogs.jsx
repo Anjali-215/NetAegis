@@ -63,7 +63,34 @@ const DetectionLogs = () => {
 
   // Load ML results from database
   useEffect(() => {
-    loadMLResults();
+    // First test authentication
+    const testAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('No authentication token found. Please log in again.');
+          return;
+        }
+        
+        // Test auth endpoint
+        const authResponse = await fetch('http://localhost:8000/debug/auth', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!authResponse.ok) {
+          setError('Authentication failed. Please log in again.');
+          return;
+        }
+        
+        // If auth is working, load ML results
+        loadMLResults();
+      } catch (err) {
+        console.error('Auth test failed:', err);
+        setError('Authentication test failed. Please check your connection and log in again.');
+      }
+    };
+    
+    testAuth();
   }, []);
 
   const loadMLResults = async () => {
@@ -73,7 +100,8 @@ const DetectionLogs = () => {
       const data = await getMLResults();
       setMlResults(data);
     } catch (err) {
-      setError(err.message);
+      console.error('Error loading ML results:', err);
+      setError(err.message || 'Failed to load detection logs. Please check your authentication and try again.');
     } finally {
       setLoading(false);
     }

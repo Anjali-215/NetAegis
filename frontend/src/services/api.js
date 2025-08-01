@@ -182,42 +182,6 @@ export const getSampleNetworkData = (threatType = 'normal') => {
   }
 };
 
-<<<<<<< HEAD
-// Removed test-prediction endpoint as it doesn't exist in backend
-
-// --- CSV File Management Functions ---
-// TODO: Implement these endpoints in backend
-export const saveCSVFile = async (fileData) => {
-  console.warn('saveCSVFile endpoint not implemented in backend');
-  return { success: false, message: 'Endpoint not implemented' };
-};
-
-export const getSavedCSVFiles = async () => {
-  console.warn('getSavedCSVFiles endpoint not implemented in backend');
-  return [];
-};
-
-export const deleteSavedCSVFile = async (fileId) => {
-  console.warn('deleteSavedCSVFile endpoint not implemented in backend');
-  return { success: false, message: 'Endpoint not implemented' };
-};
-
-// --- Visualization Management Functions ---
-// TODO: Implement these endpoints in backend
-export const saveVisualization = async (visualizationData) => {
-  console.warn('saveVisualization endpoint not implemented in backend');
-  return { success: false, message: 'Endpoint not implemented' };
-};
-
-export const getSavedVisualizations = async (userId) => {
-  console.warn('getSavedVisualizations endpoint not implemented in backend');
-  return [];
-};
-
-export const deleteSavedVisualization = async (visualizationId) => {
-  console.warn('deleteSavedVisualization endpoint not implemented in backend');
-  return { success: false, message: 'Endpoint not implemented' };
-=======
 export const testMLPrediction = async () => {
   try {
     const response = await api.post('/test-prediction');
@@ -281,7 +245,6 @@ export const deleteSavedVisualization = async (visualizationId) => {
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to delete saved visualization');
   }
->>>>>>> 2e0cca0529c3c5f7c41af00d5712fc37fa85e5c1
 };
 
 // --- AUTH & USER SERVICE ---
