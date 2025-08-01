@@ -39,7 +39,12 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(response.user));
       }
       
-      navigate('/admin/dashboard');
+      // Route based on user role
+      if (response.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/user/dashboard');
+      }
     } catch (error) {
       setError(error.message || 'Login failed. Please try again.');
     } finally {

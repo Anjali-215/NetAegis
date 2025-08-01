@@ -1,3 +1,9 @@
 export { default as UserDashboard } from './UserDashboard.jsx';
 export { default as CSVUpload } from './CSVUpload.jsx';
-export { default as Visualization } from './Visualization.jsx'; 
+export { default as Visualization } from './Visualization.jsx';
+export { default as DetectionLogs } from './DetectionLogs.jsx';
+export { default as UserProfile } from './UserProfile.jsx';
+export { default as Notifications } from './Notifications.jsx';
+export { default as Reports } from './Reports.jsx';
+export { default as Settings } from './Settings.jsx';
+export { default as Chatbot } from './Chatbot.jsx'; 

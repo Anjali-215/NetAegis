@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
-import api, { predictThreat, checkApiHealth } from '../../services/api';
+import api, { predictThreat, checkApiHealth, saveMLResults } from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
 import {
   Box,
@@ -158,6 +158,7 @@ const UserCSVUpload = () => {
                 color="error"
                 onClick={async () => {
                   setIsProcessing(true);
+                  const startTime = Date.now(); // Track processing start time
                   try {
                     const text = await selectedFile.text();
                     let data = [];
@@ -272,6 +273,62 @@ const UserCSVUpload = () => {
                     }
                     
                     setProcessingProgress(100);
+                    
+                    // Calculate processing statistics
+                    const processedRecords = results.filter(r => r.status === 'completed').length;
+                    const failedRecords = results.filter(r => r.status === 'error').length;
+                    const threatSummary = {};
+                    
+                    // Count threat types
+                    results.forEach(result => {
+                      if (result.status === 'completed' && result.threatType) {
+                        threatSummary[result.threatType] = (threatSummary[result.threatType] || 0) + 1;
+                      }
+                    });
+                    
+                    // Save results to database
+                    try {
+                      const endTime = Date.now();
+                      const processingDuration = (endTime - startTime) / 1000; // Convert to seconds
+                      
+                      // Get user info from localStorage or API
+                      let userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+                      
+                      // If no user info in localStorage, try to get from API
+                      if (!userInfo.email || !userInfo.name) {
+                        try {
+                          const currentUser = await apiService.getCurrentUser();
+                          userInfo = currentUser;
+                          // Store the user info for future use
+                          localStorage.setItem('user', JSON.stringify(currentUser));
+                        } catch (error) {
+                          console.warn('Could not get current user from API:', error);
+                        }
+                      }
+                      
+                      const mlResultData = {
+                        user_email: userInfo.email || "user@netaegis.com",
+                        user_name: userInfo.name || "User",
+                        file_name: selectedFile.name,
+                        total_records: data.length,
+                        processed_records: processedRecords,
+                        failed_records: failedRecords,
+                        threat_summary: threatSummary,
+                        processing_duration: processingDuration,
+                        results: results
+                      };
+                      
+                      const savedResult = await saveMLResults(mlResultData);
+                      console.log('ML results saved to database:', savedResult);
+                      
+                      // Show success message
+                      alert(`ML processing completed! Results saved to database.\n\nProcessed: ${processedRecords} records\nFailed: ${failedRecords} records\nDuration: ${processingDuration.toFixed(2)} seconds`);
+                      
+                    } catch (dbError) {
+                      console.error('Error saving to database:', dbError);
+                      alert('ML processing completed, but failed to save to database: ' + dbError.message);
+                    }
+                    
                     setResultsDialog({ open: true, results });
                   } catch (err) {
                     console.error('Processing error:', err);

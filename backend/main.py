@@ -15,6 +15,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from models.ml_results import MLResultCreate, MLResultResponse, MLResultSummary
+from models.user import UserResponse
+from api.auth import get_current_user
 
 # Backend imports for DB and Auth
 from database import connect_to_mongo, close_mongo_connection, get_database
@@ -396,7 +398,10 @@ async def predict_threat(request: PredictionRequest):
 # --- ML Results Database Endpoints ---
 
 @app.post("/ml-results", response_model=MLResultResponse)
-async def save_ml_results(result_data: MLResultCreate):
+async def save_ml_results(
+    result_data: MLResultCreate,
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Save ML processing results to database"""
     try:
         db = await get_database()
@@ -404,6 +409,11 @@ async def save_ml_results(result_data: MLResultCreate):
         
         # Convert to dict for MongoDB
         result_dict = result_data.model_dump()
+        
+        # Ensure users can only save data for themselves
+        if current_user.role != "admin":
+            result_dict["user_email"] = current_user.email
+            result_dict["user_name"] = current_user.name
         
         # Set the created_at timestamp to current local time
         result_dict["created_at"] = datetime.now()
@@ -422,16 +432,25 @@ async def save_ml_results(result_data: MLResultCreate):
         raise HTTPException(status_code=500, detail=f"Failed to save ML results: {str(e)}")
 
 @app.get("/ml-results", response_model=List[MLResultSummary])
-async def get_ml_results(user_email: Optional[str] = None, limit: int = 50):
+async def get_ml_results(
+    user_email: Optional[str] = None, 
+    limit: int = 50,
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Get ML processing results from database"""
     try:
         db = await get_database()
         collection = db["ml_results"]
         
-        # Build query
+        # Build query - ensure users can only access their own data
         query = {}
-        if user_email:
-            query["user_email"] = user_email
+        if current_user.role == "admin":
+            # Admins can see all data or filter by specific user
+            if user_email:
+                query["user_email"] = user_email
+        else:
+            # Regular users can only see their own data
+            query["user_email"] = current_user.email
         
         # Get results, sorted by creation date (newest first)
         cursor = collection.find(query).sort("created_at", -1).limit(limit)
@@ -463,7 +482,10 @@ async def get_ml_results(user_email: Optional[str] = None, limit: int = 50):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve ML results: {str(e)}")
 
 @app.get("/ml-results/{result_id}", response_model=MLResultResponse)
-async def get_ml_result_detail(result_id: str):
+async def get_ml_result_detail(
+    result_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Get detailed ML processing result by ID"""
     try:
         from bson import ObjectId
@@ -477,6 +499,10 @@ async def get_ml_result_detail(result_id: str):
         if not result:
             raise HTTPException(status_code=404, detail="ML result not found")
         
+        # Ensure users can only access their own data
+        if current_user.role != "admin" and result.get("user_email") != current_user.email:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
         logger.info(f"Retrieved ML result detail for ID: {result_id}")
         return MLResultResponse(**result)
         
@@ -487,7 +513,10 @@ async def get_ml_result_detail(result_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve ML result detail: {str(e)}")
 
 @app.delete("/ml-results/{result_id}")
-async def delete_ml_result(result_id: str):
+async def delete_ml_result(
+    result_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Delete ML processing result by ID"""
     try:
         from bson import ObjectId
@@ -505,6 +534,10 @@ async def delete_ml_result(result_id: str):
         existing_doc = await collection.find_one({"_id": object_id})
         if not existing_doc:
             raise HTTPException(status_code=404, detail="ML result not found")
+        
+        # Ensure users can only delete their own data
+        if current_user.role != "admin" and existing_doc.get("user_email") != current_user.email:
+            raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete the result
         result = await collection.delete_one({"_id": object_id})

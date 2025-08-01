@@ -72,7 +72,10 @@ export const predictThreat = async (data, userEmail = null, userName = null) => 
 
 export const saveMLResults = async (resultData) => {
   try {
-    const response = await api.post('/ml-results', resultData);
+    const token = localStorage.getItem('token');
+    const response = await api.post('/ml-results', resultData, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to save ML results');
@@ -81,11 +84,14 @@ export const saveMLResults = async (resultData) => {
 
 export const getMLResults = async (userEmail = null, limit = 50) => {
   try {
+    const token = localStorage.getItem('token');
     const params = new URLSearchParams();
     if (userEmail) params.append('user_email', userEmail);
     if (limit) params.append('limit', limit.toString());
     
-    const response = await api.get(`/ml-results?${params.toString()}`);
+    const response = await api.get(`/ml-results?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to retrieve ML results');
@@ -94,7 +100,10 @@ export const getMLResults = async (userEmail = null, limit = 50) => {
 
 export const getMLResultDetail = async (resultId) => {
   try {
-    const response = await api.get(`/ml-results/${resultId}`);
+    const token = localStorage.getItem('token');
+    const response = await api.get(`/ml-results/${resultId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to retrieve ML result detail');
@@ -103,7 +112,10 @@ export const getMLResultDetail = async (resultId) => {
 
 export const deleteMLResult = async (resultId) => {
   try {
-    const response = await api.delete(`/ml-results/${resultId}`);
+    const token = localStorage.getItem('token');
+    const response = await api.delete(`/ml-results/${resultId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to delete ML result');

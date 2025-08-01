@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import {
-  Menu as MenuIcon, Dashboard, Upload, Assessment, Notifications, Assessment as ReportsIcon, CreditCard, Settings, AccountCircle, Logout, ChevronLeft, ChevronRight, Search, Help, Apps, Close
+  Menu as MenuIcon, Dashboard, Upload, Assessment, Notifications, Assessment as ReportsIcon, CreditCard, Settings, AccountCircle, Logout, ChevronLeft, ChevronRight, Search, Help, Apps, Close, Security
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiService from '../../services/api';
@@ -67,6 +67,7 @@ const UserLayout = ({ children }) => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/user/dashboard', description: 'Overview and analytics' },
     { text: 'CSV Upload', icon: <Upload />, path: '/user/csv-upload', description: 'Upload threat data' },
     { text: 'Threat Visualization', icon: <Assessment />, path: '/user/visualization', description: 'Visualize threats' },
+    { text: 'Detection Logs', icon: <Security />, path: '/user/detection-logs', description: 'View your detection history' },
     { text: 'Profile', icon: <AccountCircle />, path: '/user/profile', description: 'User profile' },
   ];
 
