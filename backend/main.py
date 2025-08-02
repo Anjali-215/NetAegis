@@ -414,6 +414,35 @@ async def predict_threat(request: PredictionRequest):
         logger.error(f"Unexpected error in prediction: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.post("/send-csv-summary")
+async def send_csv_summary_email(request: dict):
+    """
+    Send summary email for CSV processing results
+    """
+    try:
+        user_email = request.get('user_email')
+        user_name = request.get('user_name')
+        summary_data = request.get('summary_data', {})
+        
+        if not user_email or not user_name:
+            raise HTTPException(status_code=400, detail="User email and name are required")
+        
+        # Send summary email
+        email_sent = await email_service.send_csv_summary_alert(
+            user_email, user_name, summary_data
+        )
+        
+        if email_sent:
+            logger.info(f"CSV summary email sent to {user_email}")
+            return {"success": True, "message": "Summary email sent successfully"}
+        else:
+            logger.warning(f"Failed to send CSV summary email to {user_email}")
+            return {"success": False, "message": "Failed to send summary email"}
+            
+    except Exception as e:
+        logger.error(f"Error sending CSV summary email: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send summary email: {str(e)}")
+
 # --- ML Results Database Endpoints ---
 
 @app.post("/ml-results", response_model=MLResultResponse)

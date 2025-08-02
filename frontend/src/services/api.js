@@ -68,6 +68,29 @@ export const predictThreat = async (data, userEmail = null, userName = null) => 
   }
 };
 
+export const predictThreatNoEmail = async (data) => {
+  try {
+    const requestBody = {
+      data: data,
+      user_email: null, // Don't send individual emails
+      user_name: null
+    };
+    const response = await api.post('/predict', requestBody);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Prediction failed');
+  }
+};
+
+export const sendCSVSummaryEmail = async (summaryData) => {
+  try {
+    const response = await api.post('/send-csv-summary', summaryData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to send summary email');
+  }
+};
+
 // --- ML Results Database Functions ---
 
 export const saveMLResults = async (resultData) => {

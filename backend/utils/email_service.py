@@ -281,3 +281,200 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to send general alert email: {str(e)}")
             return False 
+
+    async def send_csv_summary_alert(self, user_email: str, user_name: str, summary_data: dict):
+        """
+        Send summary email for CSV processing results
+        """
+        try:
+            subject = "📊 NetAegis CSV Analysis Summary"
+            
+            # Extract summary data
+            total_records = summary_data.get('total_records', 0)
+            threat_count = summary_data.get('threat_count', 0)
+            threat_types = summary_data.get('threat_types', {})
+            processing_time = summary_data.get('processing_time', 0)
+            file_name = summary_data.get('file_name', 'Unknown')
+            
+            # Create threat summary text
+            threat_summary = ""
+            if threat_types:
+                threat_summary = "Detected threats:\n"
+                for threat_type, count in threat_types.items():
+                    threat_summary += f"• {threat_type}: {count} occurrences\n"
+            else:
+                threat_summary = "No threats detected in the analyzed data."
+            
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>CSV Analysis Summary - NetAegis</title>
+                <style>
+                    body {{
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        margin: 0;
+                        padding: 0;
+                        background-color: #f4f4f4;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }}
+                    .header {{
+                        background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+                        color: white;
+                        padding: 30px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        margin: 0;
+                        font-size: 24px;
+                        font-weight: bold;
+                    }}
+                    .content {{
+                        padding: 30px;
+                    }}
+                    .summary-box {{
+                        background-color: #e8f5e8;
+                        border: 1px solid #c3e6c3;
+                        border-radius: 6px;
+                        padding: 20px;
+                        margin: 20px 0;
+                    }}
+                    .threat-box {{
+                        background-color: #fff3cd;
+                        border: 1px solid #ffeaa7;
+                        border-radius: 6px;
+                        padding: 20px;
+                        margin: 20px 0;
+                    }}
+                    .stats {{
+                        background-color: #f8f9fa;
+                        border-radius: 6px;
+                        padding: 20px;
+                        margin: 20px 0;
+                    }}
+                    .stat-row {{
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 10px;
+                        padding: 8px 0;
+                        border-bottom: 1px solid #e9ecef;
+                    }}
+                    .stat-row:last-child {{
+                        border-bottom: none;
+                    }}
+                    .stat-label {{
+                        font-weight: bold;
+                        color: #495057;
+                    }}
+                    .stat-value {{
+                        color: #6c757d;
+                    }}
+                    .footer {{
+                        background-color: #f8f9fa;
+                        padding: 20px;
+                        text-align: center;
+                        color: #6c757d;
+                        font-size: 14px;
+                    }}
+                    .button {{
+                        display: inline-block;
+                        background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+                        color: white;
+                        padding: 12px 24px;
+                        text-decoration: none;
+                        border-radius: 6px;
+                        font-weight: bold;
+                        margin-top: 20px;
+                    }}
+                    .warning {{
+                        color: #dc3545;
+                        font-weight: bold;
+                    }}
+                    .success {{
+                        color: #28a745;
+                        font-weight: bold;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>📊 CSV Analysis Summary</h1>
+                        <p>NetAegis Threat Detection System</p>
+                    </div>
+                    
+                    <div class="content">
+                        <p>Dear <strong>{user_name}</strong>,</p>
+                        
+                        <div class="summary-box">
+                            <h3>✅ Analysis Complete</h3>
+                            <p>Your CSV file <strong>"{file_name}"</strong> has been successfully analyzed by our threat detection system.</p>
+                        </div>
+                        
+                        <div class="stats">
+                            <div class="stat-row">
+                                <span class="stat-label">Total Records Analyzed:</span>
+                                <span class="stat-value">{total_records}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Threats Detected:</span>
+                                <span class="stat-value {'warning' if threat_count > 0 else 'success'}">{threat_count}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Processing Time:</span>
+                                <span class="stat-value">{processing_time:.2f} seconds</span>
+                            </div>
+                        </div>
+                        
+                        <div class="threat-box">
+                            <h3>🔍 Threat Analysis Results</h3>
+                            <p>{threat_summary}</p>
+                        </div>
+                        
+                        <p><strong>Next Steps:</strong></p>
+                        <ul>
+                            <li>Review detailed results in your NetAegis dashboard</li>
+                            <li>Check the threat visualization for patterns</li>
+                            <li>Export results for further analysis if needed</li>
+                            <li>Update security policies based on findings</li>
+                        </ul>
+                        
+                        <div style="text-align: center;">
+                            <a href="#" class="button">View Dashboard</a>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>This is an automated summary from NetAegis Security System.</p>
+                        <p>If you have any questions, please contact your system administrator.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            message = MessageSchema(
+                subject=subject,
+                recipients=[user_email],
+                body=html_content,
+                subtype="html"
+            )
+            
+            await self.fastmail.send_message(message)
+            logger.info(f"CSV summary email sent to {user_email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send CSV summary email: {str(e)}")
+            return False 

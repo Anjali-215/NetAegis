@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
-import api, { predictThreat, checkApiHealth, saveMLResults } from '../../services/api';
+import api, { predictThreatNoEmail, checkApiHealth, saveMLResults, sendCSVSummaryEmail } from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
 import {
   Box,
@@ -261,10 +261,8 @@ const UserCSVUpload = () => {
                           
                           // Get user info from localStorage
                           const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
-                          const prediction = await predictThreat(
-                            preprocessedData, 
-                            userInfo.email || null, 
-                            userInfo.name || null
+                          const prediction = await predictThreatNoEmail(
+                            preprocessedData
                           );
                           
                           return {
@@ -354,8 +352,30 @@ const UserCSVUpload = () => {
                       const savedResult = await saveMLResults(mlResultData);
                       console.log('ML results saved to database:', savedResult);
                       
+                      // Send summary email
+                      try {
+                        const threatCount = Object.values(threatSummary).reduce((sum, count) => sum + count, 0);
+                        const summaryData = {
+                          user_email: userInfo.email || "user@netaegis.com",
+                          user_name: userInfo.name || "User",
+                          summary_data: {
+                            total_records: data.length,
+                            threat_count: threatCount,
+                            threat_types: threatSummary,
+                            processing_time: processingDuration,
+                            file_name: selectedFile.name
+                          }
+                        };
+                        
+                        await sendCSVSummaryEmail(summaryData);
+                        console.log('Summary email sent successfully');
+                      } catch (emailError) {
+                        console.error('Failed to send summary email:', emailError);
+                        // Don't show error to user, just log it
+                      }
+                      
                       // Show success message
-                      alert(`ML processing completed! Results saved to database.\n\nProcessed: ${processedRecords} records\nFailed: ${failedRecords} records\nDuration: ${processingDuration.toFixed(2)} seconds`);
+                      alert(`ML processing completed! Results saved to database.\n\nProcessed: ${processedRecords} records\nFailed: ${failedRecords} records\nDuration: ${processingDuration.toFixed(2)} seconds\n\nA summary email has been sent to your registered email address.`);
                       
                     } catch (dbError) {
                       console.error('Error saving to database:', dbError);
