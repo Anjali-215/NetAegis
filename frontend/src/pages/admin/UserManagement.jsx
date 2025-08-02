@@ -436,10 +436,15 @@ const UserManagement = () => {
             }}
           >
             <DialogTitle sx={{ color: 'white', fontWeight: 'bold' }}>
-              {editingUser ? 'Edit User' : 'Add New User'}
+              {editingUser ? 'Edit User' : 'Add New Regular User'}
             </DialogTitle>
             <DialogContent>
               <Box sx={{ pt: 2 }}>
+                {!editingUser && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                    Note: You can only create regular users. Admin users can only be created through the signup process.
+                  </Typography>
+                )}
                 <TextField
                   fullWidth
                   label="Name"

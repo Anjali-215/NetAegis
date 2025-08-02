@@ -56,7 +56,7 @@ class UserService:
         return None 
 
     async def list_users(self) -> list:
-        # Only return users with role 'user', not admins
+        # Return all users except admins (since admins can manage regular users)
         users_cursor = self.collection.find({"role": "user"})
         users = []
         async for user_dict in users_cursor:

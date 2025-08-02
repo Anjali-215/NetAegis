@@ -49,7 +49,9 @@ async def register(
 ):
     try:
         user_service = UserService(database)
-        created_user = await user_service.create_user(user)
+        # Force role to 'admin' for all new registrations
+        user_data = user.model_copy(update={"role": "admin"})
+        created_user = await user_service.create_user(user_data)
         
         # Return only user data, no token
         return created_user
