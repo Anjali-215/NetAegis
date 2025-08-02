@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
-import api, { testMLPrediction, checkApiHealth, predictThreatNoEmail, saveCSVFile, getSavedCSVFiles, deleteSavedCSVFile, saveVisualization, saveMLResults, sendCSVSummaryEmail } from '../../services/api';
+import api, { testMLPrediction, checkApiHealth, predictThreatNoEmail, saveCSVFile, deleteSavedCSVFile, saveVisualization, saveMLResults, sendCSVSummaryEmail } from '../../services/api';
 import apiService from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
 import ReportGenerator from '../../components/ReportGenerator';
@@ -77,13 +77,13 @@ const CSVUpload = () => {
     const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
     const [columnMappingDialog, setColumnMappingDialog] = useState(false);
     const [processingProgress, setProcessingProgress] = useState(0);
-    const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+    const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
     const navigate = useNavigate();
 
     console.log('State variables initialized successfully');
 
-    // Check API status and load saved files on component mount
+    // Check API status on component mount
     React.useEffect(() => {
       console.log('CSVUpload useEffect running...');
       const initializeComponent = async () => {
@@ -92,17 +92,9 @@ const CSVUpload = () => {
           // Check API health
           await checkApiHealth();
           setApiStatus('connected');
-          
-          // Load saved CSV files
-          const savedFilesResponse = await getSavedCSVFiles();
-          if (savedFilesResponse.files && savedFilesResponse.files.length > 0) {
-            setUploadedFiles(savedFilesResponse.files);
-          }
         } catch (error) {
           console.error('Error initializing component:', error);
           setApiStatus('error');
-        } finally {
-          setIsLoadingFiles(false);
         }
       };
 
@@ -220,7 +212,7 @@ const CSVUpload = () => {
                   uploadDate: new Date().toLocaleString()
                 };
                 
-                setUploadedFiles([savedFile, ...uploadedFiles]);
+                setUploadedFiles([savedFile]); // Only keep the last uploaded file
                 console.log("Uploaded files state:", [savedFile, ...uploadedFiles]);
               })
               .catch((error) => {
@@ -233,7 +225,7 @@ const CSVUpload = () => {
                   id: Date.now(), // Use timestamp as temporary ID
                   uploadDate: new Date().toLocaleString()
                 };
-                setUploadedFiles([localFile, ...uploadedFiles]);
+                setUploadedFiles([localFile]); // Only keep the last uploaded file
               });
             
             setSelectedFile(null);
@@ -680,7 +672,7 @@ const CSVUpload = () => {
             uploadDate: new Date().toLocaleString()
           };
           
-          setUploadedFiles([savedFile, ...uploadedFiles]);
+          setUploadedFiles([savedFile]); // Only keep the last uploaded file
         } catch (error) {
           console.error('Error saving JSON file:', error);
           alert('JSON processed but failed to save: ' + error.message);
@@ -691,7 +683,7 @@ const CSVUpload = () => {
             id: Date.now(), // Use timestamp as temporary ID
             uploadDate: new Date().toLocaleString()
           };
-          setUploadedFiles([localFile, ...uploadedFiles]);
+          setUploadedFiles([localFile]); // Only keep the last uploaded file
         }
         
         setJsonData('');
@@ -1043,105 +1035,95 @@ Multiple records: [record1, record2, ...]`}
           </Grid>
         </Grid>
 
-        {/* Uploaded Files List */}
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Recent Uploads
-          </Typography>
-          
-          {isLoadingFiles ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : uploadedFiles.length === 0 ? (
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="body1" color="text.secondary">
-                No files uploaded yet. Upload a CSV or JSON file to get started.
-              </Typography>
-            </Paper>
-          ) : (
-            uploadedFiles.map((file) => (
-            <Paper key={file.id} sx={{ p: 2, mb: 2 }}>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Box display="flex" alignItems="center" gap={2}>
-                  {getStatusIcon(file.status)}
-                  <Box>
-                    <Typography variant="body1" fontWeight="medium">
-                      {file.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {file.size} • Uploaded {file.uploadDate}
-                    </Typography>
+        {/* Current File Display */}
+        {uploadedFiles.length > 0 && (
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h6" gutterBottom>
+              Current File
+            </Typography>
+            
+            {uploadedFiles.map((file) => (
+              <Paper key={file.id} sx={{ p: 2, mb: 2 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Box display="flex" alignItems="center" gap={2}>
+                    {getStatusIcon(file.status)}
+                    <Box>
+                      <Typography variant="body1" fontWeight="medium">
+                        {file.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {file.size} • Uploaded {file.uploadDate}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Chip 
+                      label={file.status} 
+                      color={getStatusColor(file.status)}
+                      size="small"
+                    />
+                    
+                    {file.status === 'completed' && (
+                      <>
+                        <Chip 
+                          label={`${file.records} records`} 
+                          variant="outlined" 
+                          size="small"
+                        />
+                        {file.errors > 0 && (
+                          <Chip 
+                            label={`${file.errors} errors`} 
+                            color="error" 
+                            size="small"
+                          />
+                        )}
+                        {file.warnings > 0 && (
+                          <Chip 
+                            label={`${file.warnings} warnings`} 
+                            color="warning" 
+                            size="small"
+                          />
+                        )}
+                      </>
+                    )}
+                    
+                    <Tooltip title="Preview Data">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handlePreviewFile(file)}
+                        disabled={file.status !== 'completed'}
+                      >
+                        <Visibility />
+                      </IconButton>
+                    </Tooltip>
+                    
+                    <Tooltip title="Process with ML">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleProcessWithML(file)}
+                        disabled={file.status !== 'completed'}
+                        color="primary"
+                      >
+                        <Assessment />
+                      </IconButton>
+                    </Tooltip>
+                    
+                    <Tooltip title="Clear File">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleDeleteFile(file.id)}
+                        color="error"
+                      >
+                        <Delete />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 </Box>
-                
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Chip 
-                    label={file.status} 
-                    color={getStatusColor(file.status)}
-                    size="small"
-                  />
-                  
-                  {file.status === 'completed' && (
-                    <>
-                      <Chip 
-                        label={`${file.records} records`} 
-                        variant="outlined" 
-                        size="small"
-                      />
-                      {file.errors > 0 && (
-                        <Chip 
-                          label={`${file.errors} errors`} 
-                          color="error" 
-                          size="small"
-                        />
-                      )}
-                      {file.warnings > 0 && (
-                        <Chip 
-                          label={`${file.warnings} warnings`} 
-                          color="warning" 
-                          size="small"
-                        />
-                      )}
-                    </>
-                  )}
-                  
-                  <Tooltip title="Preview Data">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handlePreviewFile(file)}
-                      disabled={file.status !== 'completed'}
-                    >
-                      <Visibility />
-                    </IconButton>
-                  </Tooltip>
-                  
-                  <Tooltip title="Process with ML">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleProcessWithML(file)}
-                      disabled={file.status !== 'completed'}
-                      color="primary"
-                    >
-                      <Assessment />
-                    </IconButton>
-                  </Tooltip>
-                  
-                  <Tooltip title="Delete File">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleDeleteFile(file.id)}
-                      color="error"
-                    >
-                      <Delete />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Box>
-            </Paper>
-          ))
-          )}
-        </Box>
+              </Paper>
+            ))}
+          </Box>
+        )}
 
         {/* Report Generator */}
         {showReportGenerator && (

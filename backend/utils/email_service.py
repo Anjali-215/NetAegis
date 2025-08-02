@@ -287,7 +287,12 @@ class EmailService:
         Send summary email for CSV processing results
         """
         try:
-            subject = "📊 NetAegis CSV Analysis Summary"
+            # Determine subject based on threat detection
+            threat_count = summary_data.get('threat_count', 0)
+            if threat_count > 0:
+                subject = "🚨 SECURITY ALERT: Threats Detected in CSV Analysis"
+            else:
+                subject = "✅ NetAegis CSV Analysis Complete - No Threats Found"
             
             # Extract summary data
             total_records = summary_data.get('total_records', 0)
@@ -410,7 +415,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>📊 CSV Analysis Summary</h1>
+                        <h1>{'🚨 Security Alert' if threat_count > 0 else '📊 Analysis Complete'}</h1>
                         <p>NetAegis Threat Detection System</p>
                     </div>
                     
@@ -418,7 +423,7 @@ class EmailService:
                         <p>Dear <strong>{user_name}</strong>,</p>
                         
                         <div class="summary-box">
-                            <h3>✅ Analysis Complete</h3>
+                            <h3>{'🚨 Threats Detected' if threat_count > 0 else '✅ Analysis Complete'}</h3>
                             <p>Your CSV file <strong>"{file_name}"</strong> has been successfully analyzed by our threat detection system.</p>
                         </div>
                         
@@ -429,7 +434,7 @@ class EmailService:
                             </div>
                             <div class="stat-row">
                                 <span class="stat-label">Threats Detected:</span>
-                                <span class="stat-value {'warning' if threat_count > 0 else 'success'}">{threat_count}</span>
+                                <span class="stat-value" style="color: {'#dc3545' if threat_count > 0 else '#28a745'}; font-weight: bold; font-size: 16px;">{threat_count}</span>
                             </div>
                             <div class="stat-row">
                                 <span class="stat-label">Processing Time:</span>
@@ -437,11 +442,12 @@ class EmailService:
                             </div>
                         </div>
                         
-                        <div class="threat-box">
-                            <h3>🔍 Threat Analysis Results</h3>
+                        <div class="threat-box" style="background-color: {'#ffebee' if threat_count > 0 else '#fff3cd'}; border-color: {'#f44336' if threat_count > 0 else '#ffeaa7'};">
+                            <h3>{'🚨 Threat Analysis Results' if threat_count > 0 else '🔍 Threat Analysis Results'}</h3>
                             <p>{threat_summary}</p>
                         </div>
                         
+                        {f'<div style="background-color: #ffebee; border: 2px solid #f44336; border-radius: 6px; padding: 15px; margin: 20px 0;"><h4 style="color: #d32f2f; margin: 0 0 10px 0;">⚠️ IMMEDIATE ACTION REQUIRED</h4><p style="color: #d32f2f; margin: 0; font-weight: bold;">{threat_count} threat(s) detected in your network data. Please review immediately.</p></div>' if threat_count > 0 else ''}
                         <p><strong>Next Steps:</strong></p>
                         <ul>
                             <li>Review detailed results in your NetAegis dashboard</li>
