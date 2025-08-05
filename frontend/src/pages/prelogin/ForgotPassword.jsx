@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import Button from '../../components/Button';
 import InputField from '../../components/InputField';
 import apiService from '../../services/api';
@@ -10,10 +8,10 @@ import gsap from 'gsap';
 import NetworkAnimation from '../../components/HeroNetworkAnimation';
 import { ArrowBack } from '@mui/icons-material';
 
-export default function LoginPage() {
+export default function ForgotPassword() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const pageRef = useRef(null);
   const navigate = useNavigate();
@@ -24,29 +22,18 @@ export default function LoginPage() {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter both email and password.');
+    if (!email) {
+      setError('Please enter your email address.');
       return;
     }
     setError('');
+    setSuccess('');
     setLoading(true);
     try {
-      const response = await apiService.login({ email, password });
-      apiService.setToken(response.access_token);
-      
-      // Store user information in localStorage
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
-      
-      // Route based on user role
-      if (response.user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/user/dashboard');
-      }
+      await apiService.forgotPassword(email);
+      setSuccess('If an account with that email exists, a password reset link has been sent to your email.');
     } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+      setError(error.message || 'Failed to send reset email. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -96,9 +83,10 @@ export default function LoginPage() {
         </div>
         <div className="auth-form-container">
           <form className="auth-form" onSubmit={handleSubmit}>
-            <h3>Welcome Back</h3>
-            <p>Enter your credentials to access your account.</p>
+            <h3>Forgot Password</h3>
+            <p>Enter your email address and we'll send you a link to reset your password.</p>
             {error && <div className="form-error">{error}</div>}
+            {success && <div className="form-success">{success}</div>}
             <InputField
               label="Email"
               type="email"
@@ -106,20 +94,12 @@ export default function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               required
             />
-            <InputField
-              label="Password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-            <a onClick={() => navigate('/forgot-password')} className="forgot-password-link" style={{ cursor: 'pointer' }}>Forgot Password?</a>
             <Button variant="primary" type="submit" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Sending...' : 'Send Reset Link'}
             </Button>
             <div className="auth-switch-link">
-              <span>New here? </span>
-              <a href="/signup">Create an account</a>
+              <span>Remember your password? </span>
+              <a onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>Back to Login</a>
             </div>
           </form>
         </div>

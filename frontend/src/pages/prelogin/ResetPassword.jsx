@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../../components/Button';
 import InputField from '../../components/InputField';
 import apiService from '../../services/api';
@@ -10,43 +8,57 @@ import gsap from 'gsap';
 import NetworkAnimation from '../../components/HeroNetworkAnimation';
 import { ArrowBack } from '@mui/icons-material';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
+export default function ResetPassword() {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   const pageRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     gsap.fromTo(pageRef.current, { opacity: 0 }, { opacity: 1, duration: 1, ease: 'power3.out' });
-  }, []);
+    
+    // Check if token is present
+    if (!token) {
+      setError('Invalid reset link. Please request a new password reset.');
+    }
+  }, [token]);
 
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter both email and password.');
+    if (!token) {
+      setError('Invalid reset link. Please request a new password reset.');
       return;
     }
+    if (!password || !confirmPassword) {
+      setError('Please enter both password fields.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+    
     setError('');
+    setSuccess('');
     setLoading(true);
     try {
-      const response = await apiService.login({ email, password });
-      apiService.setToken(response.access_token);
-      
-      // Store user information in localStorage
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
-      
-      // Route based on user role
-      if (response.user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/user/dashboard');
-      }
+      await apiService.resetPassword(token, password);
+      setSuccess('Password has been successfully reset! You can now log in with your new password.');
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
     } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+      setError(error.message || 'Failed to reset password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -96,30 +108,32 @@ export default function LoginPage() {
         </div>
         <div className="auth-form-container">
           <form className="auth-form" onSubmit={handleSubmit}>
-            <h3>Welcome Back</h3>
-            <p>Enter your credentials to access your account.</p>
+            <h3>Reset Password</h3>
+            <p>Enter your new password below.</p>
             {error && <div className="form-error">{error}</div>}
+            {success && <div className="form-success">{success}</div>}
             <InputField
-              label="Email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-            <InputField
-              label="Password"
+              label="New Password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              disabled={!token}
             />
-            <a onClick={() => navigate('/forgot-password')} className="forgot-password-link" style={{ cursor: 'pointer' }}>Forgot Password?</a>
-            <Button variant="primary" type="submit" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+            <InputField
+              label="Confirm New Password"
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              required
+              disabled={!token}
+            />
+            <Button variant="primary" type="submit" style={{ width: '100%' }} disabled={loading || !token}>
+              {loading ? 'Resetting...' : 'Reset Password'}
             </Button>
             <div className="auth-switch-link">
-              <span>New here? </span>
-              <a href="/signup">Create an account</a>
+              <span>Remember your password? </span>
+              <a onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>Back to Login</a>
             </div>
           </form>
         </div>

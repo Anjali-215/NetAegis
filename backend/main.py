@@ -168,8 +168,28 @@ async def startup_event():
     # Load ML models
     if not load_models():
         logger.error("Failed to load models. ML API may not function properly.")
-    # Connect to MongoDB
-    await connect_to_mongo()
+    
+    # Connect to MongoDB with retry logic
+    max_retries = 3
+    retry_delay = 5  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Attempting to connect to MongoDB (attempt {attempt + 1}/{max_retries})...")
+            await connect_to_mongo()
+            logger.info("✅ MongoDB connection established successfully!")
+            break
+        except Exception as e:
+            logger.error(f"❌ MongoDB connection attempt {attempt + 1} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                import asyncio
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error("❌ All MongoDB connection attempts failed. API may not function properly.")
+                # Don't raise the exception to allow the API to start
+                # Users will get connection errors when trying to use auth features
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -190,9 +210,21 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    try:
+        # Test MongoDB connection
+        from database import db
+        if db.client:
+            await db.client.admin.command('ping')
+            db_status = "connected"
+        else:
+            db_status = "not_connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
     return {
         "status": "healthy",
         "models_loaded": len(models),
+        "mongodb_status": db_status,
         "timestamp": datetime.now().isoformat()
     }
 

@@ -42,4 +42,17 @@ class Token(BaseModel):
     user: UserResponse
 
 class TokenData(BaseModel):
-    email: Optional[str] = None 
+    email: Optional[str] = None
+
+# New models for password reset functionality
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=6, max_length=100)
+
+class PasswordResetToken(BaseModel):
+    email: str
+    token: str
+    expires_at: datetime 

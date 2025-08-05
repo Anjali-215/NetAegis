@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/prelogin/HomePage';
 import SignupPage from './pages/prelogin/SignupPage';
 import LoginPage from './pages/prelogin/LoginPage';
+import ForgotPassword from './pages/prelogin/ForgotPassword';
+import ResetPassword from './pages/prelogin/ResetPassword';
+import AtlasPasswordReset from './pages/prelogin/AtlasPasswordReset';
 import AdminLayout from './components/layout/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -41,6 +44,9 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/atlas-reset" element={<AtlasPasswordReset />} />
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />

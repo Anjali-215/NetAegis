@@ -8,7 +8,7 @@ from typing import Optional
 class UserService:
     def __init__(self, database: AsyncIOMotorDatabase):
         self.database = database
-        self.collection = database.users
+        self.collection = database.get_collection("users")
 
     async def create_user(self, user: UserCreate) -> UserResponse:
         # Check if user already exists
@@ -50,20 +50,36 @@ class UserService:
         return user
 
     async def get_user_by_id(self, user_id: str) -> Optional[UserResponse]:
-        user_dict = await self.collection.find_one({"_id": ObjectId(user_id)})
-        if user_dict:
-            return UserResponse(**user_dict)
-        return None 
+        try:
+            user_dict = await self.collection.find_one({"_id": ObjectId(user_id)})
+            if user_dict:
+                return UserResponse(**user_dict)
+            return None
+        except Exception:
+            return None
 
-    async def list_users(self) -> list:
-        # Return all users except admins (since admins can manage regular users)
-        users_cursor = self.collection.find({"role": "user"})
+    async def list_users(self) -> list[UserResponse]:
         users = []
-        async for user_dict in users_cursor:
+        cursor = self.collection.find({})
+        async for user_dict in cursor:
             users.append(UserResponse(**user_dict))
         return users
 
     async def delete_user(self, user_id: str) -> bool:
-        """Delete a user by ID. Returns True if deleted, False if not found."""
-        result = await self.collection.delete_one({"_id": ObjectId(user_id)})
-        return result.deleted_count > 0 
+        try:
+            result = await self.collection.delete_one({"_id": ObjectId(user_id)})
+            return result.deleted_count > 0
+        except Exception:
+            return False
+
+    async def update_password(self, email: str, new_password: str) -> bool:
+        """Update user password"""
+        try:
+            hashed_password = get_password_hash(new_password)
+            result = await self.collection.update_one(
+                {"email": email},
+                {"$set": {"hashed_password": hashed_password}}
+            )
+            return result.modified_count > 0
+        except Exception:
+            return False 
