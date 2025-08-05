@@ -5,6 +5,7 @@ import {
 import ChatIcon from '@mui/icons-material/Chat';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../services/api';
+import mainlogo from '../assets/mainlogo.svg';
 
 const BOT_NAME = 'NoBait';
 const BOT_AVATAR = <Avatar sx={{ bgcolor: '#b71c1c' }}>N</Avatar>;
@@ -81,6 +82,15 @@ const ChatBot = ({ open: controlledOpen, setOpen: setControlledOpen, hideFab }) 
       }}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(90deg, #d32f2f 0%, #18171c 100%)', color: '#fff', fontWeight: 700 }}>
           <Box display="flex" alignItems="center" gap={1}>
+            <img 
+              src={mainlogo} 
+              alt="NetAegis" 
+              style={{ 
+                height: '24px', 
+                width: 'auto',
+                marginRight: '8px'
+              }} 
+            />
             <ChatIcon sx={{ color: '#fff' }} />
             {BOT_NAME} Chat
           </Box>

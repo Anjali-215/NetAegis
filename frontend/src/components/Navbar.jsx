@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from './Button';
 import './Navbar.css';
+import mainlogo from '../assets/mainlogo.svg';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -41,7 +42,17 @@ export default function Navbar() {
   return (
     <header className="navbar-header">
       <nav className="navbar">
-        <a href="#" className="navbar-logo" onClick={e => handleNavClick(e, '#')}>NetAegis</a>
+        <a href="#" className="navbar-logo" onClick={e => handleNavClick(e, '#')}>
+          <img 
+            src={mainlogo} 
+            alt="NetAegis" 
+            style={{ 
+              height: '32px', 
+              width: 'auto',
+              marginRight: '8px'
+            }} 
+          />
+        </a>
         <button className="navbar-burger" onClick={() => setOpen(!open)} aria-label="Menu">
           <span className="burger-bar" />
           <span className="burger-bar" />

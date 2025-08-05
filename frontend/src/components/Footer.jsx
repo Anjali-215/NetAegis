@@ -1,12 +1,22 @@
 import React from 'react';
 import './Footer.css';
+import mainlogo from '../assets/mainlogo.svg';
 
 export default function Footer() {
   return (
     <footer className="footer">
       <div className="footer-main">
         <div className="footer-brand">
-          <span className="footer-logo">NetAegis</span>
+          <img 
+            src={mainlogo} 
+            alt="NetAegis" 
+            style={{ 
+              height: '40px', 
+              width: 'auto',
+              marginBottom: '8px'
+            }} 
+          />
+          {/* <span className="footer-logo">NetAegis</span> */}
         </div>
         <div className="footer-links-col">
           <h4>Product</h4>

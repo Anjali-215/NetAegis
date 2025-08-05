@@ -9,6 +9,7 @@ import './AuthPage.css';
 import gsap from 'gsap';
 import NetworkAnimation from '../../components/HeroNetworkAnimation';
 import { ArrowBack } from '@mui/icons-material';
+import mainlogo from '../../assets/mainlogo.svg';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -91,6 +92,15 @@ export default function LoginPage() {
       </Button>
       <div className="auth-container">
         <div className="auth-branding">
+          <img 
+            src={mainlogo} 
+            alt="NetAegis" 
+            style={{ 
+              height: '60px', 
+              width: 'auto',
+              marginBottom: '16px'
+            }} 
+          />
           <h2>NetAegis</h2>
           <p>Your shield against digital threats.</p>
         </div>
