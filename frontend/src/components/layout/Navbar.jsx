@@ -13,8 +13,8 @@ import {
   MenuItem,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import SecurityIcon from '@mui/icons-material/Security';
 import { useNavigate } from 'react-router-dom';
+import mainlogo from '../../assets/mainlogo.svg';
 
 const pages = [
   { name: 'Dashboard', path: '/dashboard' },
@@ -48,7 +48,16 @@ const Navbar = () => {
     <AppBar position="static" sx={{ backgroundColor: 'background.paper' }}>
       <Container maxWidth="xl">
         <Toolbar disableGutters>
-          <SecurityIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
+          <img 
+            src={mainlogo} 
+            alt="NetAegis" 
+            style={{ 
+              height: '40px', 
+              width: 'auto',
+              display: { xs: 'none', md: 'flex' },
+              marginRight: '8px'
+            }} 
+          />
           <Typography
             variant="h6"
             noWrap
@@ -107,7 +116,16 @@ const Navbar = () => {
             </Menu>
           </Box>
 
-          <SecurityIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
+          <img 
+            src={mainlogo} 
+            alt="NetAegis" 
+            style={{ 
+              height: '32px', 
+              width: 'auto',
+              display: { xs: 'flex', md: 'none' },
+              marginRight: '8px'
+            }} 
+          />
           <Typography
             variant="h5"
             noWrap

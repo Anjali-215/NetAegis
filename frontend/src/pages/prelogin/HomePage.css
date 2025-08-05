@@ -11,9 +11,6 @@ body {
   margin-top: 0;
 }
 
-#smooth-wrapper {
-  /* This will contain the entire scrollable area */
-}
 
 #smooth-content {
   padding-top: 0;

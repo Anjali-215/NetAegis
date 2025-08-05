@@ -53,6 +53,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import Profile from '../../pages/admin/Profile';
 import apiService from '../../services/api';
+import mainlogo from '../../assets/mainlogo.svg';
 
 const drawerWidth = 280;
 
@@ -260,6 +261,15 @@ const AdminLayout = ({ children }) => {
           boxShadow: '0 4px 24px 0 rgba(31,38,135,0.10)',
         }}
       >
+        <img 
+          src={mainlogo} 
+          alt="NetAegis" 
+          style={{ 
+            height: '32px', 
+            width: 'auto',
+            marginRight: '12px'
+          }} 
+        />
         <Typography variant="h6" sx={{
           fontWeight: 'bold',
           letterSpacing: 1.5,

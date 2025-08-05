@@ -11,6 +11,7 @@ import apiService from '../../services/api';
 import UserCSVUpload from '../../pages/user/CSVUpload';
 import ChatBot from '../ChatBot';
 import UserProfile from '../../pages/user/UserProfile';
+import mainlogo from '../../assets/mainlogo.svg';
 
 const drawerWidth = 280;
 
@@ -90,6 +91,15 @@ const UserLayout = ({ children }) => {
   const drawer = (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, minHeight: 64, background: 'rgba(26,26,26,0.7)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderBottom: '1.5px solid rgba(255,255,255,0.10)', boxShadow: '0 4px 24px 0 rgba(31,38,135,0.10)' }}>
+        <img 
+          src={mainlogo} 
+          alt="NetAegis" 
+          style={{ 
+            height: '32px', 
+            width: 'auto',
+            marginRight: '12px'
+          }} 
+        />
         <Typography variant="h6" sx={{ fontWeight: 'bold', letterSpacing: 1.5, background: 'linear-gradient(90deg, #ff5252 0%, #b71c1c 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', textShadow: '0 2px 12px rgba(183,28,28,0.18)' }}>
           NetAegis User
         </Typography>
@@ -125,6 +135,15 @@ const UserLayout = ({ children }) => {
             <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { md: 'none' } }}>
               <MenuIcon />
             </IconButton>
+            <img 
+              src={mainlogo} 
+              alt="NetAegis" 
+              style={{ 
+                height: '32px', 
+                width: 'auto',
+                marginRight: '12px'
+              }} 
+            />
             <Typography variant="h6" noWrap sx={{ flexGrow: 1, fontWeight: 'bold', letterSpacing: 1.5 }}>
               NetAegis
             </Typography>
