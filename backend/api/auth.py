@@ -421,7 +421,6 @@ async def forgot_password(
         reset_link = f"http://localhost:5173/atlas-reset?token={reset_token}&email={request.email}"
         
         # Create direct MongoDB Atlas link for development/testing
-        # This allows users to reset password even when website isn't hosted
         atlas_link = f"http://localhost:8000/direct-reset?token={reset_token}"
         
         await email_service.send_password_reset_email(
@@ -708,3 +707,57 @@ async def admin_update_user(
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: UserResponse = Depends(get_current_user)):
     return current_user 
+
+@router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(
+    user_id: str,
+    database: AsyncIOMotorDatabase = Depends(get_db),
+    admin_user: UserResponse = Depends(require_admin)
+):
+    """Admin endpoint to trigger password reset for any user"""
+    try:
+        user_service = UserService(database)
+        
+        # Get user by ID
+        user = await user_service.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Generate reset token
+        reset_token = generate_reset_token()
+        expires_at = datetime.utcnow() + timedelta(hours=1)  # Token expires in 1 hour
+        
+        # Store reset token in database
+        reset_token_data = PasswordResetToken(
+            email=user.email,
+            token=reset_token,
+            expires_at=expires_at
+        )
+        
+        # Save to password_reset_tokens collection
+        await database.get_collection("password_reset_tokens").insert_one(reset_token_data.model_dump())
+        
+        # Send email with reset link
+        email_service = EmailService()
+        reset_link = f"http://localhost:5173/atlas-reset?token={reset_token}&email={user.email}"
+        
+        # Create direct MongoDB Atlas link for development/testing
+        atlas_link = f"http://localhost:8000/direct-reset?token={reset_token}"
+        
+        await email_service.send_password_reset_email(
+            user_email=user.email,
+            user_name=user.name,
+            reset_link=reset_link,
+            atlas_link=atlas_link
+        )
+        
+        return {"message": f"Password reset email sent to {user.email}"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Admin password reset error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send password reset email"
+        ) 

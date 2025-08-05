@@ -378,3 +378,10 @@ export const adminUpdateUser = async (userId, userData, token) => {
   });
   return response.data;
 };
+
+export const adminResetUserPassword = async (userId, token) => {
+  const response = await api.post(`/auth/admin/users/${userId}/reset-password`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};

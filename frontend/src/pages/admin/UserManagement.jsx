@@ -44,7 +44,7 @@ import {
   Security,
   People
 } from '@mui/icons-material';
-import { adminAddUser, adminListUsers, adminDeleteUser, adminUpdateUser } from '../../services/api';
+import { adminAddUser, adminListUsers, adminDeleteUser, adminUpdateUser, adminResetUserPassword } from '../../services/api';
 import { useEffect } from 'react';
 
 const UserManagement = () => {
@@ -205,8 +205,19 @@ const UserManagement = () => {
     }
   };
 
-  const handleResetPassword = (userId) => {
-    setSnackbar({ open: true, message: 'Password reset email sent!', severity: 'info' });
+  const handleResetPassword = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await adminResetUserPassword(userId, token);
+      setSnackbar({ open: true, message: 'Password reset email sent!', severity: 'info' });
+      fetchUsers(); // Refresh the list to show updated status
+    } catch (err) {
+      setSnackbar({ 
+        open: true, 
+        message: err?.response?.data?.detail || 'Failed to reset password', 
+        severity: 'error' 
+      });
+    }
   };
 
   const getStatusColor = (status) => {
