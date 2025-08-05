@@ -44,7 +44,7 @@ import {
   Security,
   People
 } from '@mui/icons-material';
-import { adminAddUser, adminListUsers, adminDeleteUser } from '../../services/api';
+import { adminAddUser, adminListUsers, adminDeleteUser, adminUpdateUser } from '../../services/api';
 import { useEffect } from 'react';
 
 const UserManagement = () => {
@@ -86,6 +86,8 @@ const UserManagement = () => {
       setFormData({
         name: user.name,
         email: user.email,
+        company: user.company || '',
+        password: '', // Don't populate password for security
         role: user.role
       });
     } else {
@@ -93,7 +95,9 @@ const UserManagement = () => {
       setFormData({
         name: '',
         email: '',
-        role: 'Network Engineer'
+        company: '',
+        password: '',
+        role: 'user'
       });
     }
     setOpenDialog(true);
@@ -118,7 +122,12 @@ const UserManagement = () => {
     if (!formData.name.trim()) errors.name = 'Name is required';
     if (!formData.company.trim()) errors.company = 'Company is required';
     if (!formData.email.trim()) errors.email = 'Email is required';
-    if (!formData.password.trim()) errors.password = 'Password is required';
+    
+    // Password is only required when adding a new user
+    if (!editingUser && !formData.password.trim()) {
+      errors.password = 'Password is required';
+    }
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -131,23 +140,43 @@ const UserManagement = () => {
     }
     try {
       const token = localStorage.getItem('token');
-      // Always send all required fields
-      const payload = {
-        name: formData.name,
-        company: formData.company,
-        email: formData.email,
-        password: formData.password,
-        role: 'user', // always user in backend
-      };
-      await adminAddUser(payload, token);
-      setSnackbar({ open: true, message: 'User added successfully', severity: 'success' });
+      
+      if (editingUser) {
+        // Update existing user - preserve original role
+        const updatePayload = {
+          name: formData.name,
+          email: formData.email,
+          company: formData.company
+          // Don't include role to preserve existing role in database
+        };
+        
+        // Only include password if it's provided
+        if (formData.password.trim()) {
+          updatePayload.password = formData.password;
+        }
+        
+        await adminUpdateUser(editingUser._id, updatePayload, token);
+        setSnackbar({ open: true, message: 'User updated successfully', severity: 'success' });
+      } else {
+        // Add new user
+        const payload = {
+          name: formData.name,
+          company: formData.company,
+          email: formData.email,
+          password: formData.password,
+          role: 'user', // always user in backend
+        };
+        await adminAddUser(payload, token);
+        setSnackbar({ open: true, message: 'User added successfully', severity: 'success' });
+      }
+      
       setOpenDialog(false);
-      fetchUsers(); // Just refresh the list, do not navigate
+      fetchUsers(); // Refresh the list
     } catch (err) {
       if (err?.response?.status === 422) {
         setSnackbar({ open: true, message: 'Invalid input: Please fill all fields correctly.', severity: 'error' });
       } else {
-        setSnackbar({ open: true, message: err?.response?.data?.detail || 'Failed to add user', severity: 'error' });
+        setSnackbar({ open: true, message: err?.response?.data?.detail || 'Failed to save user', severity: 'error' });
       }
     }
   };
@@ -485,6 +514,7 @@ const UserManagement = () => {
                   value={formData.password}
                   onChange={handleChange}
                   name="password"
+                  placeholder={editingUser ? "Leave blank to keep current password" : ""}
                   sx={{ mb: 3 }}
                   InputProps={{
                     sx: { color: 'white' }
@@ -517,12 +547,18 @@ const UserManagement = () => {
                     value={formData.role}
                     onChange={handleChange}
                     name="role"
+                    disabled={editingUser} // Disable when editing to preserve existing role
                     sx={{ color: 'white' }}
                   >
                     {roles.map((role) => (
                       <MenuItem key={role} value={role}>{role}</MenuItem>
                     ))}
                   </Select>
+                  {editingUser && (
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', mt: 1, fontStyle: 'italic' }}>
+                      Role cannot be changed when editing users
+                    </Typography>
+                  )}
                 </FormControl>
               </Box>
             </DialogContent>

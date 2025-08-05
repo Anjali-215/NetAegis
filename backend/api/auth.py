@@ -677,6 +677,34 @@ async def admin_delete_user(
     
     return {"message": "User deleted successfully"}
 
+@router.put("/admin/users/{user_id}", response_model=UserResponse)
+async def admin_update_user(
+    user_id: str,
+    update_data: dict = Body(...),
+    database: AsyncIOMotorDatabase = Depends(get_db),
+    admin_user: UserResponse = Depends(require_admin)
+):
+    user_service = UserService(database)
+    
+    # Check if user exists
+    existing_user = await user_service.get_user_by_id(user_id)
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent updating admin users to non-admin roles (optional security measure)
+    if existing_user.role == "admin" and "role" in update_data and update_data["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Cannot change admin role")
+    
+    try:
+        updated_user = await user_service.update_user(user_id, update_data)
+        if not updated_user:
+            raise HTTPException(status_code=400, detail="Failed to update user")
+        return updated_user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: UserResponse = Depends(get_current_user)):
     return current_user 

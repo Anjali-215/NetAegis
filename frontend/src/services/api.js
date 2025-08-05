@@ -371,3 +371,10 @@ export const adminDeleteUser = async (userId, token) => {
   });
   return response.data;
 };
+
+export const adminUpdateUser = async (userId, userData, token) => {
+  const response = await api.put(`/auth/admin/users/${userId}`, userData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
