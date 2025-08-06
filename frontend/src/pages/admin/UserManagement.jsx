@@ -54,6 +54,7 @@ const UserManagement = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [formErrors, setFormErrors] = useState({});
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [currentUserCompany, setCurrentUserCompany] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -65,18 +66,42 @@ const UserManagement = () => {
 
   const roles = ['Network Engineer', 'Security Analyst', 'System Administrator', 'Security Manager'];
 
+  // Get current user's company
+  const getCurrentUserCompany = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUserCompany(userData.company || '');
+      }
+    } catch (err) {
+      console.error('Failed to get current user company:', err);
+    }
+  };
+
   // Fetch users from backend
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
       const data = await adminListUsers(token);
       setUsers(data);
+      
+      // If we have users, use the first user's company as fallback
+      if (data.length > 0 && data[0].company && !currentUserCompany) {
+        setCurrentUserCompany(data[0].company);
+      }
     } catch (err) {
       setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
     }
   };
 
   useEffect(() => {
+    getCurrentUserCompany();
     fetchUsers();
   }, []);
 
@@ -92,10 +117,12 @@ const UserManagement = () => {
       });
     } else {
       setEditingUser(null);
+      // Use current user's company with fallback to first user's company
+      const adminCompany = currentUserCompany || (users.length > 0 ? users[0].company : '');
       setFormData({
         name: '',
         email: '',
-        company: '',
+        company: adminCompany, // Auto-set to admin's company
         password: '',
         role: 'user'
       });
@@ -109,7 +136,9 @@ const UserManagement = () => {
     setFormData({
       name: '',
       email: '',
-      role: 'Network Engineer'
+      company: '',
+      password: '',
+      role: 'user'
     });
   };
 
@@ -120,7 +149,6 @@ const UserManagement = () => {
   const validateForm = () => {
     const errors = {};
     if (!formData.name.trim()) errors.name = 'Name is required';
-    if (!formData.company.trim()) errors.company = 'Company is required';
     if (!formData.email.trim()) errors.email = 'Email is required';
     
     // Password is only required when adding a new user
@@ -142,12 +170,11 @@ const UserManagement = () => {
       const token = localStorage.getItem('token');
       
       if (editingUser) {
-        // Update existing user - preserve original role
+        // Update existing user - preserve original role and company
         const updatePayload = {
           name: formData.name,
-          email: formData.email,
-          company: formData.company
-          // Don't include role to preserve existing role in database
+          email: formData.email
+          // Don't include company or role to preserve existing values in database
         };
         
         // Only include password if it's provided
@@ -265,6 +292,15 @@ const UserManagement = () => {
               <Typography variant="body1" color="text.secondary">
                 Manage system users and their permissions
               </Typography>
+              <Chip 
+                label={`Company: ${currentUserCompany || (users.length > 0 ? users[0].company : 'Loading...')}`}
+                color="primary"
+                variant="outlined"
+                sx={{ mt: 1 }}
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                Note: You are excluded from this list
+              </Typography>
             </Box>
             <Button
               variant="contained"
@@ -285,7 +321,6 @@ const UserManagement = () => {
             </Button>
           </Box>
 
-          {/* Stats Cards */}
           <Grid container rowSpacing={3} columnSpacing={3} columns={12} sx={{ mb: 4 }}>
             <Grid xs={12} md={4}>
               <Card sx={{
@@ -476,13 +511,18 @@ const UserManagement = () => {
             }}
           >
             <DialogTitle sx={{ color: 'white', fontWeight: 'bold' }}>
-              {editingUser ? 'Edit User' : 'Add New Regular User'}
+              {editingUser ? 'Edit User' : 'Add New User'}
             </DialogTitle>
             <DialogContent>
               <Box sx={{ pt: 2 }}>
                 {!editingUser && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-                    Note: You can only create regular users. Admin users can only be created through the signup process.
+                    Note: You can only create regular users. Admin users can only be created through the signup process. Company is automatically set to match your company.
+                  </Typography>
+                )}
+                {editingUser && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                    Note: Company and role cannot be changed when editing users.
                   </Typography>
                 )}
                 <TextField
@@ -542,6 +582,7 @@ const UserManagement = () => {
                   value={formData.company}
                   onChange={handleChange}
                   name="company"
+                  disabled={true} // Always disabled - company cannot be changed
                   sx={{ mb: 3 }}
                   InputProps={{
                     sx: { color: 'white' }
@@ -550,7 +591,7 @@ const UserManagement = () => {
                     sx: { color: 'rgba(255,255,255,0.7)' }
                   }}
                   error={!!formErrors.company}
-                  helperText={formErrors.company}
+                  helperText="Company cannot be changed"
                 />
                 <FormControl fullWidth>
                   <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Role</InputLabel>

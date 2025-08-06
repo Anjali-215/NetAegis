@@ -636,8 +636,8 @@ async def admin_add_user(
     database: AsyncIOMotorDatabase = Depends(get_db),
     admin_user: UserResponse = Depends(require_admin)
 ):
-    # Force role to 'user' regardless of input
-    user_data = user.model_copy(update={"role": "user"})
+    # Force role to 'user' and company to match admin's company
+    user_data = user.model_copy(update={"role": "user", "company": admin_user.company})
     try:
         user_service = UserService(database)
         created_user = await user_service.create_user(user_data)
@@ -651,7 +651,7 @@ async def admin_list_users(
     admin_user: UserResponse = Depends(require_admin)
 ):
     user_service = UserService(database)
-    return await user_service.list_users()
+    return await user_service.list_users(company=admin_user.company, exclude_user_id=str(admin_user.id))
 
 @router.delete("/admin/users/{user_id}")
 async def admin_delete_user(
@@ -665,6 +665,10 @@ async def admin_delete_user(
     user_to_delete = await user_service.get_user_by_id(user_id)
     if not user_to_delete:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user is from the same company
+    if user_to_delete.company != admin_user.company:
+        raise HTTPException(status_code=403, detail="Cannot delete users from different company")
     
     if (user_to_delete.role == "admin"):
         raise HTTPException(status_code=403, detail="Cannot delete admin users")
@@ -689,6 +693,10 @@ async def admin_update_user(
     existing_user = await user_service.get_user_by_id(user_id)
     if not existing_user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user is from the same company
+    if existing_user.company != admin_user.company:
+        raise HTTPException(status_code=403, detail="Cannot update users from different company")
     
     # Prevent updating admin users to non-admin roles (optional security measure)
     if existing_user.role == "admin" and "role" in update_data and update_data["role"] != "admin":
@@ -722,6 +730,10 @@ async def admin_reset_user_password(
         user = await user_service.get_user_by_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check if user is from the same company
+        if user.company != admin_user.company:
+            raise HTTPException(status_code=403, detail="Cannot reset password for users from different company")
         
         # Generate reset token
         reset_token = generate_reset_token()

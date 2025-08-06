@@ -61,9 +61,14 @@ class UserService:
         except Exception:
             return None
 
-    async def list_users(self) -> list[UserResponse]:
+    async def list_users(self, company: str = None, exclude_user_id: str = None) -> list[UserResponse]:
         users = []
-        cursor = self.collection.find({})
+        query = {}
+        if company:
+            query["company"] = company
+        if exclude_user_id:
+            query["_id"] = {"$ne": ObjectId(exclude_user_id)}
+        cursor = self.collection.find(query)
         async for user_dict in cursor:
             users.append(UserResponse(**user_dict))
         return users
