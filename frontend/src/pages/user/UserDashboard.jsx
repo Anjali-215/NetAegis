@@ -15,12 +15,10 @@ import {
   Assessment,
   Person
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 
 const UserDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     // Get user info from localStorage or API
@@ -59,9 +57,31 @@ const UserDashboard = () => {
             </Typography>
           </Box>
 
-          {/* Summary Tiles */}
+          {/* Quick Stats */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid xs={12} md={6}>
+            <Grid xs={12} md={3}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
+                borderRadius: 3,
+                border: '1px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 12px 40px rgba(183,28,28,0.4)'
+                }
+              }}>
+                <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                  <Security sx={{ fontSize: 48, color: '#b71c1c', mb: 2 }} />
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>
+                    0
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Total Threats
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid xs={12} md={3}>
               <Card sx={{
                 background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
                 borderRadius: 3,
@@ -83,7 +103,7 @@ const UserDashboard = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid xs={12} md={6}>
+            <Grid xs={12} md={3}>
               <Card sx={{
                 background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
                 borderRadius: 3,
@@ -95,12 +115,34 @@ const UserDashboard = () => {
                 }
               }}>
                 <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                  <Security sx={{ fontSize: 48, color: '#b71c1c', mb: 2 }} />
+                  <Assessment sx={{ fontSize: 48, color: '#b71c1c', mb: 2 }} />
                   <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>
                     0
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    Threats Detected
+                    Reports Generated
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid xs={12} md={3}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
+                borderRadius: 3,
+                border: '1px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 12px 40px rgba(183,28,28,0.4)'
+                }
+              }}>
+                <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                  <Person sx={{ fontSize: 48, color: '#b71c1c', mb: 2 }} />
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>
+                    0
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Visualizations
                   </Typography>
                 </CardContent>
               </Card>
@@ -119,17 +161,22 @@ const UserDashboard = () => {
               Quick Actions
             </Typography>
             <Grid container spacing={2}>
-              <Grid xs={12} md={4}>
+              <Grid xs={12} md={3}>
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
                   Upload CSV files for threat analysis
                 </Typography>
               </Grid>
-              <Grid xs={12} md={4}>
+              <Grid xs={12} md={3}>
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                  View threat visualizations and reports
+                  View threat visualizations
                 </Typography>
               </Grid>
-              <Grid xs={12} md={4}>
+              <Grid xs={12} md={3}>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                  Generate security reports
+                </Typography>
+              </Grid>
+              <Grid xs={12} md={3}>
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
                   Manage your profile and settings
                 </Typography>
@@ -137,7 +184,7 @@ const UserDashboard = () => {
             </Grid>
           </Paper>
 
-          {/* Activity Summary */}
+          {/* Recent Activity */}
           <Paper sx={{ 
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)', 
             borderRadius: 3, 
@@ -157,4 +204,4 @@ const UserDashboard = () => {
   );
 };
 
-export default UserDashboard; 
+export default UserDashboard;

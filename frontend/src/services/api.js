@@ -12,9 +12,13 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for logging
+// Single request interceptor for auth token and logging
 api.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
@@ -24,7 +28,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Single response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
     console.log(`API Response: ${response.status} ${response.config.url}`);
@@ -32,6 +36,8 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API Response Error:', error.response?.data || error.message);
+    
+    // Don't handle auth errors here - let the components handle them
     return Promise.reject(error);
   }
 );
@@ -95,10 +101,7 @@ export const sendCSVSummaryEmail = async (summaryData) => {
 
 export const saveMLResults = async (resultData) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await api.post('/ml-results', resultData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await api.post('/ml-results', resultData);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to save ML results');
@@ -107,14 +110,11 @@ export const saveMLResults = async (resultData) => {
 
 export const getMLResults = async (userEmail = null, limit = 50) => {
   try {
-    const token = localStorage.getItem('token');
     const params = new URLSearchParams();
     if (userEmail) params.append('user_email', userEmail);
     if (limit) params.append('limit', limit.toString());
     
-    const response = await api.get(`/ml-results?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await api.get(`/ml-results?${params.toString()}`);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to retrieve ML results');
@@ -123,10 +123,7 @@ export const getMLResults = async (userEmail = null, limit = 50) => {
 
 export const getMLResultDetail = async (resultId) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await api.get(`/ml-results/${resultId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await api.get(`/ml-results/${resultId}`);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to retrieve ML result detail');
@@ -135,10 +132,7 @@ export const getMLResultDetail = async (resultId) => {
 
 export const deleteMLResult = async (resultId) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await api.delete(`/ml-results/${resultId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await api.delete(`/ml-results/${resultId}`);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to delete ML result');
@@ -339,23 +333,17 @@ class ApiService {
 
 export default new ApiService();
 
-export const adminAddUser = async (userData, token) => {
-  const response = await api.post('/auth/admin/add_user', userData, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+export const adminAddUser = async (userData) => {
+  const response = await api.post('/auth/admin/add_user', userData);
   return response.data;
 };
 
-export const adminListUsers = async (token) => {
-  const response = await api.get('/auth/admin/users', {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+export const adminListUsers = async () => {
+  const response = await api.get('/auth/admin/users');
   return response.data;
 };
 
-export const adminDeleteUser = async (userId, token) => {
-  const response = await api.delete(`/auth/admin/users/${userId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+export const adminDeleteUser = async (userId) => {
+  const response = await api.delete(`/auth/admin/users/${userId}`);
   return response.data;
 };
