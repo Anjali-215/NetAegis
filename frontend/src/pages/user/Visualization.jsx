@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Box, Grid, Card, CardContent, Typography, Paper, Button, Chip } from '@mui/material';
+import { Box, Card, CardContent, Typography, Paper, Button, Chip, Grid } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Legend } from 'recharts';
 
 const COLORS = ['#b71c1c', '#ff5252', '#c50e29', '#7f0000', '#3a2323', '#ff867f', '#ffb300', '#388e3c'];
@@ -102,13 +102,13 @@ const Visualization = () => {
           Threats Visualization
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          File: {fileMeta.name} | Processed Rows: {fileMeta.recordCount || processedRows}
+          File: {fileMeta?.name || 'Unknown'} | Processed Rows: {fileMeta?.recordCount || processedRows}
         </Typography>
         <Button variant="outlined" color="error" onClick={() => navigate(-1)}>Back to Results</Button>
       </Box>
       {/* Dashboard Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
             borderRadius: 3,
@@ -125,7 +125,7 @@ const Visualization = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
             borderRadius: 3,
@@ -142,7 +142,7 @@ const Visualization = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
             borderRadius: 3,
@@ -159,7 +159,7 @@ const Visualization = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
             borderRadius: 3,
@@ -291,4 +291,4 @@ const Visualization = () => {
   );
 };
 
-export default Visualization; 
+export default Visualization;

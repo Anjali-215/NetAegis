@@ -360,16 +360,12 @@ export const adminDeleteUser = async (userId) => {
   return response.data;
 };
 
-export const adminUpdateUser = async (userId, userData, token) => {
-  const response = await api.put(`/auth/admin/users/${userId}`, userData, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+export const adminUpdateUser = async (userId, userData) => {
+  const response = await api.put(`/auth/admin/users/${userId}`, userData);
   return response.data;
 };
 
-export const adminResetUserPassword = async (userId, token) => {
-  const response = await api.post(`/auth/admin/users/${userId}/reset-password`, {}, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+export const adminResetUserPassword = async (userId) => {
+  const response = await api.post(`/auth/admin/users/${userId}/reset-password`, {});
   return response.data;
 };
