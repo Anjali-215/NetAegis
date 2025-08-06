@@ -21,6 +21,7 @@ import Preloader from './components/Preloader';
 import { Visualization as UserVisualization, UserDashboard, CSVUpload as UserCSVUpload } from './pages/user';
 import UserLayout from './components/layout/UserLayout';
 import Chatbot from './pages/admin/PhishingChatbot';
+import UserChatbot from './pages/user/PhishingChatbot';
 import UserProfile from './pages/user/UserProfile';
 import UserDetectionLogs from './pages/user/DetectionLogs';
 
@@ -68,6 +69,7 @@ function App() {
               <Route path="/user/visualization" element={<UserLayout><UserVisualization /></UserLayout>} />
               <Route path="/user/detection-logs" element={<UserLayout><UserDetectionLogs /></UserLayout>} />
               <Route path="/user/profile" element={<UserLayout><UserProfile /></UserLayout>} />
+              <Route path="/user/phishing-chatbot" element={<UserLayout><UserChatbot /></UserLayout>} />
             </Routes>
           </Router>
         )}
