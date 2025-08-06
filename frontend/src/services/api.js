@@ -314,6 +314,18 @@ class ApiService {
       body: JSON.stringify(credentials)
     });
   }
+  async forgotPassword(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+  async resetPassword(token, newPassword) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword })
+    });
+  }
   async getCurrentUser() {
     return this.request('/auth/me');
   }
@@ -345,5 +357,19 @@ export const adminListUsers = async () => {
 
 export const adminDeleteUser = async (userId) => {
   const response = await api.delete(`/auth/admin/users/${userId}`);
+  return response.data;
+};
+
+export const adminUpdateUser = async (userId, userData, token) => {
+  const response = await api.put(`/auth/admin/users/${userId}`, userData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const adminResetUserPassword = async (userId, token) => {
+  const response = await api.post(`/auth/admin/users/${userId}/reset-password`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
   return response.data;
 };

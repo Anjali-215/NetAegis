@@ -26,6 +26,170 @@ class EmailService:
         )
         self.fastmail = FastMail(self.conf)
 
+    async def send_password_reset_email(self, user_email: str, user_name: str, reset_link: str, atlas_link: str = None):
+        """
+        Send password reset email to user
+        """
+        try:
+            subject = "🔐 NetAegis Password Reset Request"
+            
+            html_content = self._create_password_reset_html(user_name, reset_link, atlas_link)
+            
+            message = MessageSchema(
+                subject=subject,
+                recipients=[user_email],
+                body=html_content,
+                subtype="html"
+            )
+            
+            await self.fastmail.send_message(message)
+            logger.info(f"Password reset email sent to {user_email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send password reset email: {str(e)}")
+            return False
+
+    def _create_password_reset_html(self, user_name: str, reset_link: str, atlas_link: str = None):
+        """
+        Create HTML email template for password reset
+        """
+        atlas_section = ""
+        if atlas_link:
+            atlas_section = f"""
+            <div style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0;">
+                <h4 style="color: #1976d2; margin: 0 0 10px 0;">🔄 Alternative Reset Method</h4>
+                <p style="color: #1976d2; margin: 0 0 10px 0; font-weight: bold;">Direct Database Reset (Development/Testing)</p>
+                <p style="color: #1976d2; margin: 0 0 15px 0;">If the main reset link doesn't work, you can use this direct link to reset your password in the database:</p>
+                <div style="text-align: center;">
+                    <a href="{atlas_link}" style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Reset Password (Direct)</a>
+                </div>
+                <p style="color: #1976d2; margin: 10px 0 0 0; font-size: 12px;">This link works even when the main website is not hosted.</p>
+            </div>
+            """
+        
+        html_template = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset - NetAegis</title>
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f4f4f4;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 24px;
+                    font-weight: bold;
+                }}
+                .content {{
+                    padding: 30px;
+                }}
+                .reset-box {{
+                    background-color: #e8f5e8;
+                    border: 1px solid #c3e6c3;
+                    border-radius: 6px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+                    color: white;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    margin-top: 20px;
+                }}
+                .footer {{
+                    background-color: #f8f9fa;
+                    padding: 20px;
+                    text-align: center;
+                    color: #6c757d;
+                    font-size: 14px;
+                }}
+                .warning {{
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin: 20px 0;
+                    color: #856404;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔐 Password Reset</h1>
+                    <p>NetAegis Security System</p>
+                </div>
+                
+                <div class="content">
+                    <p>Dear <strong>{user_name}</strong>,</p>
+                    
+                    <div class="reset-box">
+                        <h3>🗄️ Atlas Password Reset Request</h3>
+                        <p>We received a request to reset your password for your NetAegis account. 
+                        This link will take you to our secure password reset page where you can update your password directly in MongoDB Atlas.</p>
+                    </div>
+                    
+                    <p>To reset your password, click the button below:</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="{reset_link}" class="button">Reset Password</a>
+                    </div>
+                    
+                    {atlas_section}
+                    
+                    <div class="warning">
+                        <strong>⚠️ Important:</strong>
+                        <ul>
+                            <li>This link will expire in 1 hour for security reasons</li>
+                            <li>If you didn't request this password reset, please ignore this email</li>
+                            <li>For security, this link can only be used once</li>
+                        </ul>
+                    </div>
+                    
+                    <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+                    <p style="word-break: break-all; color: #6c757d; font-size: 12px;">{reset_link}</p>
+                    
+                    <p>If you have any questions or concerns, please contact your system administrator.</p>
+                </div>
+                
+                <div class="footer">
+                    <p>This is an automated message from NetAegis Security System.</p>
+                    <p>Please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html_template
+
     async def send_threat_alert(self, user_email: str, user_name: str, threat_details: dict):
         """
         Send threat alert email to user
