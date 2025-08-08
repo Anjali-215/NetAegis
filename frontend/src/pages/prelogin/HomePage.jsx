@@ -13,6 +13,7 @@ import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
 import { FaBeer } from 'react-icons/fa';
 import { Box, Typography, CircularProgress } from '@mui/material';
+import PaymentGateway from '../../components/PaymentGateway';
 
 gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, ScrollSmoother);
 
@@ -168,6 +169,7 @@ const faqs = [
 ];
 
 export default function HomePage() {
+  const [paymentDialog, setPaymentDialog] = useState({ open: false, plan: null });
   const heroRef = useRef(null);
   const featuresRef = useRef(null);
   const ctaRef = useRef(null);
@@ -476,8 +478,8 @@ export default function HomePage() {
                         </div>
                         <div className="pricing-action">
                           <Button 
-                            variant={plan.buttonVariant} 
-                            href={plan.name === 'Free' ? '/signup' : '/signup'}
+                            variant={plan.buttonVariant}
+                            onClick={() => setPaymentDialog({ open: true, plan })}
                           >
                             {plan.buttonText}
                           </Button>
@@ -602,8 +604,15 @@ export default function HomePage() {
             <Footer />
           </div>
         </div>
-        
       </div>
+
+      {/* Payment Gateway Dialog */}
+      <PaymentGateway
+        open={paymentDialog.open}
+        onClose={() => setPaymentDialog({ open: false, plan: null })}
+        plan={paymentDialog.plan}
+        billingPeriod={billingPeriod}
+      />
     </>
   );
 } 
