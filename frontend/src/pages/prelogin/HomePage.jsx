@@ -12,6 +12,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
 import { FaBeer } from 'react-icons/fa';
+import { Box, Typography, CircularProgress } from '@mui/material';
 
 gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, ScrollSmoother);
 
