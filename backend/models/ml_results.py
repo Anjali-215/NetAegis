@@ -11,6 +11,7 @@ class PyObjectId(ObjectId):
 class MLResultBase(BaseModel):
     user_email: str = Field(..., description="Email of the user who processed the data")
     user_name: str = Field(..., description="Name of the user who processed the data")
+    company: Optional[str] = Field(None, description="Company of the user who processed the data")
     file_name: str = Field(..., description="Name of the uploaded file")
     total_records: int = Field(..., description="Total number of records processed")
     processed_records: int = Field(..., description="Number of records successfully processed")
@@ -40,6 +41,7 @@ class MLResultSummary(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_email: str
     user_name: str
+    company: Optional[str] = None
     file_name: str
     total_records: int
     processed_records: int

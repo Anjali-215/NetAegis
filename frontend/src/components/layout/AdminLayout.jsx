@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Drawer,
@@ -16,6 +16,7 @@ import {
   Menu,
   MenuItem,
   Badge,
+  Button,
   Chip,
   useTheme,
   useMediaQuery,
@@ -150,10 +151,13 @@ const AdminLayout = ({ children }) => {
   const [appDrawerOpen, setAppDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
+
+
 
   const menuItems = [
     {
@@ -244,6 +248,47 @@ const AdminLayout = ({ children }) => {
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  // Fetch unread notification count
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchUnreadCount = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await fetch('http://localhost:8000/notifications/unread-count', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (response.ok && isMounted) {
+            const data = await response.json();
+            setUnreadCount(data.unread_count || 0);
+          } else if (isMounted) {
+            // If the endpoint doesn't exist yet, set count to 0
+            setUnreadCount(0);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+        // Set count to 0 on error to prevent crashes
+        if (isMounted) {
+          setUnreadCount(0);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const drawer = (
     <Box>
@@ -487,7 +532,7 @@ const AdminLayout = ({ children }) => {
                 <Help />
               </IconButton>
               
-              <Badge badgeContent={3} color="error">
+              <Badge badgeContent={unreadCount || 0} color="error">
                 <IconButton color="inherit" onClick={() => navigate('/admin/notifications')}>
                   <Notifications />
                 </IconButton>

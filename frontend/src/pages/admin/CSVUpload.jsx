@@ -1168,7 +1168,7 @@ Multiple records: [record1, record2, ...]`}
                 {previewDialog.data && previewDialog.data.length > 0 ? (
                   <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
                     <Box component="thead">
-                      <Box component="tr" sx={{ backgroundColor: 'grey.100' }}>
+                      <Box component="tr" sx={{ backgroundColor: 'black' }}>
                         {Object.keys(previewDialog.data[0]).map((header) => (
                           <Box 
                             key={header} 
@@ -1179,7 +1179,8 @@ Multiple records: [record1, record2, ...]`}
                               borderBottom: 1, 
                               borderColor: 'grey.300',
                               fontSize: '0.875rem',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              color: 'white'  // Make header text white
                             }}
                           >
                             {header}
@@ -1189,7 +1190,7 @@ Multiple records: [record1, record2, ...]`}
                     </Box>
                     <Box component="tbody">
                       {previewDialog.data.map((row, index) => (
-                        <Box component="tr" key={index} sx={{ '&:hover': { backgroundColor: 'grey.50' } }}>
+                        <Box component="tr" key={index} sx={{ '&:hover': { backgroundColor: 'grey.100' } }}>
                           {Object.values(row).map((value, cellIndex) => (
                             <Box 
                               key={cellIndex} 
@@ -1202,7 +1203,8 @@ Multiple records: [record1, record2, ...]`}
                                 maxWidth: 150,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                whiteSpace: 'nowrap',
+                                color: 'black'  // Ensure text stays black on hover
                               }}
                               title={String(value)}
                             >

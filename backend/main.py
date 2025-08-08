@@ -15,7 +15,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from models.ml_results import MLResultCreate, MLResultResponse, MLResultSummary
+from models.notification import NotificationCreate, NotificationResponse
 from models.user import UserResponse
+from services.notification_service import NotificationService
 from api.auth import get_current_user
 
 # Backend imports for DB and Auth
@@ -243,8 +245,9 @@ async def get_models():
         "performance": model_performance
     }
 
-# Initialize email service
+# Initialize services
 email_service = EmailService()
+notification_service = NotificationService()
 
 class PredictionRequest(BaseModel):
     data: Dict[str, Any]
@@ -490,10 +493,18 @@ async def save_ml_results(
         # Convert to dict for MongoDB
         result_dict = result_data.model_dump()
         
-        # Ensure users can only save data for themselves
+        # Ensure users can only save data for themselves and include company
         if current_user.role != "admin":
             result_dict["user_email"] = current_user.email
             result_dict["user_name"] = current_user.name
+            result_dict["company"] = current_user.company
+        else:
+            # For admin users, ensure company is set
+            if "company" not in result_dict or not result_dict["company"]:
+                result_dict["company"] = current_user.company
+        
+        # Always ensure company is set from current user
+        result_dict["company"] = current_user.company
         
         # Set the created_at timestamp to current local time
         result_dict["created_at"] = datetime.now()
@@ -503,6 +514,39 @@ async def save_ml_results(
         
         # Get the inserted document
         inserted_doc = await collection.find_one({"_id": result.inserted_id})
+        
+        # Create notifications for threats and email alerts
+        try:
+            # Check if any threats were detected
+            threat_summary = result_dict.get("threat_summary", {})
+            total_threats = sum(threat_summary.values())
+            
+            if total_threats > 0:
+                # Create threat notification
+                await notification_service.create_threat_notification(
+                    current_user.email,
+                    current_user.name,
+                    current_user.company,
+                    {
+                        "threat_type": "Multiple",
+                        "confidence": 85.0,  # Default confidence
+                        "threat_level": "High" if total_threats > 5 else "Medium"
+                    }
+                )
+            
+            # Create upload notification
+            await notification_service.create_upload_notification(
+                current_user.email,
+                current_user.name,
+                current_user.company,
+                {
+                    "file_name": result_dict.get("file_name", "Unknown file")
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error creating notifications: {e}")
+            # Don't fail the main operation if notifications fail
         
         logger.info(f"ML results saved to database with ID: {result.inserted_id}")
         return MLResultResponse(**inserted_doc)
@@ -525,7 +569,14 @@ async def get_ml_results(
         # Build query - ensure users can only access their own data
         query = {}
         if current_user.role == "admin":
-            # Admins can see all data or filter by specific user
+            # Admins can only see data from their own company
+            # Handle both new records with company and legacy records without company
+            query["$or"] = [
+                {"company": current_user.company},  # New records with company
+                {"company": {"$exists": False}},    # Legacy records without company field
+                {"company": None}                   # Legacy records with null company
+            ]
+            # Optionally filter by specific user
             if user_email:
                 query["user_email"] = user_email
         else:
@@ -546,6 +597,7 @@ async def get_ml_results(
                     _id=result.get("_id"),  # Use _id to match the alias
                     user_email=result.get("user_email", "unknown@example.com"),
                     user_name=result.get("user_name", "Unknown User"),
+                    company=result.get("company"),  # Can be None for legacy records
                     file_name=result.get("file_name", "Unknown File"),
                     total_records=result.get("total_records", 0),
                     processed_records=result.get("processed_records", 0),
@@ -587,8 +639,14 @@ async def get_ml_result_detail(
         if not result:
             raise HTTPException(status_code=404, detail="ML result not found")
         
-        # Ensure users can only access their own data
-        if current_user.role != "admin" and result.get("user_email") != current_user.email:
+        # Ensure users can only access their own data or data from their company
+        if current_user.role == "admin":
+            # Admins can only access data from their own company
+            result_company = result.get("company")
+            if result_company is not None and result_company != current_user.company:
+                raise HTTPException(status_code=403, detail="Access denied - can only view logs from your company")
+        elif result.get("user_email") != current_user.email:
+            # Regular users can only access their own data
             raise HTTPException(status_code=403, detail="Access denied")
         
         logger.info(f"Retrieved ML result detail for ID: {result_id}")
@@ -623,8 +681,14 @@ async def delete_ml_result(
         if not existing_doc:
             raise HTTPException(status_code=404, detail="ML result not found")
         
-        # Ensure users can only delete their own data
-        if current_user.role != "admin" and existing_doc.get("user_email") != current_user.email:
+        # Ensure users can only delete their own data or data from their company
+        if current_user.role == "admin":
+            # Admins can only delete data from their own company
+            result_company = existing_doc.get("company")
+            if result_company is not None and result_company != current_user.company:
+                raise HTTPException(status_code=403, detail="Access denied - can only delete logs from your company")
+        elif existing_doc.get("user_email") != current_user.email:
+            # Regular users can only delete their own data
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete the result
@@ -640,6 +704,122 @@ async def delete_ml_result(
     except Exception as e:
         logger.error(f"Error deleting ML result: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete ML result: {str(e)}")
+
+# --- NOTIFICATION ENDPOINTS ---
+
+@app.get("/notifications", response_model=List[NotificationResponse])
+async def get_notifications(current_user: UserResponse = Depends(get_current_user)):
+    """Get notifications for the current user"""
+    try:
+        notifications = await notification_service.get_user_notifications(
+            current_user.email, 
+            current_user.company
+        )
+        return notifications
+    except Exception as e:
+        logger.error(f"Error getting notifications: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/notifications/unread-count")
+async def get_unread_count(current_user: UserResponse = Depends(get_current_user)):
+    """Get count of unread notifications for the current user"""
+    try:
+        count = await notification_service.get_unread_count(
+            current_user.email, 
+            current_user.company
+        )
+        return {"unread_count": count}
+    except Exception as e:
+        logger.error(f"Error getting unread count: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Mark a notification as read"""
+    try:
+        success = await notification_service.mark_as_read(
+            notification_id,
+            current_user.email,
+            current_user.company
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Notification not found")
+        return {"success": True, "message": "Notification marked as read"}
+    except Exception as e:
+        logger.error(f"Error marking notification as read: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/notifications/mark-all-read")
+async def mark_all_notifications_read(current_user: UserResponse = Depends(get_current_user)):
+    """Mark all notifications as read for the current user"""
+    try:
+        success = await notification_service.mark_all_as_read(
+            current_user.email,
+            current_user.company
+        )
+        return {"success": True, "message": "All notifications marked as read"}
+    except Exception as e:
+        logger.error(f"Error marking all notifications as read: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/notifications/test")
+async def test_notifications(current_user: UserResponse = Depends(get_current_user)):
+    """Test endpoint to check notifications collection"""
+    try:
+        collection = await notification_service._get_collection()
+        count = await collection.count_documents({})
+        return {"success": True, "collection_exists": True, "total_notifications": count}
+    except Exception as e:
+        logger.error(f"Error testing notifications: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.delete("/notifications/clear-all")
+async def clear_all_notifications(current_user: UserResponse = Depends(get_current_user)):
+    """Clear all notifications for the current user"""
+    try:
+        logger.info(f"Attempting to clear all notifications for user: {current_user.email}, company: {current_user.company}")
+        success = await notification_service.clear_all_notifications(
+            current_user.email,
+            current_user.company
+        )
+        logger.info(f"Clear all notifications result: {success}")
+        return {"success": True, "message": "All notifications cleared"}
+    except Exception as e:
+        logger.error(f"Error clearing all notifications: {e}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.delete("/notifications/{notification_id}")
+async def delete_notification(
+    notification_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Delete a notification"""
+    try:
+        # Validate ObjectId format to avoid accidental matches (e.g., 'clear-all')
+        try:
+            from bson import ObjectId
+            _ = ObjectId(notification_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid notification ID format")
+
+        success = await notification_service.delete_notification(
+            notification_id,
+            current_user.email,
+            current_user.company
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Notification not found")
+        return {"success": True, "message": "Notification deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting notification: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 if __name__ == "__main__":
     import uvicorn

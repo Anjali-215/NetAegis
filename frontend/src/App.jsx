@@ -7,6 +7,7 @@ import ForgotPassword from './pages/prelogin/ForgotPassword';
 import ResetPassword from './pages/prelogin/ResetPassword';
 import AtlasPasswordReset from './pages/prelogin/AtlasPasswordReset';
 import AdminLayout from './components/layout/AdminLayout';
+import ErrorBoundary from './components/layout/ErrorBoundary';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CSVUpload from './pages/admin/CSVUpload';
@@ -50,18 +51,18 @@ function App() {
               <Route path="/atlas-reset" element={<AtlasPasswordReset />} />
               
               {/* Admin Routes */}
-              <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-              <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-              <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
-              <Route path="/admin/csv-upload" element={<AdminLayout><CSVUpload /></AdminLayout>} />
-              <Route path="/admin/threat-visualization" element={<AdminLayout><ThreatVisualization /></AdminLayout>} />
-              <Route path="/admin/detection-logs" element={<AdminLayout><DetectionLogs /></AdminLayout>} />
-              <Route path="/admin/notifications" element={<AdminLayout><NotificationsPage /></AdminLayout>} />
-              <Route path="/admin/reports" element={<AdminLayout><Reports /></AdminLayout>} />
-              <Route path="/admin/subscription" element={<AdminLayout><SubscriptionManagement /></AdminLayout>} />
-              <Route path="/admin/settings" element={<AdminLayout><Settings /></AdminLayout>} />
-              <Route path="/admin/profile" element={<AdminLayout><Profile /></AdminLayout>} />
-              <Route path="/admin/phishing-chatbot" element={<AdminLayout><Chatbot /></AdminLayout>} />
+              <Route path="/admin" element={<ErrorBoundary><AdminLayout><AdminDashboard /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/dashboard" element={<ErrorBoundary><AdminLayout><AdminDashboard /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/users" element={<ErrorBoundary><AdminLayout><UserManagement /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/csv-upload" element={<ErrorBoundary><AdminLayout><CSVUpload /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/threat-visualization" element={<ErrorBoundary><AdminLayout><ThreatVisualization /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/detection-logs" element={<ErrorBoundary><AdminLayout><DetectionLogs /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/notifications" element={<ErrorBoundary><AdminLayout><NotificationsPage /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/reports" element={<ErrorBoundary><AdminLayout><Reports /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/subscription" element={<ErrorBoundary><AdminLayout><SubscriptionManagement /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/settings" element={<ErrorBoundary><AdminLayout><Settings /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/profile" element={<ErrorBoundary><AdminLayout><Profile /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin/phishing-chatbot" element={<ErrorBoundary><AdminLayout><Chatbot /></AdminLayout></ErrorBoundary>} />
               
               {/* User Routes */}
               <Route path="/user/dashboard" element={<UserLayout><UserDashboard /></UserLayout>} />
