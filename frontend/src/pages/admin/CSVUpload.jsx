@@ -1179,7 +1179,8 @@ Multiple records: [record1, record2, ...]`}
                               borderBottom: 1, 
                               borderColor: 'grey.300',
                               fontSize: '0.875rem',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              color: 'white'  // Make header text white
                             }}
                           >
                             {header}
@@ -1202,7 +1203,8 @@ Multiple records: [record1, record2, ...]`}
                                 maxWidth: 150,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                whiteSpace: 'nowrap',
+                                color: 'black'  // Ensure text stays black on hover
                               }}
                               title={String(value)}
                             >
