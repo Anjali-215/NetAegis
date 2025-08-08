@@ -19,6 +19,13 @@ class UserService:
         if existing_user:
             raise ValueError("User with this email already exists")
         
+        # Generate temporary password if none provided (for admin user creation)
+        if not user.password:
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits
+            user.password = ''.join(secrets.choice(alphabet) for _ in range(32))
+        
         # Hash password and create user
         hashed_password = get_password_hash(user.password)
         
@@ -30,7 +37,7 @@ class UserService:
             "role": user.role,
             "hashed_password": hashed_password,
             "created_at": datetime.utcnow(),
-            "is_active": True
+            "is_active": False  # Set to inactive until password is set
         }
         
         result = await self.collection.insert_one(user_dict)
@@ -81,16 +88,27 @@ class UserService:
             return False
 
     async def update_password(self, email: str, new_password: str) -> bool:
-        """Update user password"""
+        """Update user password and activate user"""
         try:
             hashed_password = get_password_hash(new_password)
             result = await self.collection.update_one(
                 {"email": email},
-                {"$set": {"hashed_password": hashed_password}}
+                {"$set": {"hashed_password": hashed_password, "is_active": True}}
             )
             return result.modified_count > 0
         except Exception:
-            return False 
+            return False
+
+    async def update_last_login(self, email: str) -> bool:
+        """Update user's last login timestamp"""
+        try:
+            result = await self.collection.update_one(
+                {"email": email},
+                {"$set": {"last_login": datetime.utcnow()}}
+            )
+            return result.modified_count > 0
+        except Exception:
+            return False
 
     async def update_user(self, user_id: str, update_data: dict) -> Optional[UserResponse]:
         """Update user details including name, email, company, role, and password"""
@@ -139,5 +157,4 @@ class UserService:
             
             return None
         except Exception as e:
-            # logger.error(f"Error updating user: {e}") # Assuming logger is defined elsewhere
-            return None 
+            return None

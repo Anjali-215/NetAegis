@@ -50,6 +50,30 @@ class EmailService:
             logger.error(f"Failed to send password reset email: {str(e)}")
             return False
 
+    async def send_welcome_email(self, user_email: str, user_name: str, company_name: str, admin_name: str, setup_link: str, atlas_link: str = None):
+        """
+        Send welcome email to new user added by admin
+        """
+        try:
+            subject = "🎉 Welcome to NetAegis - Your Account is Ready!"
+            
+            html_content = self._create_welcome_html(user_name, company_name, admin_name, setup_link, atlas_link)
+            
+            message = MessageSchema(
+                subject=subject,
+                recipients=[user_email],
+                body=html_content,
+                subtype="html"
+            )
+            
+            await self.fastmail.send_message(message)
+            logger.info(f"Welcome email sent to {user_email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send welcome email: {str(e)}")
+            return False
+
     def _create_password_reset_html(self, user_name: str, reset_link: str, atlas_link: str = None):
         """
         Create HTML email template for password reset
@@ -181,6 +205,191 @@ class EmailService:
                 
                 <div class="footer">
                     <p>This is an automated message from NetAegis Security System.</p>
+                    <p>Please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html_template
+
+    def _create_welcome_html(self, user_name: str, company_name: str, admin_name: str, setup_link: str, atlas_link: str = None):
+        """
+        Create HTML email template for welcome email
+        """
+        atlas_section = ""
+        if atlas_link:
+            atlas_section = f"""
+            <div style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0;">
+                <h4 style="color: #1976d2; margin: 0 0 10px 0;">🔄 Alternative Setup Method</h4>
+                <p style="color: #1976d2; margin: 0 0 10px 0; font-weight: bold;">Direct Database Setup (Development/Testing)</p>
+                <p style="color: #1976d2; margin: 0 0 15px 0;">If the main setup link doesn't work, you can use this direct link to set your password in the database:</p>
+                <div style="text-align: center;">
+                    <a href="{atlas_link}" style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Set Password (Direct)</a>
+                </div>
+                <p style="color: #1976d2; margin: 10px 0 0 0; font-size: 12px;">This link works even when the main website is not hosted.</p>
+            </div>
+            """
+        
+        html_template = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to NetAegis</title>
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f4f4f4;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 24px;
+                    font-weight: bold;
+                }}
+                .welcome-icon {{
+                    font-size: 48px;
+                    margin-bottom: 15px;
+                }}
+                .content {{
+                    padding: 30px;
+                }}
+                .welcome-box {{
+                    background-color: #e8f5e8;
+                    border: 1px solid #c3e6c3;
+                    border-radius: 6px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }}
+                .features {{
+                    background-color: #f8f9fa;
+                    border-radius: 6px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }}
+                .feature-item {{
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                }}
+                .feature-icon {{
+                    font-size: 20px;
+                    margin-right: 10px;
+                    color: #b71c1c;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+                    color: white;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    margin-top: 20px;
+                }}
+                .footer {{
+                    background-color: #f8f9fa;
+                    padding: 20px;
+                    text-align: center;
+                    color: #6c757d;
+                    font-size: 14px;
+                }}
+                .security-note {{
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin: 20px 0;
+                    color: #856404;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="welcome-icon">🎉</div>
+                    <h1>Welcome to NetAegis</h1>
+                    <p>Your Account is Ready!</p>
+                </div>
+                
+                <div class="content">
+                    <p>Dear <strong>{user_name}</strong>,</p>
+                    
+                    <div class="welcome-box">
+                        <h3>🚀 Welcome to the World of Security!</h3>
+                        <p>Your company <strong>{company_name}</strong> administrator <strong>{admin_name}</strong> has added you to NetAegis, our advanced network security platform.</p>
+                        <p>You're now part of a team dedicated to protecting digital assets and maintaining robust cybersecurity defenses.</p>
+                    </div>
+                    
+                    <div class="features">
+                        <h3>🔒 What NetAegis Offers You:</h3>
+                        <div class="feature-item">
+                            <span class="feature-icon">🛡️</span>
+                            <span><strong>Advanced Threat Detection:</strong> AI-powered analysis of network traffic</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📊</span>
+                            <span><strong>Real-time Monitoring:</strong> Live security dashboards and alerts</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📈</span>
+                            <span><strong>Comprehensive Reports:</strong> Detailed security analytics and insights</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🤖</span>
+                            <span><strong>AI Chatbot:</strong> Intelligent security assistance and threat analysis</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📁</span>
+                            <span><strong>File Analysis:</strong> Upload and analyze network data for threats</span>
+                        </div>
+                    </div>
+                    
+                    <p><strong>Next Steps:</strong></p>
+                    <p>To get started, you need to set up your password. Click the button below to create your secure password:</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="{setup_link}" class="button">Set Your Password</a>
+                    </div>
+                    
+                    {atlas_section}
+                    
+                    <div class="security-note">
+                        <strong>🔐 Security Note:</strong>
+                        <ul>
+                            <li>This setup link will expire in 1 hour for security reasons</li>
+                            <li>Choose a strong password with at least 6 characters</li>
+                            <li>Your account is secure and ready for immediate use</li>
+                        </ul>
+                    </div>
+                    
+                    <p>Welcome to the world of security! We're excited to have you on board.</p>
+                    
+                    <p>If you have any questions, please contact your system administrator.</p>
+                </div>
+                
+                <div class="footer">
+                    <p>This is an automated welcome message from NetAegis Security System.</p>
                     <p>Please do not reply to this email.</p>
                 </div>
             </div>

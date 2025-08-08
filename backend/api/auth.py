@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
+﻿from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -369,6 +369,9 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Update last login timestamp
+    await user_service.update_last_login(user_credentials.email)
+    
     # Create access token
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
@@ -641,6 +644,34 @@ async def admin_add_user(
     try:
         user_service = UserService(database)
         created_user = await user_service.create_user(user_data)
+
+        # Send a secure password setup link (one-time reset token) instead of emailing a plaintext password
+        try:
+            reset_token = generate_reset_token()
+            expires_at = datetime.utcnow() + timedelta(hours=1)
+
+            reset_token_data = PasswordResetToken(
+                email=created_user.email,
+                token=reset_token,
+                expires_at=expires_at
+            )
+            await database.get_collection("password_reset_tokens").insert_one(reset_token_data.model_dump())
+
+            email_service = EmailService()
+            reset_link = f"http://localhost:5173/atlas-reset?token={reset_token}&email={created_user.email}"
+            atlas_link = f"http://localhost:8000/direct-reset?token={reset_token}"
+            await email_service.send_welcome_email(
+                user_email=created_user.email,
+                user_name=created_user.name,
+                company_name=created_user.company,
+                admin_name=admin_user.name,
+                setup_link=reset_link,
+                atlas_link=atlas_link
+            )
+        except Exception as e:
+            # Don't fail the user creation if email fails
+            print(f"Failed to send welcome email: {e}")
+
         return created_user
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

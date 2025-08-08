@@ -151,11 +151,6 @@ const UserManagement = () => {
     if (!formData.name.trim()) errors.name = 'Name is required';
     if (!formData.email.trim()) errors.email = 'Email is required';
     
-    // Password is only required when adding a new user
-    if (!editingUser && !formData.password.trim()) {
-      errors.password = 'Password is required';
-    }
-    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -185,12 +180,11 @@ const UserManagement = () => {
         await adminUpdateUser(editingUser._id, updatePayload, token);
         setSnackbar({ open: true, message: 'User updated successfully', severity: 'success' });
       } else {
-        // Add new user
+        // Add new user (no plaintext password). Backend will email a setup link.
         const payload = {
           name: formData.name,
           company: formData.company,
           email: formData.email,
-          password: formData.password,
           role: 'user', // always user in backend
         };
         await adminAddUser(payload, token);
@@ -458,7 +452,10 @@ const UserManagement = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Never'}
+                          {user.is_active 
+                            ? (user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never')
+                            : 'Not logged in yet'
+                          }
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -558,24 +555,7 @@ const UserManagement = () => {
                   error={!!formErrors.email}
                   helperText={formErrors.email}
                 />
-                <TextField
-                  fullWidth
-                  label="Password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  name="password"
-                  placeholder={editingUser ? "Leave blank to keep current password" : ""}
-                  sx={{ mb: 3 }}
-                  InputProps={{
-                    sx: { color: 'white' }
-                  }}
-                  InputLabelProps={{
-                    sx: { color: 'rgba(255,255,255,0.7)' }
-                  }}
-                  error={!!formErrors.password}
-                  helperText={formErrors.password}
-                />
+                
                 <TextField
                   fullWidth
                   label="Company"

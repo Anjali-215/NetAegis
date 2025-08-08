@@ -15,7 +15,7 @@ class UserBase(BaseModel):
     role: str = Field(default="user", pattern="^(admin|user|teamlead)$")
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6, max_length=100)
+    password: Optional[str] = Field(None, min_length=6, max_length=100)
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -25,6 +25,7 @@ class UserResponse(UserBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = Field(default=True)
+    last_login: Optional[datetime] = Field(default=None)
 
     model_config = ConfigDict(
         populate_by_name=True,
