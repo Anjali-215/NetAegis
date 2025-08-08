@@ -1168,7 +1168,7 @@ Multiple records: [record1, record2, ...]`}
                 {previewDialog.data && previewDialog.data.length > 0 ? (
                   <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
                     <Box component="thead">
-                      <Box component="tr" sx={{ backgroundColor: 'black' }}>
+                      <Box component="tr">
                         {Object.keys(previewDialog.data[0]).map((header) => (
                           <Box 
                             key={header} 
@@ -1190,7 +1190,7 @@ Multiple records: [record1, record2, ...]`}
                     </Box>
                     <Box component="tbody">
                       {previewDialog.data.map((row, index) => (
-                        <Box component="tr" key={index} sx={{ '&:hover': { backgroundColor: 'grey.100' } }}>
+                        <Box component="tr" key={index} sx={{ '&:hover': { backgroundColor: 'black', color: 'white' } }}>
                           {Object.values(row).map((value, cellIndex) => (
                             <Box 
                               key={cellIndex} 

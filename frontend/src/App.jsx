@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import HomePage from './pages/prelogin/HomePage';
 import SignupPage from './pages/prelogin/SignupPage';
 import LoginPage from './pages/prelogin/LoginPage';
@@ -26,11 +26,61 @@ import UserChatbot from './pages/user/PhishingChatbot';
 import UserProfile from './pages/user/UserProfile';
 import UserDetectionLogs from './pages/user/DetectionLogs';
 
+// Protected Route Components
+const AdminRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
+  
+  if (!token || !userInfo) {
+    return <Navigate to="/" replace />;
+  }
+  
+  if (userInfo.role !== 'admin') {
+    return <Navigate to="/user/dashboard" replace />;
+  }
+  
+  return children;
+};
+
+const UserRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
+  
+  if (!token || !userInfo) {
+    return <Navigate to="/" replace />;
+  }
+  
+  if (userInfo.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  
+  return children;
+};
+
+const PublicRoute = ({ children }) => {
+  // Simply render the children (pre-login pages) regardless of auth status
+  return children;
+};
+
 function App() {
   const [loading, setLoading] = useState(true);
   const [appVisible, setAppVisible] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
+    // Check authentication status
+    const token = localStorage.getItem('token');
+    const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
+    
+    if (token && userInfo) {
+      setIsAuthenticated(true);
+      setUserRole(userInfo.role);
+    } else {
+      setIsAuthenticated(false);
+      setUserRole(null);
+    }
+
     if (!loading) {
       setTimeout(() => setAppVisible(true), 100);
     }
@@ -43,34 +93,38 @@ function App() {
         {!loading && (
           <Router>
             <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/atlas-reset" element={<AtlasPasswordReset />} />
+              {/* Public Routes */}
+              <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
+              <Route path="/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
+              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+              <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+              <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
+              <Route path="/atlas-reset" element={<PublicRoute><AtlasPasswordReset /></PublicRoute>} />
               
               {/* Admin Routes */}
-              <Route path="/admin" element={<ErrorBoundary><AdminLayout><AdminDashboard /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/dashboard" element={<ErrorBoundary><AdminLayout><AdminDashboard /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/users" element={<ErrorBoundary><AdminLayout><UserManagement /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/csv-upload" element={<ErrorBoundary><AdminLayout><CSVUpload /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/threat-visualization" element={<ErrorBoundary><AdminLayout><ThreatVisualization /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/detection-logs" element={<ErrorBoundary><AdminLayout><DetectionLogs /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/notifications" element={<ErrorBoundary><AdminLayout><NotificationsPage /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/reports" element={<ErrorBoundary><AdminLayout><Reports /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/subscription" element={<ErrorBoundary><AdminLayout><SubscriptionManagement /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/settings" element={<ErrorBoundary><AdminLayout><Settings /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/profile" element={<ErrorBoundary><AdminLayout><Profile /></AdminLayout></ErrorBoundary>} />
-              <Route path="/admin/phishing-chatbot" element={<ErrorBoundary><AdminLayout><Chatbot /></AdminLayout></ErrorBoundary>} />
+              <Route path="/admin" element={<AdminRoute><ErrorBoundary><AdminLayout><AdminDashboard /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/dashboard" element={<AdminRoute><ErrorBoundary><AdminLayout><AdminDashboard /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><ErrorBoundary><AdminLayout><UserManagement /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/csv-upload" element={<AdminRoute><ErrorBoundary><AdminLayout><CSVUpload /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/threat-visualization" element={<AdminRoute><ErrorBoundary><AdminLayout><ThreatVisualization /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/detection-logs" element={<AdminRoute><ErrorBoundary><AdminLayout><DetectionLogs /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/notifications" element={<AdminRoute><ErrorBoundary><AdminLayout><NotificationsPage /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/reports" element={<AdminRoute><ErrorBoundary><AdminLayout><Reports /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/subscription" element={<AdminRoute><ErrorBoundary><AdminLayout><SubscriptionManagement /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/settings" element={<AdminRoute><ErrorBoundary><AdminLayout><Settings /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/profile" element={<AdminRoute><ErrorBoundary><AdminLayout><Profile /></AdminLayout></ErrorBoundary></AdminRoute>} />
+              <Route path="/admin/phishing-chatbot" element={<AdminRoute><ErrorBoundary><AdminLayout><Chatbot /></AdminLayout></ErrorBoundary></AdminRoute>} />
               
               {/* User Routes */}
-              <Route path="/user/dashboard" element={<UserLayout><UserDashboard /></UserLayout>} />
-              <Route path="/user/csv-upload" element={<UserLayout><UserCSVUpload /></UserLayout>} />
-              <Route path="/user/visualization" element={<UserLayout><UserVisualization /></UserLayout>} />
-              <Route path="/user/detection-logs" element={<UserLayout><UserDetectionLogs /></UserLayout>} />
-              <Route path="/user/profile" element={<UserLayout><UserProfile /></UserLayout>} />
-              <Route path="/user/phishing-chatbot" element={<UserLayout><UserChatbot /></UserLayout>} />
+              <Route path="/user/dashboard" element={<UserRoute><UserLayout><UserDashboard /></UserLayout></UserRoute>} />
+              <Route path="/user/csv-upload" element={<UserRoute><UserLayout><UserCSVUpload /></UserLayout></UserRoute>} />
+              <Route path="/user/visualization" element={<UserRoute><UserLayout><UserVisualization /></UserLayout></UserRoute>} />
+              <Route path="/user/detection-logs" element={<UserRoute><UserLayout><UserDetectionLogs /></UserLayout></UserRoute>} />
+              <Route path="/user/profile" element={<UserRoute><UserLayout><UserProfile /></UserLayout></UserRoute>} />
+              <Route path="/user/phishing-chatbot" element={<UserRoute><UserLayout><UserChatbot /></UserLayout></UserRoute>} />
+              
+              {/* Catch all route - redirect to home */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
         )}

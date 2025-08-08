@@ -54,65 +54,53 @@ const SubscriptionManagement = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const currentPlan = {
-    name: 'Enterprise',
-    price: 299,
+    name: 'Pro',
+    price: 1999,
     billingCycle: 'monthly',
     nextBilling: '2024-02-15',
-    status: 'active',
+    status: 'inactive',
     features: [
-      'Unlimited threat detection',
-      'Advanced analytics & reporting',
-      'Priority support (24/7)',
-      'Custom integrations',
-      'Dedicated account manager',
-      'Advanced security features',
-      'Unlimited users',
-      'Unlimited storage'
+      'Up to 25 users',
+      'Threat detection',
+      '10GB log storage',
+      'Priority support',
+      'Standard reports',
+      '24/7 support',
+      'Custom reports',
+      'Real-time alerts'
     ]
   };
 
   const availablePlans = [
     {
       name: 'Starter',
-      price: 49,
+      price: 499,
       billingCycle: 'monthly',
+      yearlyPrice: 4999,
       features: [
-        'Up to 1,000 threat detections/month',
-        'Basic analytics',
-        'Email support',
-        'Standard integrations',
         'Up to 5 users',
-        '10GB storage'
+        'Threat detection',
+        '1GB log storage',
+        'Email support',
+        'Standard reports',
+        '24/7 support'
       ],
       popular: false
     },
     {
-      name: 'Professional',
-      price: 149,
+      name: 'Pro',
+      price: 1999,
       billingCycle: 'monthly',
+      yearlyPrice: 19999,
       features: [
-        'Up to 10,000 threat detections/month',
-        'Advanced analytics',
-        'Phone & email support',
-        'Custom integrations',
         'Up to 25 users',
-        '100GB storage'
-      ],
-      popular: false
-    },
-    {
-      name: 'Enterprise',
-      price: 299,
-      billingCycle: 'monthly',
-      features: [
-        'Unlimited threat detection',
-        'Advanced analytics & reporting',
-        'Priority support (24/7)',
-        'Custom integrations',
-        'Dedicated account manager',
-        'Advanced security features',
-        'Unlimited users',
-        'Unlimited storage'
+        'Threat detection',
+        '10GB log storage',
+        'Priority support',
+        'Standard reports',
+        '24/7 support',
+        'Custom reports',
+        'Real-time alerts'
       ],
       popular: true
     }
@@ -122,47 +110,47 @@ const SubscriptionManagement = () => {
     {
       id: 1,
       date: '2024-01-15',
-      amount: 299.00,
+      amount: 1999.00,
       status: 'paid',
       invoice: 'INV-2024-001',
       method: 'Credit Card',
-      description: 'Enterprise Plan - Monthly'
+      description: 'Pro Plan - Monthly'
     },
     {
       id: 2,
       date: '2023-12-15',
-      amount: 299.00,
+      amount: 1999.00,
       status: 'paid',
       invoice: 'INV-2023-012',
       method: 'Credit Card',
-      description: 'Enterprise Plan - Monthly'
+      description: 'Pro Plan - Monthly'
     },
     {
       id: 3,
       date: '2023-11-15',
-      amount: 299.00,
+      amount: 1999.00,
       status: 'paid',
       invoice: 'INV-2023-011',
       method: 'Credit Card',
-      description: 'Enterprise Plan - Monthly'
+      description: 'Pro Plan - Monthly'
     },
     {
       id: 4,
       date: '2023-10-15',
-      amount: 149.00,
+      amount: 499.00,
       status: 'paid',
       invoice: 'INV-2023-010',
       method: 'Credit Card',
-      description: 'Professional Plan - Monthly'
+      description: 'Starter Plan - Monthly'
     },
     {
       id: 5,
       date: '2023-09-15',
-      amount: 149.00,
+      amount: 499.00,
       status: 'paid',
       invoice: 'INV-2023-009',
       method: 'Credit Card',
-      description: 'Professional Plan - Monthly'
+      description: 'Starter Plan - Monthly'
     }
   ];
 
@@ -203,8 +191,8 @@ const SubscriptionManagement = () => {
               <Typography variant="h6">Current Plan</Typography>
               <Chip 
                 label={currentPlan.status} 
-                color="primary" 
-                icon={<CheckCircle />}
+                color="error" 
+                icon={<Cancel />}
               />
             </Box>
             
@@ -273,7 +261,7 @@ const SubscriptionManagement = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Threat Detections"
-                    secondary="Unlimited (Current: 1,247 this month)"
+                    secondary="Not active - Subscribe to start monitoring"
                   />
                 </ListItem>
                 
@@ -283,7 +271,7 @@ const SubscriptionManagement = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Active Users"
-                    secondary="Unlimited (Current: 23 users)"
+                    secondary="Not active - Subscribe to add users"
                   />
                 </ListItem>
                 
@@ -293,7 +281,7 @@ const SubscriptionManagement = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Storage Used"
-                    secondary="Unlimited (Current: 2.4 GB)"
+                    secondary="Not active - Subscribe to use storage"
                   />
                 </ListItem>
               </List>
@@ -398,83 +386,24 @@ const SubscriptionManagement = () => {
       <Paper sx={{ p: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h6">Payment History</Typography>
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={() => setSnackbar({ open: true, message: 'Exporting payment history...', severity: 'info' })}
-          >
-            Export History
-          </Button>
         </Box>
         
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                <TableCell>Date</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Invoice</TableCell>
-                <TableCell>Payment Method</TableCell>
-                <TableCell align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {paymentHistory.map((payment) => (
-                <TableRow key={payment.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      {payment.date}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {payment.description}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      ${payment.amount.toFixed(2)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={payment.status} 
-                      color={getStatusColor(payment.status)}
-                      size="small"
-                      icon={getStatusIcon(payment.status)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontFamily="monospace">
-                      {payment.invoice}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <CreditCard fontSize="small" color="action" />
-                      <Typography variant="body2">
-                        {payment.method}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Download Invoice">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDownloadInvoice(payment.invoice)}
-                        color="primary"
-                      >
-                        <Receipt />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          py: 4,
+          textAlign: 'center'
+        }}>
+          <Payment sx={{ fontSize: 60, color: 'action.disabled', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No Payment History Available
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Subscription functionality will be implemented soon. Once activated, your payment history will appear here.
+          </Typography>
+        </Box>
       </Paper>
 
       {/* Upgrade Dialog */}
@@ -548,8 +477,8 @@ const SubscriptionManagement = () => {
       {/* Info Alert */}
       <Alert severity="info" sx={{ mt: 3 }}>
         <Typography variant="body2">
-          <strong>Note:</strong> Plan changes take effect at your next billing cycle. 
-          You can upgrade or downgrade your plan at any time. All payment history is available for download.
+          <strong>Coming Soon:</strong> Subscription functionality is currently under development. 
+          Once implemented, you'll be able to activate your subscription, manage your plan, and view payment history from this dashboard.
         </Typography>
       </Alert>
 

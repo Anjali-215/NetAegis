@@ -824,7 +824,18 @@ Multiple records: [record1, record2, ...]`}
                   </TableHead>
                   <TableBody>
                     {resultsDialog.results.slice(0, 20).map((result, index) => (
-                      <TableRow key={index}>
+                      <TableRow 
+                        key={index} 
+                        sx={{ 
+                          '&:hover': { 
+                            backgroundColor: 'black', 
+                            color: 'white',
+                            '& .MuiTableCell-root': {
+                              color: 'white'
+                            }
+                          }
+                        }}
+                      >
                         <TableCell>{result.row}</TableCell>
                         <TableCell>
                           {result.threatType ? (
