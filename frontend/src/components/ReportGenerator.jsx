@@ -47,7 +47,7 @@ import {
   TrendingUp,
   Security,
   People,
-  Upload,
+
   Report,
   GetApp,
   Description
@@ -73,10 +73,7 @@ const ReportGenerator = ({ onReportGenerated, userProfile }) => {
 
   const reportTypes = [
     { value: 'threat_summary', label: 'Threat Summary Report', icon: <Security /> },
-    { value: 'user_activity', label: 'User Activity Report', icon: <People /> },
-    { value: 'system_performance', label: 'System Performance Report', icon: <TrendingUp /> },
-    { value: 'threat_detection', label: 'Threat Detection Report', icon: <Assessment /> },
-    { value: 'comprehensive', label: 'Comprehensive Security Report', icon: <Report /> }
+    { value: 'user_activity', label: 'User Activity Report', icon: <People /> }
   ];
 
   useEffect(() => {
@@ -231,27 +228,7 @@ const ReportGenerator = ({ onReportGenerated, userProfile }) => {
     }
   };
 
-  const handleCreateTestData = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.post('http://localhost:8000/api/create-test-data');
-      setSnackbar({
-        open: true,
-        message: response.data.message,
-        severity: 'success'
-      });
-      await fetchReports();
-    } catch (error) {
-      console.error('Error creating test data:', error);
-      setSnackbar({
-        open: true,
-        message: 'Failed to create test data',
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handlePreviewReport = (report) => {
     setPreviewDialog({ open: true, report });
@@ -412,23 +389,7 @@ const ReportGenerator = ({ onReportGenerated, userProfile }) => {
                 {isGenerating ? 'Generating...' : 'Generate Report'}
               </Button>
 
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<Upload />}
-                onClick={handleCreateTestData}
-                disabled={loading}
-                sx={{ 
-                  borderColor: '#4caf50',
-                  color: '#4caf50',
-                  '&:hover': {
-                    borderColor: '#45a049',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)'
-                  }
-                }}
-              >
-                Create Test Data
-              </Button>
+
 
               {isGenerating && (
                 <Box sx={{ mt: 2 }}>
