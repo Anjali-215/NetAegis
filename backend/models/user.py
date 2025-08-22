@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 class PyObjectId(ObjectId):
@@ -55,7 +55,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_active: bool = Field(default=True)
     last_login: Optional[datetime] = Field(default=None)
 

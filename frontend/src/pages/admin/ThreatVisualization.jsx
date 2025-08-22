@@ -431,12 +431,7 @@ const ThreatVisualization = () => {
               {isSavingVisualization ? 'Saving...' : 'Save Visualization'}
             </Button>
           )}
-          <Button
-            variant="outlined"
-            onClick={() => navigate(-1)}
-          >
-            Back to Results
-          </Button>
+
         </Box>
       </Box>
       {/* Dashboard Cards */}

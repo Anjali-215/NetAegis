@@ -54,7 +54,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
   // Remove admin role check for prelogin page - allow anyone to open subscription dialog
   // Admin validation will happen during the actual payment process
 
-  // Reset form when dialog opens
+  // Reset form when dialog opens and check for existing subscription
   React.useEffect(() => {
     if (open) {
       setActiveStep(0);
@@ -69,8 +69,45 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         username: '',
         upiId: ''
       });
+      
+      // Check for existing subscription if user is logged in
+      checkExistingSubscription();
     }
   }, [open]);
+  
+  const checkExistingSubscription = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Only check if user is logged in
+      if (!token) return;
+      
+      const response = await fetch('http://localhost:8000/my-subscription', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        // User already has an active subscription
+        const subscription = await response.json();
+        setError(`You already have an active ${subscription.plan_name} subscription. Please cancel your current subscription before purchasing a new one.`);
+        return;
+      }
+      
+      // 404 means no subscription found, which is fine
+      if (response.status === 404) {
+        return;
+      }
+      
+      // Other errors (500, etc.) - don't block the process
+      console.log('Error checking subscription:', response.status);
+      
+    } catch (error) {
+      // Network errors - don't block the process
+      console.log('Network error checking subscription:', error);
+    }
+  };
 
   // Reset form when dialog closes
   React.useEffect(() => {
@@ -253,6 +290,26 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
 
         // Now handle the result based on validation
         if (adminValidated) {
+          // Additional check: Does this admin already have a subscription?
+          try {
+            const subscriptionCheckResponse = await fetch('http://localhost:8000/debug/all-subscriptions');
+            if (subscriptionCheckResponse.ok) {
+              const subscriptionData = await subscriptionCheckResponse.json();
+              const existingSubscription = subscriptionData.subscriptions.find(
+                sub => sub.admin_email === cardDetails.username && sub.status === 'active'
+              );
+              
+              if (existingSubscription) {
+                setError(`This admin email already has an active ${existingSubscription.plan_name} subscription. Please cancel the existing subscription before purchasing a new one.`);
+                setSuccess('');
+                return;
+              }
+            }
+          } catch (subscriptionCheckError) {
+            console.log('Could not check existing subscriptions:', subscriptionCheckError);
+            // Continue with the process even if check fails
+          }
+          
           setSuccess('✅ Admin email verified successfully!');
           setError(null); // Clear any previous errors
           console.log('✅ Admin validation successful:', validationMessage);
@@ -320,21 +377,70 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         // Get user info
         const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
         
-        // For prelogin users, create a basic user structure
-        if (!userInfo) {
-          // This is a new user signing up, create basic user info
-          const newUser = {
-            email: cardDetails.username || 'newuser@example.com',
-            role: plan.name.toLowerCase() === 'pro' ? 'admin' : 'user',
-            name: cardDetails.name || 'New User',
-            company: 'New Company'
+        // Create subscription in backend
+        try {
+          const subscriptionData = {
+            company_name: userInfo?.company || 'New Company',
+            admin_email: cardDetails.username,
+            plan_name: plan.name,
+            billing_period: billingPeriod || 'monthly',
+            payment_status: 'completed'
           };
-          localStorage.setItem('user', JSON.stringify(newUser));
-        } else {
-          // Existing user, update their role
-          const newRole = plan.name.toLowerCase() === 'pro' ? 'admin' : 'user';
-          const updatedUser = { ...userInfo, role: newRole };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
+
+          // Use different endpoint based on authentication status
+          const token = localStorage.getItem('token');
+          const endpoint = token ? '/subscribe' : '/subscribe-prelogin';
+          const headers = token ? {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          } : {
+            'Content-Type': 'application/json'
+          };
+
+          console.log('🔍 Debug subscription creation:');
+          console.log('  - Token exists:', !!token);
+          console.log('  - Endpoint:', endpoint);
+          console.log('  - Headers:', headers);
+          console.log('  - Subscription data:', subscriptionData);
+
+          const response = await fetch(`http://localhost:8000${endpoint}`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(subscriptionData)
+          });
+
+          console.log('🔍 Response status:', response.status);
+          console.log('🔍 Response headers:', response.headers);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to create subscription');
+          }
+
+          const subscription = await response.json();
+          console.log('✅ Subscription created successfully:', subscription);
+          
+          // Store subscription info in localStorage
+          localStorage.setItem('subscription', JSON.stringify(subscription));
+          
+          // Update user info with the actual company name from subscription
+          if (userInfo) {
+            const updatedUser = { ...userInfo, company: subscription.company_name };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          } else {
+            // Create new user info for prelogin users
+            const newUser = {
+              email: cardDetails.username,
+              role: plan.name.toLowerCase() === 'pro' ? 'admin' : 'user',
+              name: cardDetails.name || 'New User',
+              company: subscription.company_name
+            };
+            localStorage.setItem('user', JSON.stringify(newUser));
+          }
+        } catch (subscriptionError) {
+          console.error('❌ Subscription creation failed:', subscriptionError);
+          // Continue with payment success even if subscription creation fails
+          // This allows users to complete payment and retry subscription creation
         }
 
         setActiveStep(activeStep + 1);

@@ -2,7 +2,7 @@
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from database import get_database
 import secrets
 import string
@@ -455,7 +455,7 @@ async def forgot_password(
         
         # Generate reset token
         reset_token = generate_reset_token()
-        expires_at = datetime.utcnow() + timedelta(hours=1)  # Token expires in 1 hour
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)  # Token expires in 1 hour
         
         # Store reset token in database
         reset_token_data = PasswordResetToken(
@@ -520,7 +520,7 @@ async def reset_password(
                 # If it's already a datetime object
                 expires_at = expires_at_str
             
-            if datetime.utcnow() > expires_at:
+            if datetime.now(timezone.utc) > expires_at:
                 # Delete expired token
                 await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
                 raise HTTPException(
@@ -618,7 +618,7 @@ async def atlas_reset_password(
                 # If it's already a datetime object
                 expires_at = expires_at_str
             
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
             print(f"Current time: {current_time}")
             print(f"Expires at: {expires_at}")
             
@@ -697,7 +697,7 @@ async def admin_add_user(
         # Send a secure password setup link (one-time reset token) instead of emailing a plaintext password
         try:
             reset_token = generate_reset_token()
-            expires_at = datetime.utcnow() + timedelta(hours=1)
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
             reset_token_data = PasswordResetToken(
                 email=created_user.email,
@@ -817,7 +817,7 @@ async def admin_reset_user_password(
         
         # Generate reset token
         reset_token = generate_reset_token()
-        expires_at = datetime.utcnow() + timedelta(hours=1)  # Token expires in 1 hour
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)  # Token expires in 1 hour
         
         # Store reset token in database
         reset_token_data = PasswordResetToken(

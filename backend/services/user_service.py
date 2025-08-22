@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from models.user import UserCreate, UserResponse, UserInDB, AdminUserCreate
 from utils.auth import get_password_hash, verify_password
 from typing import Optional
@@ -36,7 +36,7 @@ class UserService:
             "email": user.email,
             "role": user.role,
             "hashed_password": hashed_password,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "is_active": False  # Set to inactive until password is set
         }
         
@@ -68,7 +68,7 @@ class UserService:
             "email": user_data.email,
             "role": user_data.role,
             "hashed_password": hashed_password,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "is_active": False  # Set to inactive until password is set
         }
         
@@ -136,7 +136,7 @@ class UserService:
         try:
             result = await self.collection.update_one(
                 {"email": email},
-                {"$set": {"last_login": datetime.utcnow()}}
+                {"$set": {"last_login": datetime.now(timezone.utc)}}
             )
             return result.modified_count > 0
         except Exception:

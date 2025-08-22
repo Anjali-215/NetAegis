@@ -25,6 +25,7 @@ from api.auth import get_current_user
 from database import connect_to_mongo, close_mongo_connection, get_database
 from api.auth import router as auth_router
 from api import phishing_router, reports_router
+from api.subscription import router as subscription_router
 from utils.email_service import EmailService
 
 # Configure logging
@@ -52,6 +53,8 @@ app.include_router(auth_router)
 app.include_router(phishing_router)
 # Include reports generation router
 app.include_router(reports_router, prefix="/api")
+# Include subscription router
+app.include_router(subscription_router)
 
 # --- SUBSCRIPTION & ADMIN VALIDATION ENDPOINTS ---
 

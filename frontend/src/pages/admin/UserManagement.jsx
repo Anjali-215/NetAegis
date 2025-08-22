@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -48,6 +49,7 @@ import { adminAddUser, adminListUsers, adminDeleteUser, adminUpdateUser, adminRe
 import { useEffect } from 'react';
 
 const UserManagement = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -268,6 +270,8 @@ const UserManagement = () => {
         width: '100%'
       }}>
         <Container maxWidth={false} sx={{ px: 0 }}>
+
+          
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
             <Box>
               <Typography 

@@ -47,7 +47,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Apps,
-  Close
+  Close,
+  Home
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Profile from '../../pages/admin/Profile';
@@ -520,6 +521,15 @@ const AdminLayout = ({ children }) => {
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
               {menuItems.find(item => item.path === location.pathname)?.text || 'Admin Panel'}
             </Typography>
+            
+            <IconButton
+              color="inherit"
+              aria-label="go to home"
+              onClick={() => navigate('/')}
+              sx={{ mr: 1 }}
+            >
+              <Home />
+            </IconButton>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Badge badgeContent={unreadCount || 0} color="error">
