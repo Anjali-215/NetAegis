@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -29,7 +29,8 @@ import {
   Slider,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  CircularProgress
 } from '@mui/material';
 import {
   Person,
@@ -56,18 +57,39 @@ import {
   VolumeOff,
   Refresh
 } from '@mui/icons-material';
+import apiService from '../../services/api';
 
 const Settings = () => {
-  const [profileData, setProfileData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@company.com',
-    phone: '+1 (555) 123-4567',
-    company: 'NetAegis Security',
-    position: 'Network Engineer',
-    location: 'New York, NY',
-    avatar: 'JD'
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [profileData, setProfileData] = useState(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const userData = await apiService.getCurrentUser();
+        setProfileData({
+          firstName: userData.name.split(' ')[0] || '',
+          lastName: userData.name.split(' ').slice(1).join(' ') || '',
+          email: userData.email,
+          phone: userData.phone || '',
+          company: userData.company || 'NetAegis Security',
+          position: userData.role || 'User',
+          location: userData.location || '',
+          avatar: userData.name.split(' ').map(n => n[0]).join('')
+        });
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setError('Failed to load user data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -123,29 +145,58 @@ const Settings = () => {
     setSystemSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveProfile = () => {
-    setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    try {
+      const updatedUserData = {
+        name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+        email: profileData.email,
+        phone: profileData.phone,
+        company: profileData.company,
+        location: profileData.location,
+        role: profileData.position
+      };
+
+      await apiService.adminUpdateUser(profileData.id, updatedUserData);
+      setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setSnackbar({ open: true, message: 'Failed to update profile. Please try again.', severity: 'error' });
+    }
   };
 
-  const handleChangePassword = () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setSnackbar({ open: true, message: 'New passwords do not match!', severity: 'error' });
-      return;
+  const handleChangePassword = async () => {
+    try {
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setSnackbar({ open: true, message: 'New passwords do not match!', severity: 'error' });
+        return;
+      }
+      if (passwordData.newPassword.length < 8) {
+        setSnackbar({ open: true, message: 'Password must be at least 8 characters long!', severity: 'error' });
+        return;
+      }
+
+      await apiService.request('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword
+        })
+      });
+
+      setSnackbar({ open: true, message: 'Password changed successfully!', severity: 'success' });
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        showCurrentPassword: false,
+        showNewPassword: false,
+        showConfirmPassword: false
+      });
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setSnackbar({ open: true, message: 'Failed to change password. Please check your current password and try again.', severity: 'error' });
     }
-    if (passwordData.newPassword.length < 8) {
-      setSnackbar({ open: true, message: 'Password must be at least 8 characters long!', severity: 'error' });
-      return;
-    }
-    setSnackbar({ open: true, message: 'Password changed successfully!', severity: 'success' });
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      showCurrentPassword: false,
-      showNewPassword: false,
-      showConfirmPassword: false
-    });
   };
 
   const handleSaveSettings = () => {
@@ -165,7 +216,14 @@ const Settings = () => {
         Settings & Profile
       </Typography>
 
-      <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
+      ) : (
+        <Grid container rowSpacing={3} columnSpacing={3} columns={12}>
         {/* Profile Settings */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, backgroundColor: '#23272F', color: '#fff' }}>
@@ -581,6 +639,7 @@ const Settings = () => {
           </Paper>
         </Grid>
       </Grid>
+      )}
 
       {/* Info Alert */}
       <Alert severity="info" sx={{ mt: 3 }}>
@@ -607,4 +666,4 @@ const Settings = () => {
   );
 };
 
-export default Settings; 
+export default Settings;
