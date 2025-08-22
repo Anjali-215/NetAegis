@@ -41,7 +41,8 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
     name: '',
     expiry: '',
     cvv: '',
-    username: ''
+    username: '',
+    upiId: ''
   });
 
   // Check if user is admin (only if user is logged in)
@@ -60,6 +61,23 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
       }, 3000);
     }
   }, [open, isLoggedIn, isAdmin, onClose]);
+
+  // Reset form when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      setActiveStep(0);
+      setPaymentMethod('card');
+      setError(null);
+      setCardDetails({
+        number: '',
+        name: '',
+        expiry: '',
+        cvv: '',
+        username: '',
+        upiId: ''
+      });
+    }
+  }, [open]);
 
   const steps = ['Select Payment Method', 'Enter Details', 'Confirm Payment'];
 
@@ -103,6 +121,13 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         return;
       }
 
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cardDetails.username)) {
+        setError('Please enter a valid email address');
+        return;
+      }
+
       // Validate card-specific fields if card payment is selected
       if (paymentMethod === 'card') {
         if (!cardDetails.number || !cardDetails.name || !cardDetails.expiry || !cardDetails.cvv) {
@@ -125,6 +150,20 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         // Validate expiry format
         if (!/^\d{2}\/\d{2}$/.test(cardDetails.expiry)) {
           setError('Expiry date must be in MM/YY format');
+          return;
+        }
+      }
+
+      // Validate UPI-specific fields if UPI payment is selected
+      if (paymentMethod === 'upi') {
+        if (!cardDetails.upiId) {
+          setError('Please enter UPI ID');
+          return;
+        }
+        
+        // Validate UPI ID contains @ symbol
+        if (!cardDetails.upiId.includes('@')) {
+          setError('UPI ID must contain @ symbol');
           return;
         }
       }
@@ -445,7 +484,10 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                   <TextField
                     fullWidth
                     label="UPI ID"
-                    placeholder="username@upi"
+                    placeholder="UPI ID"
+                    value={cardDetails.upiId || ''}
+                    onChange={handleCardDetailsChange('upiId')}
+                    helperText="Must contain @ symbol (e.g., username@upi)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: 'white',
