@@ -40,8 +40,26 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
     number: '',
     name: '',
     expiry: '',
-    cvv: ''
+    cvv: '',
+    username: ''
   });
+
+  // Check if user is admin (only if user is logged in)
+  const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
+  const isAdmin = userInfo?.role === 'admin';
+  const isLoggedIn = !!userInfo;
+
+  // Only check admin role if user is logged in (for admin pages)
+  // If not logged in (prelogin page), allow payment dialog to stay open
+  React.useEffect(() => {
+    if (open && isLoggedIn && !isAdmin) {
+      setError('Only company admins can manage subscriptions. Please contact your administrator.');
+      setTimeout(() => {
+        onClose();
+        setError(null);
+      }, 3000);
+    }
+  }, [open, isLoggedIn, isAdmin, onClose]);
 
   const steps = ['Select Payment Method', 'Enter Details', 'Confirm Payment'];
 
@@ -50,11 +68,67 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
   };
 
   const handleCardDetailsChange = (field) => (event) => {
-    setCardDetails({ ...cardDetails, [field]: event.target.value });
+    let value = event.target.value;
+    
+    // Validation for different fields
+    switch (field) {
+      case 'number':
+        // Only allow numbers and limit to 16 digits
+        value = value.replace(/\D/g, '').slice(0, 16);
+        break;
+      case 'cvv':
+        // Only allow numbers and limit to 3 digits
+        value = value.replace(/\D/g, '').slice(0, 3);
+        break;
+      case 'expiry':
+        // Format as MM/YY
+        value = value.replace(/\D/g, '');
+        if (value.length >= 2) {
+          value = value.slice(0, 2) + '/' + value.slice(2, 4);
+        }
+        value = value.slice(0, 5); // Limit to MM/YY format
+        break;
+      default:
+        break;
+    }
+    
+    setCardDetails({ ...cardDetails, [field]: value });
   };
 
   const handleNext = async () => {
     if (activeStep === steps.length - 2) {
+      // Validate required fields for all payment methods
+      if (!cardDetails.username) {
+        setError('Please enter admin username/email');
+        return;
+      }
+
+      // Validate card-specific fields if card payment is selected
+      if (paymentMethod === 'card') {
+        if (!cardDetails.number || !cardDetails.name || !cardDetails.expiry || !cardDetails.cvv) {
+          setError('Please fill in all required card fields');
+          return;
+        }
+        
+        // Validate card number length
+        if (cardDetails.number.length !== 16) {
+          setError('Card number must be 16 digits');
+          return;
+        }
+        
+        // Validate CVV length
+        if (cardDetails.cvv.length !== 3) {
+          setError('CVV must be 3 digits');
+          return;
+        }
+        
+        // Validate expiry format
+        if (!/^\d{2}\/\d{2}$/.test(cardDetails.expiry)) {
+          setError('Expiry date must be in MM/YY format');
+          return;
+        }
+      }
+
       // Process payment
       setLoading(true);
       try {
@@ -64,16 +138,22 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         // Get user info
         const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
         
+        // For prelogin users, create a basic user structure
         if (!userInfo) {
-          throw new Error('User not found');
+          // This is a new user signing up, create basic user info
+          const newUser = {
+            email: cardDetails.username || 'newuser@example.com',
+            role: plan.name.toLowerCase() === 'pro' ? 'admin' : 'user',
+            name: cardDetails.name || 'New User',
+            company: 'New Company'
+          };
+          localStorage.setItem('user', JSON.stringify(newUser));
+        } else {
+          // Existing user, update their role
+          const newRole = plan.name.toLowerCase() === 'pro' ? 'admin' : 'user';
+          const updatedUser = { ...userInfo, role: newRole };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
         }
-
-        // Simulate successful payment without API calls
-        const newRole = plan.name.toLowerCase() === 'pro' ? 'admin' : 'user';
-
-        // Update local storage with new role
-        const updatedUser = { ...userInfo, role: newRole };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
 
         setActiveStep(activeStep + 1);
       } catch (err) {
@@ -103,8 +183,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
               <RadioGroup value={paymentMethod} onChange={handlePaymentMethodChange}>
                 {[
                   { value: 'card', icon: <CreditCardIcon />, label: 'Credit/Debit Card' },
-                  { value: 'upi', icon: <UPIIcon />, label: 'UPI' },
-                  { value: 'netbanking', icon: <BankIcon />, label: 'Net Banking' }
+                  { value: 'upi', icon: <UPIIcon />, label: 'UPI' }
                 ].map((method) => (
                   <FormControlLabel 
                     key={method.value}
@@ -167,10 +246,11 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Card Number"
-                    value={cardDetails.number}
-                    onChange={handleCardDetailsChange('number')}
-                    placeholder="1234 5678 9012 3456"
+                    label="Admin Username/Email"
+                    value={cardDetails.username}
+                    onChange={handleCardDetailsChange('username')}
+                    placeholder="Enter admin email for subscription"
+                    helperText="Only company admins can pay for subscriptions"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: 'white',
@@ -189,6 +269,42 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                         '&.Mui-focused': {
                           color: '#ff0000',
                         },
+                      },
+                      '& .MuiFormHelperText-root': {
+                        color: 'rgba(255,255,255,0.5)',
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Card Number"
+                    value={cardDetails.number}
+                    onChange={handleCardDetailsChange('number')}
+                    placeholder="1234 5678 9012 3456"
+                    helperText="Enter 16-digit card number"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': {
+                          borderColor: 'rgba(255,255,255,0.1)',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'rgba(255,255,255,0.3)',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#ff0000',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: 'rgba(255,255,255,0.7)',
+                        '&.Mui-focused': {
+                          color: '#ff0000',
+                        },
+                      },
+                      '& .MuiFormHelperText-root': {
+                        color: 'rgba(255,255,255,0.5)',
                       },
                     }}
                   />
@@ -228,6 +344,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                     value={cardDetails.expiry}
                     onChange={handleCardDetailsChange('expiry')}
                     placeholder="MM/YY"
+                    helperText="MM/YY format"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: 'white',
@@ -247,6 +364,9 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                           color: '#ff0000',
                         },
                       },
+                      '& .MuiFormHelperText-root': {
+                        color: 'rgba(255,255,255,0.5)',
+                      },
                     }}
                   />
                 </Grid>
@@ -258,6 +378,74 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                     value={cardDetails.cvv}
                     onChange={handleCardDetailsChange('cvv')}
                     placeholder="123"
+                    helperText="3-digit security code"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': {
+                          borderColor: 'rgba(255,255,255,0.1)',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'rgba(255,255,255,0.3)',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#ff0000',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: 'rgba(255,255,255,0.7)',
+                        '&.Mui-focused': {
+                          color: '#ff0000',
+                        },
+                      },
+                      '& .MuiFormHelperText-root': {
+                        color: 'rgba(255,255,255,0.5)',
+                      },
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            )}
+            {paymentMethod === 'upi' && (
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Admin Username/Email"
+                    value={cardDetails.username}
+                    onChange={handleCardDetailsChange('username')}
+                    placeholder="Enter admin email for subscription"
+                    helperText="Only company admins can pay for subscriptions"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': {
+                          borderColor: 'rgba(255,255,255,0.1)',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'rgba(255,255,255,0.3)',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#ff0000',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: 'rgba(255,255,255,0.7)',
+                        '&.Mui-focused': {
+                          color: '#ff0000',
+                        },
+                      },
+                      '& .MuiFormHelperText-root': {
+                        color: 'rgba(255,255,255,0.5)',
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="UPI ID"
+                    placeholder="username@upi"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: 'white',
@@ -282,63 +470,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                 </Grid>
               </Grid>
             )}
-            {paymentMethod === 'upi' && (
-              <TextField
-                fullWidth
-                label="UPI ID"
-                placeholder="username@upi"
-                sx={{
-                  mt: 2,
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    '& fieldset': {
-                      borderColor: 'rgba(255,255,255,0.1)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255,255,255,0.3)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#667eea',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: 'rgba(255,255,255,0.7)',
-                    '&.Mui-focused': {
-                      color: '#ff0000',
-                    },
-                  },
-                }}
-              />
-            )}
-            {paymentMethod === 'netbanking' && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }} gutterBottom>
-                  Select your bank to proceed with Net Banking
-                </Typography>
-                <Grid container spacing={2}>
-                  {['SBI', 'HDFC', 'ICICI', 'Axis'].map((bank) => (
-                    <Grid item xs={6} key={bank}>
-                      <Button
-                        variant="outlined"
-                        fullWidth
-                        startIcon={<BankIcon />}
-                        sx={{
-                          color: 'rgba(255,255,255,0.7)',
-                          borderColor: 'rgba(255,255,255,0.1)',
-                          '&:hover': {
-                            borderColor: '#ff0000',
-                            backgroundColor: 'rgba(255, 0, 0, 0.1)',
-                            color: '#ff0000'
-                          }
-                        }}
-                      >
-                        {bank} Bank
-                      </Button>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
-            )}
+
           </Box>
         );
       case 2:
@@ -492,10 +624,15 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
             Cancel
           </Button>
         )}
-        {activeStep > 0 && activeStep !== steps.length - 1 && (
+        {activeStep > 0 && (
           <Button 
             onClick={handleBack}
-            sx={{ color: 'text.secondary' }}
+            sx={{ 
+              color: 'rgba(255,255,255,0.7)',
+              '&:hover': {
+                color: '#ff0000'
+              }
+            }}
           >
             Back
           </Button>
