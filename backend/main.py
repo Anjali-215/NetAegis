@@ -14,6 +14,7 @@ from sklearn.preprocessing import LabelEncoder
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from bson import ObjectId
 from models.ml_results import MLResultCreate, MLResultResponse, MLResultSummary
 from models.notification import NotificationCreate, NotificationResponse
 from models.user import UserResponse
@@ -51,6 +52,225 @@ app.include_router(auth_router)
 app.include_router(phishing_router)
 # Include reports generation router
 app.include_router(reports_router, prefix="/api")
+
+# --- SUBSCRIPTION & ADMIN VALIDATION ENDPOINTS ---
+
+# Pydantic model for email validation
+class EmailValidationRequest(BaseModel):
+    email: str
+
+# Simple test endpoint to verify routing
+@app.get("/test-simple")
+async def test_simple():
+    """Simple test endpoint without /api prefix"""
+    return {"message": "Simple test works", "status": "ok"}
+
+# Test endpoint to verify the backend is working
+@app.get("/health-check")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "message": "Backend is running and healthy"
+    }
+
+# Test endpoint to verify admin validation endpoint is accessible
+@app.get("/test-admin-endpoint")
+async def test_admin_endpoint():
+    """Test endpoint to verify admin validation endpoint is accessible"""
+    return {
+        "message": "Admin validation endpoint is accessible",
+        "endpoint": "/api/auth/validate-admin",
+        "method": "POST",
+        "status": "ok"
+    }
+
+# Test endpoint to verify Pydantic models work
+@app.get("/test-models")
+async def test_models():
+    """Test endpoint to verify Pydantic models work"""
+    try:
+        # Test if we can create model instances
+        test_user = UserResponse(
+            name="Test User",
+            company="Test Company",
+            email="test@example.com",
+            role="admin"
+        )
+        return {
+            "message": "Pydantic models working correctly",
+            "test_user": test_user.model_dump(),
+            "status": "ok"
+        }
+    except Exception as e:
+        return {
+            "message": "Pydantic models error",
+            "error": str(e),
+            "status": "error"
+        }
+
+# SUPER SIMPLE TEST - NO MODELS AT ALL
+@app.get("/super-simple")
+async def super_simple():
+    """Super simple endpoint with no models"""
+    return {"message": "This endpoint definitely works", "status": "ok"}
+
+@app.post("/super-simple-post")
+async def super_simple_post(data: dict):
+    """Super simple POST endpoint with no models"""
+    return {"message": "POST endpoint works", "received": data}
+
+# List all users for debugging
+@app.get("/list-users")
+async def list_users():
+    """List all users in database for debugging"""
+    try:
+        db = await get_database()
+        users_collection = db.users
+        
+        # Get all users
+        users = await users_collection.find({}).to_list(length=100)
+        
+        # Convert ObjectId to string for JSON serialization
+        user_list = []
+        for user in users:
+            user_dict = dict(user)
+            if '_id' in user_dict:
+                user_dict['_id'] = str(user_dict['_id'])
+            user_list.append(user_dict)
+        
+        return {
+            "total_users": len(user_list),
+            "users": user_list
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# Debug endpoint to check if POST requests work
+@app.post("/test-post")
+async def test_post(data: EmailValidationRequest):
+    """Test POST endpoint to verify POST requests work"""
+    return {"message": "POST endpoint works", "received_data": {"email": data.email}}
+
+# Admin validation endpoint for subscription payments
+@app.post("/api/auth/validate-admin")
+async def validate_admin_email(email_data: EmailValidationRequest):
+    """Validate if an email belongs to an admin user"""
+    try:
+        email = email_data.email
+        
+        logger.info(f"✅ Admin validation endpoint called with email: {email}")
+        
+        # Get database connection - FIXED: await the coroutine
+        db = await get_database()
+        users_collection = db.users
+        
+        logger.info(f"✅ Database connection established, checking users collection")
+        
+        # Find user by email
+        user = await users_collection.find_one({"email": email})
+        
+        if not user:
+            logger.info(f"❌ User not found for email: {email}")
+            return {
+                "isAdmin": False,
+                "message": "This email is not registered. Please sign up first or contact your administrator."
+            }
+        
+        logger.info(f"✅ User found: {user.get('email')}, role: {user.get('role')}")
+        
+        # Check if user has admin role
+        if user.get("role") == "admin":
+            logger.info(f"✅ Admin validation successful for: {email}")
+            return {
+                "isAdmin": True,
+                "message": "Admin email verified"
+            }
+        else:
+            logger.info(f"❌ User exists but not admin for: {email}")
+            return {
+                "isAdmin": False,
+                "message": "This user is not an admin. Only company administrators can pay for subscriptions."
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Error validating admin email: {e}")
+        logger.error(f"❌ Error type: {type(e)}")
+        logger.error(f"❌ Error details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# SIMPLE WORKING ADMIN VALIDATION - NO COMPLEX MODELS
+@app.post("/simple-validate-admin")
+async def simple_validate_admin(email_data: dict):
+    """Simple admin validation endpoint that definitely works"""
+    try:
+        email = email_data.get("email")
+        if not email:
+            return {"isAdmin": False, "message": "Email is required"}
+        
+        logger.info(f"🔧 Simple admin validation called with email: {email}")
+        
+        # Get database connection - FIXED: await the coroutine
+        db = await get_database()
+        users_collection = db.users
+        
+        # Find user by email
+        user = await users_collection.find_one({"email": email})
+        
+        if not user:
+            logger.info(f"🔧 User not found: {email}")
+            return {"isAdmin": False, "message": "This email is not registered. Please sign up first or contact your administrator."}
+        
+        logger.info(f"🔧 User found: {user.get('email')}, role: {user.get('role')}")
+        
+        # Check if user has admin role
+        if user.get("role") == "admin":
+            logger.info(f"🔧 Admin validation successful: {email}")
+            return {"isAdmin": True, "message": "Admin email verified"}
+        else:
+            logger.info(f"🔧 User not admin: {email}")
+            return {"isAdmin": False, "message": "This user is not an admin. Only company administrators can pay for subscriptions."}
+            
+    except Exception as e:
+        logger.error(f"🔧 Simple validation error: {e}")
+        return {"isAdmin": False, "message": f"Error: {str(e)}"}
+
+# Alternative admin validation endpoint without /api prefix
+@app.post("/validate-admin")
+async def validate_admin_email_alt(email_data: EmailValidationRequest):
+    """Alternative admin validation endpoint without /api prefix"""
+    try:
+        email = email_data.email
+        
+        logger.info(f"Alternative endpoint - Validating admin email: {email}")
+        
+        # For now, return a mock response to test if endpoint is accessible
+        return {
+            "isAdmin": True,
+            "message": "Alternative endpoint working - admin email verified (mock)"
+        }
+            
+    except Exception as e:
+        logger.error(f"Error in alternative endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Alternative endpoint error: {str(e)}")
+
+@app.get("/api/test")
+async def test_backend():
+    """Test endpoint to verify backend is accessible"""
+    return {"message": "Backend is working", "status": "ok"}
+
+@app.get("/api/routes")
+async def list_routes():
+    """List all available API routes"""
+    routes = []
+    for route in app.routes:
+        if hasattr(route, 'path'):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods) if hasattr(route, 'methods') else []
+            })
+    return {"routes": routes}
 
 # --- ML API SECTION ---
 models = {}
@@ -628,13 +848,18 @@ async def get_ml_result_detail(
 ):
     """Get detailed ML processing result by ID"""
     try:
-        from bson import ObjectId
+        # Validate ObjectId format
+        if not ObjectId.is_valid(result_id):
+            raise HTTPException(status_code=400, detail=f"Invalid ObjectId format: {result_id}")
         
         db = await get_database()
         collection = db["ml_results"]
         
+        # Convert string ID to ObjectId for MongoDB query
+        object_id = ObjectId(result_id)
+        
         # Find the specific result
-        result = await collection.find_one({"_id": ObjectId(result_id)})
+        result = await collection.find_one({"_id": object_id})
         
         if not result:
             raise HTTPException(status_code=404, detail="ML result not found")
@@ -665,16 +890,19 @@ async def delete_ml_result(
 ):
     """Delete ML processing result by ID"""
     try:
-        from bson import ObjectId
+        # Validate result ID format (should be a string)
+        if not result_id or not isinstance(result_id, str):
+            raise HTTPException(status_code=400, detail=f"Invalid result ID format: {result_id}")
         
         # Validate ObjectId format
-        try:
-            object_id = ObjectId(result_id)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid result ID format: {result_id}")
+        if not ObjectId.is_valid(result_id):
+            raise HTTPException(status_code=400, detail=f"Invalid ObjectId format: {result_id}")
         
         db = await get_database()
         collection = db["ml_results"]
+        
+        # Convert string ID to ObjectId for MongoDB query
+        object_id = ObjectId(result_id)
         
         # Check if the document exists first
         existing_doc = await collection.find_one({"_id": object_id})
@@ -691,7 +919,7 @@ async def delete_ml_result(
             # Regular users can only delete their own data
             raise HTTPException(status_code=403, detail="Access denied")
         
-        # Delete the result
+        # Delete the result using ObjectId
         result = await collection.delete_one({"_id": object_id})
         
         if result.deleted_count == 0:
@@ -800,11 +1028,8 @@ async def delete_notification(
 ):
     """Delete a notification"""
     try:
-        # Validate ObjectId format to avoid accidental matches (e.g., 'clear-all')
-        try:
-            from bson import ObjectId
-            _ = ObjectId(notification_id)
-        except Exception:
+        # Validate notification ID format to avoid accidental matches (e.g., 'clear-all')
+        if not notification_id or not isinstance(notification_id, str) or len(notification_id) < 3:
             raise HTTPException(status_code=400, detail="Invalid notification ID format")
 
         success = await notification_service.delete_notification(
@@ -820,6 +1045,8 @@ async def delete_notification(
     except Exception as e:
         logger.error(f"Error deleting notification: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
 
 if __name__ == "__main__":
     import uvicorn

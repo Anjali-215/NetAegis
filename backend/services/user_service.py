@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime
-from models.user import UserCreate, UserResponse, UserInDB
+from models.user import UserCreate, UserResponse, UserInDB, AdminUserCreate
 from utils.auth import get_password_hash, verify_password
 from typing import Optional
 import logging
@@ -35,6 +35,38 @@ class UserService:
             "company": user.company,
             "email": user.email,
             "role": user.role,
+            "hashed_password": hashed_password,
+            "created_at": datetime.utcnow(),
+            "is_active": False  # Set to inactive until password is set
+        }
+        
+        result = await self.collection.insert_one(user_dict)
+        user_dict["_id"] = result.inserted_id
+        
+        return UserResponse(**user_dict)
+
+    async def create_user_without_password(self, user_data) -> UserResponse:
+        """Create user without password for admin user creation"""
+        # Check if user already exists
+        existing_user = await self.collection.find_one({"email": user_data.email})
+        if existing_user:
+            raise ValueError("User with this email already exists")
+        
+        # Generate temporary password
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        temp_password = ''.join(secrets.choice(alphabet) for _ in range(32))
+        
+        # Hash password and create user
+        hashed_password = get_password_hash(temp_password)
+        
+        # Create user document
+        user_dict = {
+            "name": user_data.name,
+            "company": user_data.company,
+            "email": user_data.email,
+            "role": user_data.role,
             "hashed_password": hashed_password,
             "created_at": datetime.utcnow(),
             "is_active": False  # Set to inactive until password is set

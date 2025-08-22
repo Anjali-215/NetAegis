@@ -10,7 +10,7 @@ import string
 async def get_db():
     return await get_database()
 from services.user_service import UserService
-from models.user import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset, PasswordResetToken
+from models.user import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset, PasswordResetToken, AdminUserCreate
 from utils.auth import create_access_token, verify_token
 from utils.email_service import EmailService
 from config import settings
@@ -341,17 +341,33 @@ async def register(
     database: AsyncIOMotorDatabase = Depends(get_db)
 ):
     try:
+        # Log the received user data for debugging
+        print(f"Registration attempt - Received user data: {user}")
+        
         user_service = UserService(database)
         # Force role to 'admin' for all new registrations
         user_data = user.model_copy(update={"role": "admin"})
+        print(f"Registration attempt - Modified user data: {user_data}")
+        
         created_user = await user_service.create_user(user_data)
+        print(f"Registration successful - Created user: {created_user}")
         
         # Return only user data, no token
         return created_user
     except ValueError as e:
+        print(f"Registration failed - ValueError: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+    except Exception as e:
+        print(f"Registration failed - Unexpected error: {e}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
         )
 
 @router.post("/login", response_model=Token)
@@ -359,37 +375,69 @@ async def login(
     user_credentials: UserLogin,
     database: AsyncIOMotorDatabase = Depends(get_db)
 ):
-    user_service = UserService(database)
-    user = await user_service.authenticate_user(user_credentials.email, user_credentials.password)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        # Basic email format validation
+        if not user_credentials.email or '@' not in user_credentials.email:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Please enter a valid email address."
+            )
+        
+        # Check if password is provided
+        if not user_credentials.password:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Password is required."
+            )
+        
+        user_service = UserService(database)
+        user = await user_service.authenticate_user(user_credentials.email, user_credentials.password)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password. Please check your credentials and try again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Check if user account is active
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is not active. Please check your email for activation instructions.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Update last login timestamp
+        await user_service.update_last_login(user_credentials.email)
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+        access_token = create_access_token(
+            data={"sub": user.email}, expires_delta=access_token_expires
         )
-    
-    # Update last login timestamp
-    await user_service.update_last_login(user_credentials.email)
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    
-    # Convert UserInDB to UserResponse for response
-    user_response = UserResponse(
-        id=user.id,
-        name=user.name,
-        company=user.company,
-        email=user.email,
-        role=user.role,
-        created_at=user.created_at,
-        is_active=user.is_active
-    )
-    
-    return Token(access_token=access_token, user=user_response)
+        
+        # Convert UserInDB to UserResponse for response
+        user_response = UserResponse(
+            id=user.id,
+            name=user.name,
+            company=user.company,
+            email=user.email,
+            role=user.role,
+            created_at=user.created_at,
+            is_active=user.is_active
+        )
+        
+        return Token(access_token=access_token, user=user_response)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during login. Please try again later."
+        )
 
 @router.post("/forgot-password")
 async def forgot_password(
@@ -635,7 +683,7 @@ async def atlas_reset_password(
 
 @router.post("/admin/add_user", response_model=UserResponse)
 async def admin_add_user(
-    user: UserCreate = Body(...),
+    user: AdminUserCreate = Body(...),
     database: AsyncIOMotorDatabase = Depends(get_db),
     admin_user: UserResponse = Depends(require_admin)
 ):
@@ -643,7 +691,8 @@ async def admin_add_user(
     user_data = user.model_copy(update={"role": "user", "company": admin_user.company})
     try:
         user_service = UserService(database)
-        created_user = await user_service.create_user(user_data)
+        # Create user without password - backend will generate a temporary one
+        created_user = await user_service.create_user_without_password(user_data)
 
         # Send a secure password setup link (one-time reset token) instead of emailing a plaintext password
         try:

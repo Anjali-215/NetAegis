@@ -31,7 +31,7 @@ class EmailService:
         Send password reset email to user
         """
         try:
-            subject = "🔐 NetAegis Password Reset Request"
+            subject = "NetAegis Password Reset Request"
             
             html_content = self._create_password_reset_html(user_name, reset_link, atlas_link)
             
@@ -55,7 +55,7 @@ class EmailService:
         Send welcome email to new user added by admin
         """
         try:
-            subject = "🎉 Welcome to NetAegis - Your Account is Ready!"
+            subject = "Welcome to NetAegis - Your Account is Ready!"
             
             html_content = self._create_welcome_html(user_name, company_name, admin_name, setup_link, atlas_link)
             
@@ -78,20 +78,6 @@ class EmailService:
         """
         Create HTML email template for password reset
         """
-        atlas_section = ""
-        if atlas_link:
-            atlas_section = f"""
-            <div style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0;">
-                <h4 style="color: #1976d2; margin: 0 0 10px 0;">🔄 Alternative Reset Method</h4>
-                <p style="color: #1976d2; margin: 0 0 10px 0; font-weight: bold;">Direct Database Reset (Development/Testing)</p>
-                <p style="color: #1976d2; margin: 0 0 15px 0;">If the main reset link doesn't work, you can use this direct link to reset your password in the database:</p>
-                <div style="text-align: center;">
-                    <a href="{atlas_link}" style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Reset Password (Direct)</a>
-                </div>
-                <p style="color: #1976d2; margin: 10px 0 0 0; font-size: 12px;">This link works even when the main website is not hosted.</p>
-            </div>
-            """
-        
         html_template = f"""
         <!DOCTYPE html>
         <html>
@@ -167,7 +153,7 @@ class EmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>🔐 Password Reset</h1>
+                    <h1>Password Reset</h1>
                     <p>NetAegis Security System</p>
                 </div>
                 
@@ -175,9 +161,9 @@ class EmailService:
                     <p>Dear <strong>{user_name}</strong>,</p>
                     
                     <div class="reset-box">
-                        <h3>🗄️ Atlas Password Reset Request</h3>
+                        <h3>Password Reset Request</h3>
                         <p>We received a request to reset your password for your NetAegis account. 
-                        This link will take you to our secure password reset page where you can update your password directly in MongoDB Atlas.</p>
+                        This link will take you to our secure password reset page where you can create a new password for your account.</p>
                     </div>
                     
                     <p>To reset your password, click the button below:</p>
@@ -186,14 +172,13 @@ class EmailService:
                         <a href="{reset_link}" class="button">Reset Password</a>
                     </div>
                     
-                    {atlas_section}
-                    
                     <div class="warning">
-                        <strong>⚠️ Important:</strong>
+                        <strong>Important:</strong>
                         <ul>
                             <li>This link will expire in 1 hour for security reasons</li>
                             <li>If you didn't request this password reset, please ignore this email</li>
                             <li>For security, this link can only be used once</li>
+                            <li>Your new password must be at least 6 characters long, including uppercase, number, and special character</li>
                         </ul>
                     </div>
                     
@@ -218,19 +203,7 @@ class EmailService:
         """
         Create HTML email template for welcome email
         """
-        atlas_section = ""
-        if atlas_link:
-            atlas_section = f"""
-            <div style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0;">
-                <h4 style="color: #1976d2; margin: 0 0 10px 0;">🔄 Alternative Setup Method</h4>
-                <p style="color: #1976d2; margin: 0 0 10px 0; font-weight: bold;">Direct Database Setup (Development/Testing)</p>
-                <p style="color: #1976d2; margin: 0 0 15px 0;">If the main setup link doesn't work, you can use this direct link to set your password in the database:</p>
-                <div style="text-align: center;">
-                    <a href="{atlas_link}" style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Set Password (Direct)</a>
-                </div>
-                <p style="color: #1976d2; margin: 10px 0 0 0; font-size: 12px;">This link works even when the main website is not hosted.</p>
-            </div>
-            """
+        # Atlas section removed for professional appearance
         
         html_template = f"""
         <!DOCTYPE html>
@@ -327,7 +300,6 @@ class EmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="welcome-icon">🎉</div>
                     <h1>Welcome to NetAegis</h1>
                     <p>Your Account is Ready!</p>
                 </div>
@@ -336,31 +308,31 @@ class EmailService:
                     <p>Dear <strong>{user_name}</strong>,</p>
                     
                     <div class="welcome-box">
-                        <h3>🚀 Welcome to the World of Security!</h3>
+                        <h3>Welcome to the World of Security!</h3>
                         <p>Your company <strong>{company_name}</strong> administrator <strong>{admin_name}</strong> has added you to NetAegis, our advanced network security platform.</p>
                         <p>You're now part of a team dedicated to protecting digital assets and maintaining robust cybersecurity defenses.</p>
                     </div>
                     
                     <div class="features">
-                        <h3>🔒 What NetAegis Offers You:</h3>
+                        <h3>What NetAegis Offers You:</h3>
                         <div class="feature-item">
-                            <span class="feature-icon">🛡️</span>
+                            <span class="feature-icon">•</span>
                             <span><strong>Advanced Threat Detection:</strong> AI-powered analysis of network traffic</span>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-icon">📊</span>
+                            <span class="feature-icon">•</span>
                             <span><strong>Real-time Monitoring:</strong> Live security dashboards and alerts</span>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-icon">📈</span>
+                            <span class="feature-icon">•</span>
                             <span><strong>Comprehensive Reports:</strong> Detailed security analytics and insights</span>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-icon">🤖</span>
+                            <span class="feature-icon">•</span>
                             <span><strong>AI Chatbot:</strong> Intelligent security assistance and threat analysis</span>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-icon">📁</span>
+                            <span class="feature-icon">•</span>
                             <span><strong>File Analysis:</strong> Upload and analyze network data for threats</span>
                         </div>
                     </div>
@@ -372,13 +344,11 @@ class EmailService:
                         <a href="{setup_link}" class="button">Set Your Password</a>
                     </div>
                     
-                    {atlas_section}
-                    
                     <div class="security-note">
-                        <strong>🔐 Security Note:</strong>
+                        <strong>Security Note:</strong>
                         <ul>
                             <li>This setup link will expire in 1 hour for security reasons</li>
-                            <li>Choose a strong password with at least 6 characters</li>
+                            <li>Choose a strong password with at least 6 characters, including uppercase, number, and special character</li>
                             <li>Your account is secure and ready for immediate use</li>
                         </ul>
                     </div>
@@ -405,7 +375,7 @@ class EmailService:
         """
         try:
             # Create email template
-            subject = "🚨 Security Alert: Threat Detected in Your Network"
+            subject = "Security Alert: Threat Detected in Your Network"
             
             # Create detailed message based on threat type
             threat_type = threat_details.get('threat_type', 'Unknown')
@@ -544,7 +514,6 @@ class EmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="alert-icon">🚨</div>
                     <h1>Security Alert</h1>
                     <p>NetAegis Threat Detection System</p>
                 </div>
@@ -553,7 +522,7 @@ class EmailService:
                     <p>Dear <strong>{user_name}</strong>,</p>
                     
                     <div class="alert-box">
-                        <div class="alert-title">⚠️ Threat Detected</div>
+                        <div class="alert-title">Threat Detected</div>
                         <p>Our security system has detected a potential threat in your network analysis. 
                         Please review the details below and take appropriate action.</p>
                     </div>
@@ -605,7 +574,7 @@ class EmailService:
         Send general security alert email
         """
         try:
-            subject = "🔒 NetAegis Security Alert"
+            subject = "NetAegis Security Alert"
             
             html_content = f"""
             <!DOCTYPE html>
@@ -624,7 +593,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🔒 Security Alert</h1>
+                        <h1>Security Alert</h1>
                         <p>NetAegis Security System</p>
                     </div>
                     <div class="content">
@@ -663,9 +632,9 @@ class EmailService:
             # Determine subject based on threat detection
             threat_count = summary_data.get('threat_count', 0)
             if threat_count > 0:
-                subject = "🚨 SECURITY ALERT: Threats Detected in CSV Analysis"
+                subject = "Security Alert: Threats Detected in CSV Analysis"
             else:
-                subject = "✅ NetAegis CSV Analysis Complete - No Threats Found"
+                subject = "NetAegis CSV Analysis Complete - No Threats Found"
             
             # Extract summary data
             total_records = summary_data.get('total_records', 0)
@@ -788,7 +757,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>{'🚨 Security Alert' if threat_count > 0 else '📊 Analysis Complete'}</h1>
+                        <h1>{'Security Alert' if threat_count > 0 else 'Analysis Complete'}</h1>
                         <p>NetAegis Threat Detection System</p>
                     </div>
                     
@@ -796,7 +765,7 @@ class EmailService:
                         <p>Dear <strong>{user_name}</strong>,</p>
                         
                         <div class="summary-box">
-                            <h3>{'🚨 Threats Detected' if threat_count > 0 else '✅ Analysis Complete'}</h3>
+                            <h3>{'Threats Detected' if threat_count > 0 else 'Analysis Complete'}</h3>
                             <p>Your CSV file <strong>"{file_name}"</strong> has been successfully analyzed by our threat detection system.</p>
                         </div>
                         
@@ -816,11 +785,11 @@ class EmailService:
                         </div>
                         
                         <div class="threat-box" style="background-color: {'#ffebee' if threat_count > 0 else '#fff3cd'}; border-color: {'#f44336' if threat_count > 0 else '#ffeaa7'};">
-                            <h3>{'🚨 Threat Analysis Results' if threat_count > 0 else '🔍 Threat Analysis Results'}</h3>
+                            <h3>{'Threat Analysis Results' if threat_count > 0 else 'Threat Analysis Results'}</h3>
                             <p>{threat_summary}</p>
                         </div>
                         
-                        {f'<div style="background-color: #ffebee; border: 2px solid #f44336; border-radius: 6px; padding: 15px; margin: 20px 0;"><h4 style="color: #d32f2f; margin: 0 0 10px 0;">⚠️ IMMEDIATE ACTION REQUIRED</h4><p style="color: #d32f2f; margin: 0; font-weight: bold;">{threat_count} threat(s) detected in your network data. Please review immediately.</p></div>' if threat_count > 0 else ''}
+                        {f'<div style="background-color: #ffebee; border: 2px solid #f44336; border-radius: 6px; padding: 15px; margin: 20px 0;"><h4 style="color: #d32f2f; margin: 0 0 10px 0;">IMMEDIATE ACTION REQUIRED</h4><p style="color: #d32f2f; margin: 0; font-weight: bold;">{threat_count} threat(s) detected in your network data. Please review immediately.</p></div>' if threat_count > 0 else ''}
                         <p><strong>Next Steps:</strong></p>
                         <ul>
                             <li>Review detailed results in your NetAegis dashboard</li>
