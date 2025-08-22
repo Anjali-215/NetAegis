@@ -78,11 +78,10 @@ const pricingPlans = [
     },
     features: [
       'Up to 5 users',
-      'Threat detection',
-      '1GB log storage',
-      'Email support',
-      'Standard reports',
-      '24/7 support'
+      'ML-based threat detection',
+      'CSV upload up to 100 records',
+      'No email alerts',
+      'Detection log storage up to 1GB'
     ],
     buttonText: 'Get Started',
     buttonVariant: 'secondary',
@@ -100,13 +99,10 @@ const pricingPlans = [
     },
     features: [
       'Up to 25 users',
-      'Threat detection',
-      '10GB log storage',
-      'Priority support',
-      'Standard reports',
-      '24/7 support',
-      'Custom reports',
-      'Real-time alerts'
+      'ML-based threat detection',
+      'CSV upload up to 500 records',
+      'Email alerts supported',
+      'Detection log storage up to 5GB'
     ],
     buttonText: 'Start Free Trial',
     buttonVariant: 'primary',
@@ -148,7 +144,7 @@ function getPricingFeatureIcon(feature) {
 const faqs = [
   {
     question: 'What is included in the Starter and Pro plans?',
-    answer: 'Both plans include threat detection, log storage, reports, and 24/7 support. The Pro plan offers more users, storage, and advanced features.'
+    answer: 'Both plans include ML-based threat detection and standard reports. Starter plan offers up to 5 users, 100 CSV records, 1GB storage with no email alerts. Pro plan offers up to 25 users, 500 CSV records, 5GB storage with email alerts and real-time monitoring.'
   },
   {
     question: 'Can I upgrade or downgrade my plan later?',

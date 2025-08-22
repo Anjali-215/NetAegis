@@ -61,13 +61,10 @@ const SubscriptionManagement = () => {
     status: 'inactive',
     features: [
       'Up to 25 users',
-      'Threat detection',
-      '10GB log storage',
-      'Priority support',
-      'Standard reports',
-      '24/7 support',
-      'Custom reports',
-      'Real-time alerts'
+      'ML-based threat detection',
+      'CSV upload up to 500 records',
+      'Email alerts supported',
+      'Detection log storage up to 5GB'
     ]
   };
 
@@ -79,11 +76,10 @@ const SubscriptionManagement = () => {
       yearlyPrice: 4999,
       features: [
         'Up to 5 users',
-        'Threat detection',
-        '1GB log storage',
-        'Email support',
-        'Standard reports',
-        '24/7 support'
+        'ML-based threat detection',
+        'CSV upload up to 100 records',
+        'No email alerts',
+        'Detection log storage up to 1GB'
       ],
       popular: false
     },
@@ -94,13 +90,10 @@ const SubscriptionManagement = () => {
       yearlyPrice: 19999,
       features: [
         'Up to 25 users',
-        'Threat detection',
-        '10GB log storage',
-        'Priority support',
-        'Standard reports',
-        '24/7 support',
-        'Custom reports',
-        'Real-time alerts'
+        'ML-based threat detection',
+        'CSV upload up to 500 records',
+        'Email alerts supported',
+        'Detection log storage up to 5GB'
       ],
       popular: true
     }
