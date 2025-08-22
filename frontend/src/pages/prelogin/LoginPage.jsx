@@ -29,6 +29,13 @@ export default function LoginPage() {
       setError('Please enter both email and password.');
       return;
     }
+    
+    // Basic email format validation
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    
     setError('');
     setLoading(true);
     try {
@@ -47,7 +54,9 @@ export default function LoginPage() {
         navigate('/user/dashboard');
       }
     } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

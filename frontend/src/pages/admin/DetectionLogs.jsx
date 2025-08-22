@@ -34,7 +34,6 @@ import {
 import {
   Search,
   FilterList,
-  Download,
   Refresh,
   Visibility,
   Security,
@@ -166,10 +165,7 @@ const DetectionLogs = () => {
     setPage(0);
   };
 
-  const handleExportLogs = () => {
-    // Simulate export functionality
-    alert('Exporting detection logs...');
-  };
+
 
   const handleRefreshLogs = () => {
     loadMLResults();
@@ -256,19 +252,7 @@ const DetectionLogs = () => {
           >
             Refresh
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<Download />}
-            onClick={handleExportLogs}
-            sx={{ 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
-              }
-            }}
-          >
-            Export Logs
-          </Button>
+
         </Box>
       </Box>
 

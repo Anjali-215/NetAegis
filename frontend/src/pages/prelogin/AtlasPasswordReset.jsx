@@ -62,7 +62,17 @@ export default function AtlasPasswordReset() {
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setError('Password must be at least 6 characters long and contain uppercase, number, and special character.');
+      return;
+    }
+    
+    // Validate password complexity (uppercase, number, special character)
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    
+    if (!hasUppercase || !hasNumber || !hasSpecialChar) {
+      setError('Password must be at least 6 characters long and contain uppercase, number, and special character.');
       return;
     }
     

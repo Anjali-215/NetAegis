@@ -36,6 +36,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState('');
   const [cardDetails, setCardDetails] = useState({
     number: '',
     name: '',
@@ -50,17 +51,8 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
   const isAdmin = userInfo?.role === 'admin';
   const isLoggedIn = !!userInfo;
 
-  // Only check admin role if user is logged in (for admin pages)
-  // If not logged in (prelogin page), allow payment dialog to stay open
-  React.useEffect(() => {
-    if (open && isLoggedIn && !isAdmin) {
-      setError('Only company admins can manage subscriptions. Please contact your administrator.');
-      setTimeout(() => {
-        onClose();
-        setError(null);
-      }, 3000);
-    }
-  }, [open, isLoggedIn, isAdmin, onClose]);
+  // Remove admin role check for prelogin page - allow anyone to open subscription dialog
+  // Admin validation will happen during the actual payment process
 
   // Reset form when dialog opens
   React.useEffect(() => {
@@ -68,6 +60,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
       setActiveStep(0);
       setPaymentMethod('card');
       setError(null);
+      setSuccess('');
       setCardDetails({
         number: '',
         name: '',
@@ -76,6 +69,28 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         username: '',
         upiId: ''
       });
+    }
+  }, [open]);
+
+  // Reset form when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        setActiveStep(0);
+        setPaymentMethod('card');
+        setError(null);
+        setSuccess('');
+        setCardDetails({
+          number: '',
+          name: '',
+          expiry: '',
+          cvv: '',
+          username: '',
+          upiId: ''
+        });
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
@@ -106,6 +121,10 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         }
         value = value.slice(0, 5); // Limit to MM/YY format
         break;
+      case 'name':
+        // Only allow alphabets and spaces
+        value = value.replace(/[^a-zA-Z\s]/g, '');
+        break;
       default:
         break;
     }
@@ -128,6 +147,128 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         return;
       }
 
+      // Validate admin email against database
+      try {
+        console.log('Validating admin email:', cardDetails.username);
+        
+        // First test if backend is accessible
+        const testResponse = await fetch('http://localhost:8000/api/test');
+        if (!testResponse.ok) {
+          setError('Backend server is not accessible. Please try again later.');
+          return;
+        }
+        
+        // Try simple endpoint first (guaranteed to work)
+        let adminValidated = false;
+        let validationMessage = '';
+        
+        try {
+          console.log('🔧 Trying simple admin validation endpoint...');
+          const response = await fetch('http://localhost:8000/simple-validate-admin', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: cardDetails.username })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('🔧 Simple endpoint response:', data);
+            
+            if (data.isAdmin) {
+              // Simple endpoint worked, proceed
+              console.log('✅ Simple endpoint successful:', data);
+              adminValidated = true;
+              validationMessage = data.message;
+            } else {
+              // Show specific error message from backend
+              adminValidated = false;
+              validationMessage = data.message;
+            }
+          } else {
+            console.log('🔧 Simple endpoint failed, trying original...');
+            // Try the original endpoint
+            const fallbackResponse = await fetch('http://localhost:8000/api/auth/validate-admin', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email: cardDetails.username })
+            });
+            
+            if (fallbackResponse.ok) {
+              const fallbackData = await fallbackResponse.json();
+              console.log('✅ Fallback endpoint response:', fallbackData);
+              
+              if (fallbackData.isAdmin) {
+                adminValidated = true;
+                validationMessage = fallbackData.message;
+              } else {
+                adminValidated = false;
+                validationMessage = fallbackData.message;
+              }
+            } else {
+              const errorData = await fallbackResponse.json().catch(() => ({}));
+              console.log('❌ Fallback endpoint error:', errorData);
+              adminValidated = false;
+              validationMessage = errorData.detail || `Server error: ${fallbackResponse.status}`;
+            }
+          }
+        } catch (fetchError) {
+          console.error('🔧 Fetch error with simple endpoint:', fetchError);
+          // Fallback to original endpoint
+          try {
+            const fallbackResponse = await fetch('http://localhost:8000/api/auth/validate-admin', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email: cardDetails.username })
+            });
+            
+            if (fallbackResponse.ok) {
+              const fallbackData = await fallbackResponse.json();
+              console.log('✅ Fallback endpoint response:', fallbackData);
+              
+              if (fallbackData.isAdmin) {
+                adminValidated = true;
+                validationMessage = fallbackData.message;
+              } else {
+                adminValidated = false;
+                validationMessage = fallbackData.message;
+              }
+            } else {
+              const errorData = await fallbackResponse.json().catch(() => ({}));
+              console.log('❌ Fallback endpoint error:', errorData);
+              adminValidated = false;
+              validationMessage = errorData.detail || `Server error: ${fallbackResponse.status}`;
+            }
+          } catch (fallbackError) {
+            console.error('❌ Fallback endpoint also failed:', fallbackError);
+            adminValidated = false;
+            validationMessage = `Network error: ${fallbackError.message}. Please check if backend is running.`;
+          }
+        }
+
+        // Now handle the result based on validation
+        if (adminValidated) {
+          setSuccess('✅ Admin email verified successfully!');
+          setError(null); // Clear any previous errors
+          console.log('✅ Admin validation successful:', validationMessage);
+        } else {
+          setError(validationMessage || 'Email validation failed');
+          setSuccess(''); // Clear any previous success
+          console.log('❌ Admin validation failed:', validationMessage);
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Unexpected error during admin validation:', error);
+        setError(`Unexpected error: ${error.message}. Please try again.`);
+        setSuccess(''); // Clear any previous success
+        return;
+      }
+
       // Validate card-specific fields if card payment is selected
       if (paymentMethod === 'card') {
         if (!cardDetails.number || !cardDetails.name || !cardDetails.expiry || !cardDetails.cvv) {
@@ -135,21 +276,24 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
           return;
         }
         
-        // Validate card number length
-        if (cardDetails.number.length !== 16) {
+        if (cardDetails.number.length !== 16 || !/^\d{16}$/.test(cardDetails.number)) {
           setError('Card number must be 16 digits');
           return;
         }
         
-        // Validate CVV length
-        if (cardDetails.cvv.length !== 3) {
+        if (cardDetails.cvv.length !== 3 || !/^\d{3}$/.test(cardDetails.cvv)) {
           setError('CVV must be 3 digits');
           return;
         }
         
-        // Validate expiry format
         if (!/^\d{2}\/\d{2}$/.test(cardDetails.expiry)) {
           setError('Expiry date must be in MM/YY format');
+          return;
+        }
+        
+        // Validate name on card (only alphabets and spaces)
+        if (!cardDetails.name || !/^[a-zA-Z\s]+$/.test(cardDetails.name)) {
+          setError('Name on card must contain only letters and spaces');
           return;
         }
       }
@@ -161,7 +305,6 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
           return;
         }
         
-        // Validate UPI ID contains @ symbol
         if (!cardDetails.upiId.includes('@')) {
           setError('UPI ID must contain @ symbol');
           return;
@@ -195,6 +338,11 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
         }
 
         setActiveStep(activeStep + 1);
+        
+        // Auto-close dialog after successful payment (with delay for user to see success)
+        setTimeout(() => {
+          onClose();
+        }, 3000);
       } catch (err) {
         setError(err.message || 'Payment failed. Please try again.');
         console.error('Payment error:', err);
@@ -207,8 +355,21 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
   };
 
   const handleBack = () => {
+    // Reset all form data and messages when going back
     setActiveStep(activeStep - 1);
+    setError(null);
+    setSuccess('');
+    setCardDetails({
+      number: '',
+      name: '',
+      expiry: '',
+      cvv: '',
+      username: '',
+      upiId: ''
+    });
   };
+
+
 
   const getStepContent = (step) => {
     switch (step) {
@@ -354,6 +515,8 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                     label="Name on Card"
                     value={cardDetails.name}
                     onChange={handleCardDetailsChange('name')}
+                    placeholder="Cardholder Name"
+                    helperText="Only letters and spaces allowed"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: 'white',
@@ -445,6 +608,9 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
                 </Grid>
               </Grid>
             )}
+
+
+
             {paymentMethod === 'upi' && (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -522,9 +688,23 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
             <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
               Payment Successful!
             </Typography>
-            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
               Your subscription has been activated. You can now access all {plan?.name} features.
             </Typography>
+            <Button
+              variant="outlined"
+              onClick={onClose}
+              sx={{
+                color: '#4caf50',
+                borderColor: '#4caf50',
+                '&:hover': {
+                  borderColor: '#45a049',
+                  backgroundColor: 'rgba(76, 175, 80, 0.1)'
+                }
+              }}
+            >
+              Close
+            </Button>
           </Box>
         );
       default:
@@ -533,11 +713,11 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={activeStep === steps.length - 1 ? onClose : undefined}
-      maxWidth="sm"
-      fullWidth
+          <Dialog 
+        open={open} 
+        onClose={onClose}
+        maxWidth="sm"
+        fullWidth
       PaperProps={{
         sx: {
           background: '#000000',
@@ -644,6 +824,25 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
           </Alert>
         )}
 
+        {success && (
+          <Alert 
+            severity="success" 
+            sx={{ 
+              mt: 2,
+              backgroundColor: 'rgba(0, 255, 0, 0.1)',
+              color: 'white',
+              '& .MuiAlert-icon': {
+                color: '#00ff00'
+              },
+              border: '1px solid #00ff00'
+            }}
+          >
+            {success}
+          </Alert>
+        )}
+
+
+
         {getStepContent(activeStep)}
 
       </DialogContent>
@@ -684,6 +883,7 @@ const PaymentGateway = ({ open, onClose, plan, billingPeriod }) => {
             onClick={() => {
               const userInfo = JSON.parse(localStorage.getItem('user') || 'null');
               const dashboardPath = userInfo?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard';
+              onClose(); // Close dialog first
               navigate(dashboardPath);
             }}
             variant="contained"

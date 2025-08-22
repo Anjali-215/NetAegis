@@ -303,16 +303,59 @@ class ApiService {
     }
   }
   async register(userData) {
-    return this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    });
+    console.log('ApiService - Register called with:', userData);
+    console.log('ApiService - Register data type:', typeof userData);
+    console.log('ApiService - Register data stringified:', JSON.stringify(userData));
+    
+    try {
+      const response = await api.post('/auth/register', userData);
+      console.log('ApiService - Register success:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('ApiService - Register error:', error);
+      console.error('ApiService - Register error response:', error.response?.data);
+      console.error('ApiService - Register error status:', error.response?.status);
+      throw error;
+    }
   }
   async login(credentials) {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials)
-    });
+    try {
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      console.error('API Service - Login error:', error);
+      
+      // Handle different types of errors
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status;
+        const detail = error.response.data?.detail;
+        
+        if (status === 401) {
+          // Authentication failed
+          if (detail && detail.includes('Incorrect email or password')) {
+            throw new Error('Incorrect email or password. Please check your credentials and try again.');
+          } else {
+            throw new Error('Authentication failed. Please check your email and password.');
+          }
+        } else if (status === 422) {
+          // Validation error
+          throw new Error(detail || 'Invalid input. Please check your email format.');
+        } else if (status === 500) {
+          // Server error
+          throw new Error('Server error. Please try again later.');
+        } else {
+          // Other errors
+          throw new Error(detail || 'Login failed. Please try again.');
+        }
+      } else if (error.request) {
+        // Network error
+        throw new Error('Network error. Please check your connection and try again.');
+      } else {
+        // Other errors
+        throw new Error('Login failed. Please try again.');
+      }
+    }
   }
   async forgotPassword(email) {
     return this.request('/auth/forgot-password', {

@@ -7,7 +7,6 @@ import InputField from '../../components/InputField';
 import apiService from '../../services/api';
 import './AuthPage.css';
 import gsap from 'gsap';
-import NetworkAnimation from '../../components/HeroNetworkAnimation';
 import { ArrowBack } from '@mui/icons-material';
 import mainlogo from '../../assets/mainlogo.svg';
 
@@ -34,28 +33,68 @@ export default function SignupPage() {
 
   const handleSubmit = async e => {
     e.preventDefault();
+    
+    // Frontend validation before API call
     if (!form.name || !form.company || !form.email || !form.password || !form.confirm) {
       setError('Please fill in all fields.');
       return;
     }
+    
+    // Validate password requirements (length + complexity)
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters long and contain uppercase, number, and special character.');
+      return;
+    }
+    
+    const hasUppercase = /[A-Z]/.test(form.password);
+    const hasNumber = /[0-9]/.test(form.password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(form.password);
+    
+    if (!hasUppercase || !hasNumber || !hasSpecialChar) {
+      setError('Password must be at least 6 characters long and contain uppercase, number, and special character.');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    
+    // Validate name and company length (minimum 2 characters)
+    if (form.name.length < 2) {
+      setError('Name must be at least 2 characters long.');
+      return;
+    }
+    
+    if (form.company.length < 2) {
+      setError('Company name must be at least 2 characters long.');
+      return;
+    }
+    
     if (form.password !== form.confirm) {
       setError('Passwords do not match.');
       return;
     }
+    
     setError('');
     setLoading(true);
     try {
+      // Ensure all fields have values and trim whitespace
       const userData = {
-        name: form.name,
-        company: form.company,
-        email: form.email,
+        name: form.name.trim(),
+        company: form.company.trim(),
+        email: form.email.trim(),
         password: form.password
       };
+      
       await apiService.register(userData);
       setError('');
       alert('Account created successfully! Please login with your credentials.');
       navigate('/login');
     } catch (error) {
+      console.error('SignupPage - Registration error:', error);
       setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -64,10 +103,10 @@ export default function SignupPage() {
 
   return (
     <div className="auth-page login-bg" ref={pageRef} style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-      {/* Network animation as background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+      {/* Network animation as background - temporarily removed to fix crash */}
+      {/* <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
         <NetworkAnimation />
-      </div>
+      </div> */}
       {/* Back to Home Button */}
       <Button
         variant="outlined"
@@ -126,6 +165,7 @@ export default function SignupPage() {
             <Button variant="primary" type="submit" style={{ width: '100%' }} disabled={loading}>
               {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
+            
             <div className="auth-switch-link">
               <span>Already have an account? </span>
               <a href="/login">Login</a>

@@ -3,7 +3,7 @@ import Papa from 'papaparse';
 import api, { testMLPrediction, checkApiHealth, predictThreatNoEmail, saveCSVFile, deleteSavedCSVFile, saveVisualization, saveMLResults, sendCSVSummaryEmail } from '../../services/api';
 import apiService from '../../services/api';
 import { preprocessNetworkData, detectColumnMappings } from '../../utils/preprocessor';
-import ReportGenerator from '../../components/ReportGenerator';
+
 import {
   Box,
   Container,
@@ -68,11 +68,11 @@ const CSVUpload = () => {
     const [apiStatus, setApiStatus] = useState('checking');
     const [predictionResults, setPredictionResults] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
+    const [resultsDialog, setResultsDialog] = useState({ open: false, results: null, file: null });
     const [activeTab, setActiveTab] = useState(0);
     const [jsonData, setJsonData] = useState('');
-    const [showReportGenerator, setShowReportGenerator] = useState(false);
-    const [userProfile, setUserProfile] = useState(null);
+  
+  
     const [manualEntryDialog, setManualEntryDialog] = useState({ open: false, data: {} });
     const [singlePredictionDialog, setSinglePredictionDialog] = useState({ open: false, result: null });
     const [columnMappingDialog, setColumnMappingDialog] = useState(false);
@@ -442,15 +442,15 @@ const CSVUpload = () => {
             // Don't show error to user, just log it
           }
           
-          // Show success message
-          alert(`ML processing completed! Results saved to database.\n\nProcessed: ${processedRecords} records\nFailed: ${failedRecords} records\nDuration: ${processingDuration.toFixed(2)} seconds\n\nA summary email has been sent to your registered email address.`);
-          
-        } catch (dbError) {
-          console.error('Error saving to database:', dbError);
-          alert('ML processing completed, but failed to save to database: ' + dbError.message);
-        }
+                  // Show success message
+        alert(`ML processing completed! Results saved to database.\n\nProcessed: ${processedRecords} records\nFailed: ${failedRecords} records\nDuration: ${processingDuration.toFixed(2)} seconds\n\nA summary email has been sent to your registered email address.`);
         
-        setResultsDialog({ open: true, results: results });
+      } catch (dbError) {
+        console.error('Error saving to database:', dbError);
+        alert('ML processing completed, but failed to save to database: ' + dbError.message);
+      }
+      
+      setResultsDialog({ open: true, results: results, file: file });
 
         // If processedData is not empty, send it to the backend for storage
         if (processedData.length > 0) {
@@ -689,7 +689,7 @@ const CSVUpload = () => {
         setJsonData('');
         
         // Show results dialog (same as CSV upload)
-        setResultsDialog({ open: true, results: results });
+        setResultsDialog({ open: true, results: results, file: { name: 'JSON Data', size: 'N/A', uploadDate: new Date().toISOString(), records: results.length } });
         
       } catch (error) {
         alert('Invalid JSON format: ' + error.message);
@@ -1125,29 +1125,7 @@ Multiple records: [record1, record2, ...]`}
           </Box>
         )}
 
-        {/* Report Generator */}
-        {showReportGenerator && (
-          <Box sx={{ mt: 4 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5" gutterBottom>
-                Generate Threat Analysis Report
-              </Typography>
-              <Button
-                variant="outlined"
-                onClick={() => setShowReportGenerator(false)}
-              >
-                Close Report Generator
-              </Button>
-            </Box>
-            <ReportGenerator 
-              onReportGenerated={(reportData) => {
-                setShowReportGenerator(false);
-                // You can add additional logic here
-              }}
-              userProfile={userProfile}
-            />
-          </Box>
-        )}
+
 
         {/* File Preview Dialog */}
         <Dialog 
@@ -1203,8 +1181,7 @@ Multiple records: [record1, record2, ...]`}
                                 maxWidth: 150,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                color: 'black'  // Ensure text stays black on hover
+                                whiteSpace: 'nowrap'
                               }}
                               title={String(value)}
                             >
@@ -1257,13 +1234,28 @@ Multiple records: [record1, record2, ...]`}
                         <TableCell>Threat Type</TableCell>
                         <TableCell>Threat Level</TableCell>
                         <TableCell>Final Prediction</TableCell>
-                        <TableCell>Email Alert</TableCell>
+
                         <TableCell>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {resultsDialog.results.slice(0, 20).map((result, index) => (
-                        <TableRow key={index}>
+                        <TableRow 
+                          key={index} 
+                          sx={{ 
+                            '&:hover': { 
+                              backgroundColor: 'black', 
+                              color: 'white',
+                              '& .MuiTableCell-root': {
+                                color: 'white'
+                              },
+                              '& .MuiChip-root': {
+                                color: 'white',
+                                backgroundColor: 'rgba(255,255,255,0.2)'
+                              }
+                            }
+                          }}
+                        >
                           <TableCell>{result.row}</TableCell>
                           <TableCell>
                             {result.threatType ? (
@@ -1293,17 +1285,7 @@ Multiple records: [record1, record2, ...]`}
                               : result.error ? 'Error' : '-'
                             }
                           </TableCell>
-                          <TableCell>
-                            {result.threatType && result.threatType !== 'normal' ? (
-                              result.emailSent ? (
-                                <Chip label="Sent" color="success" size="small" />
-                              ) : (
-                                <Chip label="Failed" color="error" size="small" />
-                              )
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
+
                           <TableCell>
                             {result.error ? (
                               <Chip label="Error" color="error" size="small" />
@@ -1326,22 +1308,22 @@ Multiple records: [record1, record2, ...]`}
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setResultsDialog({ open: false, results: null })}>
-              Close
-            </Button>
+                              <Button onClick={() => setResultsDialog({ open: false, results: null, file: null })}>
+                    Close
+                  </Button>
             {resultsDialog.results && resultsDialog.results.length > 0 && (
               <>
                 <Button
                   variant="contained"
                   color="secondary"
                   onClick={() => {
-                    setResultsDialog({ open: false, results: null });
+                    setResultsDialog({ open: false, results: null, file: null });
                     // Save results and fileMeta to localStorage
                     if (resultsDialog.results && resultsDialog.results.length > 0) {
                       localStorage.setItem('lastAdminResults', JSON.stringify(resultsDialog.results));
-                      localStorage.setItem('lastAdminFileMeta', JSON.stringify(selectedFile));
+                      localStorage.setItem('lastAdminFileMeta', JSON.stringify(resultsDialog.file));
                     }
-                    navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: selectedFile } });
+                    navigate('/admin/threat-visualization', { state: { results: resultsDialog.results, fileMeta: resultsDialog.file } });
                   }}
                 >
                   Visualize Results
@@ -1350,22 +1332,12 @@ Multiple records: [record1, record2, ...]`}
                   variant="contained"
                   color="info"
                   onClick={() => {
-                    handleSaveVisualization(resultsDialog.results, selectedFile);
+                    handleSaveVisualization(resultsDialog.results, resultsDialog.file);
                   }}
                 >
                   Save Visualization
                 </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<Assessment />}
-                  onClick={() => {
-                    setResultsDialog({ open: false, results: null });
-                    setShowReportGenerator(true);
-                  }}
-                >
-                  Generate Report
-                </Button>
+
               </>
             )}
           </DialogActions>

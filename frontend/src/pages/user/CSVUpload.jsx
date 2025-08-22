@@ -64,7 +64,7 @@ const UserCSVUpload = () => {
   const [predictionResults, setPredictionResults] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiStatus, setApiStatus] = useState('checking');
-  const [resultsDialog, setResultsDialog] = useState({ open: false, results: null });
+  const [resultsDialog, setResultsDialog] = useState({ open: false, results: null, file: null });
   const [fileMeta, setFileMeta] = useState(null); // {name, size, uploadTime, recordCount}
   const [processingProgress, setProcessingProgress] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
@@ -231,7 +231,7 @@ const UserCSVUpload = () => {
   const handlePreviewFile = (file) => {
     if (file.data) {
       const top5Records = file.data.slice(0, 5);
-      setResultsDialog({ open: true, results: top5Records });
+      setResultsDialog({ open: true, results: top5Records, file: file });
     }
   };
 
@@ -446,7 +446,7 @@ const UserCSVUpload = () => {
                         };
                         
                         await sendCSVSummaryEmail(summaryData);
-      setResultsDialog({ open: true, results });
+      setResultsDialog({ open: true, results, file: file });
 
     } catch (error) {
       console.error('Error processing file:', error);
@@ -818,7 +818,7 @@ Multiple records: [record1, record2, ...]`}
                       <TableCell>Threat Type</TableCell>
                       <TableCell>Threat Level</TableCell>
                       <TableCell>Final Prediction</TableCell>
-                      <TableCell>Email Alert</TableCell>
+
                       <TableCell>Status</TableCell>
                     </TableRow>
                   </TableHead>
@@ -832,6 +832,10 @@ Multiple records: [record1, record2, ...]`}
                             color: 'white',
                             '& .MuiTableCell-root': {
                               color: 'white'
+                            },
+                            '& .MuiChip-root': {
+                              color: 'white',
+                              backgroundColor: 'rgba(255,255,255,0.2)'
                             }
                           }
                         }}
@@ -865,17 +869,7 @@ Multiple records: [record1, record2, ...]`}
                             : result.error ? 'Error' : '-'
                           }
                         </TableCell>
-                        <TableCell>
-                          {result.threatType && result.threatType !== 'normal' ? (
-                            result.emailSent ? (
-                              <Chip label="Sent" color="success" size="small" />
-                            ) : (
-                              <Chip label="Failed" color="error" size="small" />
-                            )
-                          ) : (
-                            '-'
-                          )}
-                        </TableCell>
+
                         <TableCell>
                           {result.error ? (
                             <Chip label="Error" color="error" size="small" />
@@ -898,7 +892,7 @@ Multiple records: [record1, record2, ...]`}
             )}
           </DialogContent>
           <DialogActions>
-          <Button onClick={() => setResultsDialog({ open: false, results: null })}>
+          <Button onClick={() => setResultsDialog({ open: false, results: null, file: null })}>
             Close
           </Button>
             {resultsDialog.results && resultsDialog.results.length > 0 && (
@@ -906,8 +900,8 @@ Multiple records: [record1, record2, ...]`}
                 variant="contained"
                 color="secondary"
                 onClick={() => {
-                  setResultsDialog({ open: false, results: null });
-                  navigate('/user/visualization', { state: { results: resultsDialog.results, fileMeta } });
+                  setResultsDialog({ open: false, results: null, file: null });
+                  navigate('/user/visualization', { state: { results: resultsDialog.results, fileMeta: resultsDialog.file } });
                 }}
               >
                 Visualize Results

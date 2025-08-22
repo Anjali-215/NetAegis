@@ -46,8 +46,6 @@ import {
   Logout,
   ChevronLeft,
   ChevronRight,
-  Search,
-  Help,
   Apps,
   Close
 } from '@mui/icons-material';
@@ -524,14 +522,6 @@ const AdminLayout = ({ children }) => {
             </Typography>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <IconButton color="inherit">
-                <Search />
-              </IconButton>
-              
-              <IconButton color="inherit">
-                <Help />
-              </IconButton>
-              
               <Badge badgeContent={unreadCount || 0} color="error">
                 <IconButton color="inherit" onClick={() => navigate('/admin/notifications')}>
                   <Notifications />
