@@ -11,7 +11,7 @@ async def get_db():
     return await get_database()
 from services.user_service import UserService
 from models.user import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset, PasswordResetToken, AdminUserCreate
-from utils.auth import create_access_token, verify_token
+from utils.auth import create_access_token, verify_token, verify_password
 from utils.email_service import EmailService
 from config import settings
 
@@ -852,4 +852,57 @@ async def admin_reset_user_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send password reset email"
+        ) 
+
+@router.post("/change-password")
+async def change_password(
+    request: dict = Body(...),
+    current_user: UserResponse = Depends(get_current_user),
+    database: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Change password for authenticated user"""
+    try:
+        current_password = request.get("current_password")
+        new_password = request.get("new_password")
+        
+        if not current_password or not new_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password and new password are required"
+            )
+        
+        if len(new_password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must be at least 6 characters long"
+            )
+        
+        # Verify current password
+        user_service = UserService(database)
+        user = await user_service.get_user_by_email(current_user.email)
+        
+        if not user or not verify_password(current_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+        
+        # Update password
+        success = await user_service.update_password(current_user.email, new_password)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        return {"message": "Password changed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Change password error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while changing password"
         ) 

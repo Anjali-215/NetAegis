@@ -13,15 +13,18 @@ import {
   Divider,
   Button,
   TextField,
-  Alert
+  Alert,
+  IconButton
 } from '@mui/material';
 import {
   Settings,
   Notifications,
   Security,
   Visibility,
+  VisibilityOff,
   Save
 } from '@mui/icons-material';
+import apiService from '../../services/api';
 
 const UserSettings = () => {
   const [settings, setSettings] = useState({
@@ -38,7 +41,17 @@ const UserSettings = () => {
     company: 'Tech Corp'
   });
 
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    showCurrentPassword: false,
+    showNewPassword: false,
+    showConfirmPassword: false
+  });
+
   const [saved, setSaved] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState({ show: false, type: 'success', text: '' });
 
   const handleSettingChange = (setting) => (event) => {
     setSettings(prev => ({
@@ -52,6 +65,55 @@ const UserSettings = () => {
       ...prev,
       [field]: event.target.value
     }));
+  };
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setPasswordData(prev => ({ 
+      ...prev, 
+      [field]: !prev[field] 
+    }));
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordMessage({ show: true, type: 'error', text: 'New passwords do not match!' });
+        return;
+      }
+      if (passwordData.newPassword.length < 8) {
+        setPasswordMessage({ show: true, type: 'error', text: 'Password must be at least 8 characters long!' });
+        return;
+      }
+
+      await apiService.request('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword
+        })
+      });
+
+      setPasswordMessage({ show: true, type: 'success', text: 'Password changed successfully!' });
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        showCurrentPassword: false,
+        showNewPassword: false,
+        showConfirmPassword: false
+      });
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setPasswordMessage({ 
+        show: true, 
+        type: 'error', 
+        text: 'Failed to change password. Please check your current password and try again.' 
+      });
+    }
   };
 
   const handleSave = () => {
@@ -93,6 +155,16 @@ const UserSettings = () => {
           {saved && (
             <Alert severity="success" sx={{ mb: 3 }}>
               Settings saved successfully!
+            </Alert>
+          )}
+
+          {passwordMessage.show && (
+            <Alert 
+              severity={passwordMessage.type} 
+              sx={{ mb: 3 }}
+              onClose={() => setPasswordMessage({ ...passwordMessage, show: false })}
+            >
+              {passwordMessage.text}
             </Alert>
           )}
 
@@ -198,6 +270,159 @@ const UserSettings = () => {
               </Card>
             </Grid>
 
+            {/* Change Password */}
+            <Grid xs={12} md={6}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
+                borderRadius: 3,
+                border: '1px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 12px 40px rgba(183,28,28,0.4)'
+                }
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Security sx={{ color: '#b71c1c', mr: 2 }} />
+                    <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
+                      Change Password
+                    </Typography>
+                  </Box>
+
+                  <Grid container spacing={2}>
+                    <Grid xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Current Password"
+                        type={passwordData.showCurrentPassword ? 'text' : 'password'}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            color: 'white',
+                            '& fieldset': {
+                              borderColor: 'rgba(255,255,255,0.2)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'rgba(255,255,255,0.3)',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#b71c1c',
+                            },
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: 'rgba(255,255,255,0.7)',
+                          },
+                        }}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton
+                              onClick={() => togglePasswordVisibility('showCurrentPassword')}
+                              edge="end"
+                              sx={{ color: 'rgba(255,255,255,0.7)' }}
+                            >
+                              {passwordData.showCurrentPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          )
+                        }}
+                      />
+                    </Grid>
+                    <Grid xs={12}>
+                      <TextField
+                        fullWidth
+                        label="New Password"
+                        type={passwordData.showNewPassword ? 'text' : 'password'}
+                        value={passwordData.newPassword}
+                        onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            color: 'white',
+                            '& fieldset': {
+                              borderColor: 'rgba(255,255,255,0.2)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'rgba(255,255,255,0.3)',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#b71c1c',
+                            },
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: 'rgba(255,255,255,0.7)',
+                          },
+                        }}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton
+                              onClick={() => togglePasswordVisibility('showNewPassword')}
+                              edge="end"
+                              sx={{ color: 'rgba(255,255,255,0.7)' }}
+                            >
+                              {passwordData.showNewPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          )
+                        }}
+                      />
+                    </Grid>
+                    <Grid xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Confirm New Password"
+                        type={passwordData.showConfirmPassword ? 'text' : 'password'}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            color: 'white',
+                            '& fieldset': {
+                              borderColor: 'rgba(255,255,255,0.2)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'rgba(255,255,255,0.3)',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#b71c1c',
+                            },
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: 'rgba(255,255,255,0.7)',
+                          },
+                        }}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton
+                              onClick={() => togglePasswordVisibility('showConfirmPassword')}
+                              edge="end"
+                              sx={{ color: 'rgba(255,255,255,0.7)' }}
+                            >
+                              {passwordData.showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          )
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    sx={{ 
+                      mt: 2,
+                      background: 'linear-gradient(135deg, #b71c1c 0%, #ff5252 100%)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #7f0000 0%, #c50e29 100%)',
+                      }
+                    }}
+                    onClick={handleChangePassword}
+                    disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  >
+                    Change Password
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
             {/* Notification Settings */}
             <Grid xs={12} md={6}>
               <Card sx={{
@@ -288,7 +513,7 @@ const UserSettings = () => {
             </Grid>
 
             {/* Security Settings */}
-            <Grid xs={12}>
+            <Grid xs={12} md={6}>
               <Card sx={{
                 background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
                 borderRadius: 3,

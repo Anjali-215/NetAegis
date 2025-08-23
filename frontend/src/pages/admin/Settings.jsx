@@ -171,18 +171,29 @@ const Settings = () => {
         setSnackbar({ open: true, message: 'New passwords do not match!', severity: 'error' });
         return;
       }
-      if (passwordData.newPassword.length < 8) {
-        setSnackbar({ open: true, message: 'Password must be at least 8 characters long!', severity: 'error' });
+      if (passwordData.newPassword.length < 6) {
+        setSnackbar({ open: true, message: 'Password must be at least 6 characters long!', severity: 'error' });
+        return;
+      }
+      
+      // Password complexity validation
+      const hasUppercase = /[A-Z]/.test(passwordData.newPassword);
+      const hasNumber = /\d/.test(passwordData.newPassword);
+      const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(passwordData.newPassword);
+      
+      if (!hasUppercase || !hasNumber || !hasSpecial) {
+        setSnackbar({ 
+          open: true, 
+          message: 'Password must contain at least one uppercase letter, one number, and one special character!', 
+          severity: 'error' 
+        });
         return;
       }
 
-      await apiService.request('/auth/change-password', {
-        method: 'POST',
-        body: JSON.stringify({
-          current_password: passwordData.currentPassword,
-          new_password: passwordData.newPassword
-        })
-      });
+      await apiService.changePassword(
+        passwordData.currentPassword,
+        passwordData.newPassword
+      );
 
       setSnackbar({ open: true, message: 'Password changed successfully!', severity: 'success' });
       setPasswordData({

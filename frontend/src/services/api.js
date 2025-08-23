@@ -369,6 +369,18 @@ class ApiService {
       body: JSON.stringify({ token, new_password: newPassword })
     });
   }
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const response = await api.post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  }
   async getCurrentUser() {
     return this.request('/auth/me');
   }
