@@ -51,6 +51,50 @@ def generate_reset_token():
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(32))
 
+def ensure_utc_datetime(dt):
+    """Ensure datetime is timezone-aware and in UTC"""
+    if dt.tzinfo is None:
+        # If naive datetime, assume UTC
+        return dt.replace(tzinfo=timezone.utc)
+    else:
+        # If timezone-aware, convert to UTC
+        return dt.astimezone(timezone.utc)
+
+def parse_mongodb_datetime(expires_at_raw):
+    """Parse datetime from MongoDB, handling various formats"""
+    try:
+        if isinstance(expires_at_raw, str):
+            # Handle ISO format strings
+            if expires_at_raw.endswith('Z'):
+                # UTC time with Z suffix
+                return datetime.fromisoformat(expires_at_raw.replace('Z', '+00:00'))
+            elif '+' in expires_at_raw or expires_at_raw.endswith('UTC'):
+                # Timezone-aware string
+                return datetime.fromisoformat(expires_at_raw)
+            else:
+                # Assume UTC if no timezone info
+                return datetime.fromisoformat(expires_at_raw + '+00:00')
+        elif isinstance(expires_at_raw, datetime):
+            # Already a datetime object
+            if expires_at_raw.tzinfo is None:
+                return expires_at_raw.replace(tzinfo=timezone.utc)
+            else:
+                return expires_at_raw.astimezone(timezone.utc)
+        else:
+            raise ValueError(f"Unknown datetime type: {type(expires_at_raw)}")
+    except Exception as e:
+        # Try alternative parsing methods
+        if isinstance(expires_at_raw, str):
+            try:
+                from email.utils import parsedate_to_datetime
+                dt = parsedate_to_datetime(expires_at_raw)
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=timezone.utc)
+                return dt.astimezone(timezone.utc)
+            except Exception:
+                pass
+        raise ValueError(f"Failed to parse datetime: {expires_at_raw}, error: {e}")
+
 @router.get("/direct-reset", response_class=HTMLResponse)
 async def direct_reset_page(request: Request, database: AsyncIOMotorDatabase = Depends(get_db)):
     """Direct password reset page for development/testing"""
@@ -101,28 +145,95 @@ async def direct_reset_page(request: Request, database: AsyncIOMotorDatabase = D
     
     # Check if token is expired
     try:
-        expires_at_str = reset_token_doc["expires_at"]
+        # Check if expires_at field exists
+        if "expires_at" not in reset_token_doc:
+            print(f"Missing expires_at field in token document")
+            # Delete the corrupted token
+            await database.get_collection("password_reset_tokens").delete_one({"token": token})
+            return HTMLResponse(content="""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Invalid Token - NetAegis</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    .error { color: #d32f2f; background: #ffebee; padding: 20px; border-radius: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h1>❌ Invalid Token</h1>
+                    <p>This reset token is invalid or corrupted. Please request a new password reset.</p>
+                </div>
+            </body>
+            </html>
+            """)
         
-        # Handle different datetime formats
-        if isinstance(expires_at_str, str):
-            if expires_at_str.endswith('Z'):
-                expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
-            else:
-                expires_at = datetime.fromisoformat(expires_at_str)
-        else:
-            # If it's already a datetime object
-            expires_at = expires_at_str
+        expires_at_raw = reset_token_doc["expires_at"]
         
-        if datetime.utcnow() > expires_at:
+        # Use the robust datetime parsing function
+        try:
+            expires_at = parse_mongodb_datetime(expires_at_raw)
+        except ValueError as parse_error:
+            print(f"Failed to parse datetime: {parse_error}")
+            # Delete the problematic token to prevent future errors
+            await database.get_collection("password_reset_tokens").delete_one({"token": token})
+            return HTMLResponse(content="""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Invalid Token - NetAegis</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    .error { color: #d32f2f; background: #ffebee; padding: 20px; border-radius: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h1>❌ Invalid Token</h1>
+                    <p>This reset token is invalid or corrupted. Please request a new password reset.</p>
+                </div>
+            </body>
+            </html>
+            """)
+        
+        # Use timezone-aware comparison
+        current_time = datetime.now(timezone.utc)
+        if current_time > expires_at:
             # Delete expired token
             await database.get_collection("password_reset_tokens").delete_one({"token": token})
+            return HTMLResponse(content="""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Expired Token - NetAegis</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    .error { color: #d32f2f; background: #ffebee; padding: 20px; border-radius: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h1>⏰ Expired Token</h1>
+                    <p>This reset token has expired. Please request a new password reset.</p>
+                </div>
+            </body>
+            </html>
+            """)
     except Exception as e:
         print(f"Token expiration check error: {e}")
+        print(f"Token data: {reset_token_doc}")
+        # Delete the problematic token to prevent future errors
+        try:
+            await database.get_collection("password_reset_tokens").delete_one({"token": token})
+            print(f"Deleted problematic token: {token}")
+        except Exception:
+            pass  # Don't fail if cleanup fails
         return HTMLResponse(content="""
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Expired Token - NetAegis</title>
+            <title>Invalid Token - NetAegis</title>
             <style>
                 body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
                 .error { color: #d32f2f; background: #ffebee; padding: 20px; border-radius: 8px; }
@@ -130,8 +241,8 @@ async def direct_reset_page(request: Request, database: AsyncIOMotorDatabase = D
         </head>
         <body>
             <div class="error">
-                <h1>⏰ Expired Token</h1>
-                <p>This reset token has expired. Please request a new password reset.</p>
+                <h1>❌ Invalid Token</h1>
+                <p>This reset token is invalid or corrupted. Please request a new password reset.</p>
             </div>
         </body>
         </html>
@@ -455,7 +566,7 @@ async def forgot_password(
         
         # Generate reset token
         reset_token = generate_reset_token()
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)  # Token expires in 1 hour
+        expires_at = ensure_utc_datetime(datetime.now(timezone.utc) + timedelta(hours=1))  # Token expires in 1 hour
         
         # Store reset token in database
         reset_token_data = PasswordResetToken(
@@ -464,8 +575,12 @@ async def forgot_password(
             expires_at=expires_at
         )
         
+        # Ensure the datetime is properly formatted for MongoDB storage
+        token_data = reset_token_data.model_dump()
+        print(f"Storing token with expires_at: {token_data['expires_at']} (type: {type(token_data['expires_at'])})")
+        
         # Save to password_reset_tokens collection
-        await database.get_collection("password_reset_tokens").insert_one(reset_token_data.model_dump())
+        await database.get_collection("password_reset_tokens").insert_one(token_data)
         
         # Send email with reset link
         email_service = EmailService()
@@ -508,17 +623,30 @@ async def reset_password(
         
         # Check if token is expired
         try:
-            expires_at_str = reset_token_doc["expires_at"]
+            # Check if expires_at field exists
+            if "expires_at" not in reset_token_doc:
+                print(f"Missing expires_at field in token document")
+                # Delete the corrupted token
+                await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid token format - missing expiration"
+                )
             
-            # Handle different datetime formats
-            if isinstance(expires_at_str, str):
-                if expires_at_str.endswith('Z'):
-                    expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
-                else:
-                    expires_at = datetime.fromisoformat(expires_at_str)
-            else:
-                # If it's already a datetime object
-                expires_at = expires_at_str
+            expires_at_raw = reset_token_doc["expires_at"]
+            
+            # Use the robust datetime parsing function
+            try:
+                expires_at = parse_mongodb_datetime(expires_at_raw)
+                print(f"Successfully parsed datetime: {expires_at}")
+            except ValueError as parse_error:
+                print(f"Failed to parse datetime: {parse_error}")
+                # Delete the problematic token to prevent future errors
+                await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid token format"
+                )
             
             if datetime.now(timezone.utc) > expires_at:
                 # Delete expired token
@@ -527,11 +655,21 @@ async def reset_password(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Reset token has expired"
                 )
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as expire_error:
             print(f"Token expiration check error: {expire_error}")
+            print(f"Token data: {reset_token_doc}")
+            # Delete the problematic token to prevent future errors
+            try:
+                await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                print(f"Deleted problematic token: {request.token}")
+            except Exception:
+                pass  # Don't fail if cleanup fails
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error checking token expiration"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or corrupted reset token"
             )
         
         # Update user password
@@ -569,13 +707,18 @@ async def atlas_reset_password(
         print(f"New password length: {len(request.new_password)}")
         print(f"Database type: {type(database)}")
         
+        # Add request ID for better logging
+        import uuid
+        request_id = str(uuid.uuid4())[:8]
+        print(f"[{request_id}] Request ID for tracking")
+        
         # Check if database is connected
         try:
             # Test database connection by trying to access a collection
             await database.get_collection("password_reset_tokens").find_one({})
-            print("Database connection is working")
+            print(f"[{request_id}] Database connection is working")
         except Exception as db_error:
-            print(f"Database connection error: {db_error}")
+            print(f"[{request_id}] Database connection error: {db_error}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database connection failed"
@@ -586,59 +729,119 @@ async def atlas_reset_password(
             reset_token_doc = await database.get_collection("password_reset_tokens").find_one({
                 "token": request.token
             })
-            print(f"Token search completed")
+            print(f"[{request_id}] Token search completed")
         except Exception as token_error:
-            print(f"Token search error: {token_error}")
+            print(f"[{request_id}] Token search error: {token_error}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error searching for reset token"
             )
         
         if not reset_token_doc:
-            print(f"Token not found in database")
+            print(f"[{request_id}] Token not found in database")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired reset token"
             )
         
-        print(f"Token found for email: {reset_token_doc.get('email')}")
+        print(f"[{request_id}] Token found for email: {reset_token_doc.get('email')}")
+        print(f"[{request_id}] Token document keys: {list(reset_token_doc.keys())}")
+        print(f"[{request_id}] Token document: {reset_token_doc}")
         
         # Check if token is expired
         try:
-            expires_at_str = reset_token_doc["expires_at"]
-            print(f"Expires at string: {expires_at_str}")
+            # Check if expires_at field exists
+            if "expires_at" not in reset_token_doc:
+                print(f"[{request_id}] Missing expires_at field in token document")
+                # Delete the corrupted token
+                await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid token format - missing expiration"
+                )
+            
+            expires_at_raw = reset_token_doc["expires_at"]
+            print(f"[{request_id}] Expires at raw value: {expires_at_raw}, type: {type(expires_at_raw)}")
+            
+            # Additional debugging for MongoDB ObjectId and other fields
+            if "_id" in reset_token_doc:
+                print(f"[{request_id}] Token _id: {reset_token_doc['_id']}")
+            if "created_at" in reset_token_doc:
+                print(f"[{request_id}] Token created_at: {reset_token_doc['created_at']}")
             
             # Handle different datetime formats
-            if isinstance(expires_at_str, str):
-                if expires_at_str.endswith('Z'):
-                    expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
-                else:
-                    expires_at = datetime.fromisoformat(expires_at_str)
+            if isinstance(expires_at_raw, str):
+                # Handle ISO format strings
+                try:
+                    if expires_at_raw.endswith('Z'):
+                        # UTC time with Z suffix
+                        expires_at = datetime.fromisoformat(expires_at_raw.replace('Z', '+00:00'))
+                    elif '+' in expires_at_raw or expires_at_raw.endswith('UTC'):
+                        # Timezone-aware string
+                        expires_at = datetime.fromisoformat(expires_at_raw)
+                    else:
+                        # Assume UTC if no timezone info
+                        expires_at = datetime.fromisoformat(expires_at_raw + '+00:00')
+                except ValueError as parse_error:
+                    print(f"Failed to parse datetime string: {expires_at_raw}, error: {parse_error}")
+                    # Try alternative parsing methods
+                    try:
+                        # Try parsing as RFC 3339 format
+                        from email.utils import parsedate_to_datetime
+                        expires_at = parsedate_to_datetime(expires_at_raw)
+                    except Exception:
+                        # If all parsing fails, assume token is invalid
+                        await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid token format"
+                        )
+            elif isinstance(expires_at_raw, datetime):
+                # Already a datetime object
+                expires_at = expires_at_raw
+                # Ensure it's timezone-aware
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
             else:
-                # If it's already a datetime object
-                expires_at = expires_at_str
+                # Unknown type, log and reject
+                print(f"Unknown expires_at type: {type(expires_at_raw)}, value: {expires_at_raw}")
+                await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid token format"
+                )
             
             current_time = datetime.now(timezone.utc)
-            print(f"Current time: {current_time}")
-            print(f"Expires at: {expires_at}")
+            print(f"[{request_id}] Current time: {current_time}")
+            print(f"[{request_id}] Expires at: {expires_at}")
+            print(f"[{request_id}] Timezone info - Current: {current_time.tzinfo}, Expires: {expires_at.tzinfo}")
             
             if current_time > expires_at:
                 # Delete expired token
                 await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
-                print(f"Token expired")
+                print(f"[{request_id}] Token expired")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Reset token has expired"
                 )
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as expire_error:
             print(f"Token expiration check error: {expire_error}")
             print(f"Token data: {reset_token_doc}")
+            # Delete the problematic token to prevent future errors
+            try:
+                await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
+                print(f"Deleted problematic token: {request.token}")
+            except Exception:
+                pass  # Don't fail if cleanup fails
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error checking token expiration"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or corrupted reset token"
             )
         
-        print(f"Token is valid, updating password...")
+        print(f"[{request_id}] Token is valid, updating password...")
         
         # Update user password
         try:
@@ -646,26 +849,26 @@ async def atlas_reset_password(
             success = await user_service.update_password(reset_token_doc["email"], request.new_password)
             
             if not success:
-                print(f"Failed to update password for email: {reset_token_doc['email']}")
+                print(f"[{request_id}] Failed to update password for email: {reset_token_doc['email']}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Failed to update password"
                 )
         except Exception as update_error:
-            print(f"Password update error: {update_error}")
+            print(f"[{request_id}] Password update error: {update_error}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error updating password"
             )
         
-        print(f"Password updated successfully")
+        print(f"[{request_id}] Password updated successfully")
         
         # Delete the used token
         try:
             await database.get_collection("password_reset_tokens").delete_one({"token": request.token})
-            print(f"Token deleted successfully")
+            print(f"[{request_id}] Token deleted successfully")
         except Exception as delete_error:
-            print(f"Token deletion error: {delete_error}")
+            print(f"[{request_id}] Token deletion error: {delete_error}")
             # Don't fail the request if token deletion fails
         
         return {"message": "Password has been successfully reset in MongoDB Atlas"}
@@ -673,7 +876,7 @@ async def atlas_reset_password(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Atlas password reset error: {str(e)}")
+        print(f"[{request_id}] Atlas password reset error: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -697,14 +900,19 @@ async def admin_add_user(
         # Send a secure password setup link (one-time reset token) instead of emailing a plaintext password
         try:
             reset_token = generate_reset_token()
-            expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            expires_at = ensure_utc_datetime(datetime.now(timezone.utc) + timedelta(hours=1))
 
             reset_token_data = PasswordResetToken(
                 email=created_user.email,
                 token=reset_token,
                 expires_at=expires_at
             )
-            await database.get_collection("password_reset_tokens").insert_one(reset_token_data.model_dump())
+            
+            # Ensure the datetime is properly formatted for MongoDB storage
+            token_data = reset_token_data.model_dump()
+            print(f"Admin creating token with expires_at: {token_data['expires_at']} (type: {type(token_data['expires_at'])})")
+            
+            await database.get_collection("password_reset_tokens").insert_one(token_data)
 
             email_service = EmailService()
             reset_link = f"http://localhost:5173/atlas-reset?token={reset_token}&email={created_user.email}"
@@ -905,4 +1113,97 @@ async def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while changing password"
+        )
+
+@router.put("/update-profile", response_model=UserResponse)
+async def update_profile(
+    request: dict = Body(...),
+    current_user: UserResponse = Depends(get_current_user),
+    database: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Update current user's profile"""
+    try:
+        name = request.get("name")
+        role = request.get("role")
+        
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Name is required"
+            )
+        
+        # Update user profile
+        user_service = UserService(database)
+        success = await user_service.update_user_profile(current_user.email, name, role)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update profile"
+            )
+        
+        # Get updated user data
+        updated_user = await user_service.get_user_by_email(current_user.email)
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve updated user data"
+            )
+        
+        # Convert to UserResponse
+        return UserResponse(
+            id=str(updated_user.id),
+            name=updated_user.name,
+            email=updated_user.email,
+            company=updated_user.company,
+            role=updated_user.role,
+            created_at=updated_user.created_at,
+            is_active=updated_user.is_active
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Update profile error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating profile"
+        )
+
+@router.put("/update-notification-preferences")
+async def update_notification_preferences(
+    request: dict = Body(...),
+    current_user: UserResponse = Depends(get_current_user),
+    database: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Update current user's notification preferences"""
+    try:
+        emailNotifications = request.get("emailNotifications", True)
+        pushNotifications = request.get("pushNotifications", True)
+        reportAlerts = request.get("reportAlerts", False)
+        
+        # Update notification preferences
+        user_service = UserService(database)
+        success = await user_service.update_notification_preferences(
+            current_user.email, 
+            emailNotifications, 
+            pushNotifications, 
+            reportAlerts
+        )
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update notification preferences"
+            )
+        
+        return {"message": "Notification preferences updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Update notification preferences error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating notification preferences"
         ) 

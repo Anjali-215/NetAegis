@@ -37,7 +37,12 @@ class UserService:
             "role": user.role,
             "hashed_password": hashed_password,
             "created_at": datetime.now(timezone.utc),
-            "is_active": False  # Set to inactive until password is set
+            "is_active": False,  # Set to inactive until password is set
+            "notificationPreferences": user.notificationPreferences.model_dump() if user.notificationPreferences else {
+                "emailNotifications": True,
+                "pushNotifications": True,
+                "reportAlerts": False
+            }
         }
         
         result = await self.collection.insert_one(user_dict)
@@ -69,7 +74,12 @@ class UserService:
             "role": user_data.role,
             "hashed_password": hashed_password,
             "created_at": datetime.now(timezone.utc),
-            "is_active": False  # Set to inactive until password is set
+            "is_active": False,  # Set to inactive until password is set
+            "notificationPreferences": {
+                "emailNotifications": True,
+                "pushNotifications": True,
+                "reportAlerts": False
+            }
         }
         
         result = await self.collection.insert_one(user_dict)
@@ -137,6 +147,38 @@ class UserService:
             result = await self.collection.update_one(
                 {"email": email},
                 {"$set": {"last_login": datetime.now(timezone.utc)}}
+            )
+            return result.modified_count > 0
+        except Exception:
+            return False
+
+    async def update_user_profile(self, email: str, name: str, role: str = None) -> bool:
+        """Update user profile (name and role) by email"""
+        try:
+            update_fields = {"name": name}
+            if role:
+                update_fields["role"] = role
+            
+            result = await self.collection.update_one(
+                {"email": email},
+                {"$set": update_fields}
+            )
+            return result.modified_count > 0
+        except Exception:
+            return False
+
+    async def update_notification_preferences(self, email: str, emailNotifications: bool, pushNotifications: bool, reportAlerts: bool) -> bool:
+        """Update user notification preferences by email"""
+        try:
+            result = await self.collection.update_one(
+                {"email": email},
+                {"$set": {
+                    "notificationPreferences": {
+                        "emailNotifications": emailNotifications,
+                        "pushNotifications": pushNotifications,
+                        "reportAlerts": reportAlerts
+                    }
+                }}
             )
             return result.modified_count > 0
         except Exception:

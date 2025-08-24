@@ -381,6 +381,27 @@ class ApiService {
       throw error;
     }
   }
+  async updateProfile(name, role) {
+    try {
+      const response = await api.put('/auth/update-profile', {
+        name: name,
+        role: role
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
+  }
+  async updateNotificationPreferences(preferences) {
+    try {
+      const response = await api.put('/auth/update-notification-preferences', preferences);
+      return response.data;
+    } catch (error) {
+      console.error('Update notification preferences error:', error);
+      throw error;
+    }
+  }
   async getCurrentUser() {
     return this.request('/auth/me');
   }

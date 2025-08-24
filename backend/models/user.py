@@ -20,11 +20,17 @@ class PyObjectId(ObjectId):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
 
+class NotificationPreferences(BaseModel):
+    emailNotifications: bool = Field(default=True, description="Receive alerts via email")
+    pushNotifications: bool = Field(default=True, description="Receive in-app notifications")
+    reportAlerts: bool = Field(default=False, description="Receive report notifications")
+
 class UserBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     company: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     role: str = Field(default="user", pattern="^(admin|user|teamlead)$")
+    notificationPreferences: NotificationPreferences = Field(default_factory=NotificationPreferences)
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=100)

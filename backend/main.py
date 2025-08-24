@@ -470,7 +470,6 @@ async def get_models():
 
 # Initialize services
 email_service = EmailService()
-notification_service = NotificationService()
 
 class PredictionRequest(BaseModel):
     data: Dict[str, Any]
@@ -636,9 +635,16 @@ async def predict_threat(request: PredictionRequest):
         
         logger.info(f"Final prediction result: {result}")
         
-        # Send email notification if threat is detected
+        # Check notification preferences and send notifications accordingly
         if threat_type != "normal" and user_email and user_name:
             try:
+                # Get notification service
+                database = await get_database()
+                notification_service = NotificationService(database)
+                
+                # Check what notifications can be sent
+                can_send = await notification_service.can_send_threat_notification(user_email)
+                
                 threat_details = {
                     "threat_type": threat_type,
                     "confidence": float(prob[pred]) if prob is not None else None,
@@ -646,23 +652,68 @@ async def predict_threat(request: PredictionRequest):
                     "threat_level": threat_level
                 }
                 
-                # Send email notification
-                email_sent = await email_service.send_threat_alert(
-                    user_email, user_name, threat_details
-                )
-                
-                if email_sent:
-                    logger.info(f"Threat alert email sent to {user_email}")
-                    result["email_sent"] = True
+                # Send email notification if enabled
+                email_sent = False
+                if can_send["email"]:
+                    email_sent = await email_service.send_threat_alert(
+                        user_email, user_name, threat_details
+                    )
+                    if email_sent:
+                        logger.info(f"Threat alert email sent to {user_email}")
+                    else:
+                        logger.warning(f"Failed to send threat alert email to {user_email}")
                 else:
-                    logger.warning(f"Failed to send threat alert email to {user_email}")
-                    result["email_sent"] = False
+                    logger.info(f"Email notifications disabled for {user_email}")
+                
+                # Send push notification if enabled
+                push_sent = False
+                if can_send["push"]:
+                    # Create push notification in database
+                    await notification_service.create_threat_notification(
+                        user_email, user_name, "NetAegis", threat_details
+                    )
+                    push_sent = True
+                    logger.info(f"Threat push notification created for {user_email}")
+                else:
+                    logger.info(f"Push notifications disabled for {user_email}")
+                
+                # Send report notification if enabled
+                report_sent = False
+                if can_send["report"]:
+                    # Create report notification
+                    await notification_service.create_threat_report_notification(
+                        user_email, user_name, "NetAegis", threat_details
+                    )
+                    report_sent = True
+                    logger.info(f"Threat report notification created for {user_email}")
+                else:
+                    logger.info(f"Report notifications disabled for {user_email}")
+                
+                result["notifications"] = {
+                    "email_sent": email_sent,
+                    "push_sent": push_sent,
+                    "report_sent": report_sent
+                }
+                
+                # Log notification attempts
+                await notification_service.log_notification_attempt(
+                    user_email, "threat", True, 
+                    f"threat_type={threat_type}, level={threat_level}"
+                )
                     
             except Exception as e:
-                logger.error(f"Error sending email notification: {e}")
-                result["email_sent"] = False
+                logger.error(f"Error sending notifications: {e}")
+                result["notifications"] = {
+                    "email_sent": False,
+                    "push_sent": False,
+                    "report_sent": False
+                }
         else:
-            result["email_sent"] = False
+            result["notifications"] = {
+                "email_sent": False,
+                "push_sent": False,
+                "report_sent": False
+            }
         
         return result
         
@@ -685,17 +736,52 @@ async def send_csv_summary_email(request: dict):
         if not user_email or not user_name:
             raise HTTPException(status_code=400, detail="User email and name are required")
         
-        # Send summary email
-        email_sent = await email_service.send_csv_summary_alert(
-            user_email, user_name, summary_data
+        # Check notification preferences
+        database = await get_database()
+        notification_service = NotificationService(database)
+        
+        # Check what notifications can be sent for file uploads
+        can_send = await notification_service.can_send_file_upload_notification(user_email)
+        
+        result = {"success": False, "message": "No notifications sent"}
+        
+        # Send email notification if enabled
+        if can_send["email"]:
+            email_sent = await email_service.send_csv_summary_alert(
+                user_email, user_name, summary_data
+            )
+            
+            if email_sent:
+                logger.info(f"CSV summary email sent to {user_email}")
+                result["email_sent"] = True
+                result["success"] = True
+                result["message"] = "Summary email sent successfully"
+            else:
+                logger.warning(f"Failed to send CSV summary email to {user_email}")
+                result["email_sent"] = False
+        else:
+            logger.info(f"Email notifications disabled for {user_email}")
+            result["email_sent"] = False
+        
+        # Send push notification if enabled
+        if can_send["push"]:
+            # Create file upload notification
+            await notification_service.create_file_upload_notification(
+                user_email, user_name, "NetAegis", summary_data
+            )
+            result["push_sent"] = True
+            logger.info(f"File upload push notification created for {user_email}")
+        else:
+            logger.info(f"Push notifications disabled for {user_email}")
+            result["push_sent"] = False
+        
+        # Log notification attempts
+        await notification_service.log_notification_attempt(
+            user_email, "file_upload", True, 
+            f"file_upload_summary"
         )
         
-        if email_sent:
-            logger.info(f"CSV summary email sent to {user_email}")
-            return {"success": True, "message": "Summary email sent successfully"}
-        else:
-            logger.warning(f"Failed to send CSV summary email to {user_email}")
-            return {"success": False, "message": "Failed to send summary email"}
+        return result
             
     except Exception as e:
         logger.error(f"Error sending CSV summary email: {e}")
@@ -942,6 +1028,8 @@ async def delete_ml_result(
 async def get_notifications(current_user: UserResponse = Depends(get_current_user)):
     """Get notifications for the current user"""
     try:
+        database = await get_database()
+        notification_service = NotificationService(database)
         notifications = await notification_service.get_user_notifications(
             current_user.email, 
             current_user.company
@@ -955,6 +1043,8 @@ async def get_notifications(current_user: UserResponse = Depends(get_current_use
 async def get_unread_count(current_user: UserResponse = Depends(get_current_user)):
     """Get count of unread notifications for the current user"""
     try:
+        database = await get_database()
+        notification_service = NotificationService(database)
         count = await notification_service.get_unread_count(
             current_user.email, 
             current_user.company
@@ -971,6 +1061,8 @@ async def mark_notification_read(
 ):
     """Mark a notification as read"""
     try:
+        database = await get_database()
+        notification_service = NotificationService(database)
         success = await notification_service.mark_as_read(
             notification_id,
             current_user.email,
@@ -987,6 +1079,8 @@ async def mark_notification_read(
 async def mark_all_notifications_read(current_user: UserResponse = Depends(get_current_user)):
     """Mark all notifications as read for the current user"""
     try:
+        database = await get_database()
+        notification_service = NotificationService(database)
         success = await notification_service.mark_all_as_read(
             current_user.email,
             current_user.company
@@ -1000,7 +1094,9 @@ async def mark_all_notifications_read(current_user: UserResponse = Depends(get_c
 async def test_notifications(current_user: UserResponse = Depends(get_current_user)):
     """Test endpoint to check notifications collection"""
     try:
-        collection = await notification_service._get_collection()
+        database = await get_database()
+        notification_service = NotificationService(database)
+        collection = database.get_collection("notifications")
         count = await collection.count_documents({})
         return {"success": True, "collection_exists": True, "total_notifications": count}
     except Exception as e:
@@ -1011,6 +1107,8 @@ async def test_notifications(current_user: UserResponse = Depends(get_current_us
 async def clear_all_notifications(current_user: UserResponse = Depends(get_current_user)):
     """Clear all notifications for the current user"""
     try:
+        database = await get_database()
+        notification_service = NotificationService(database)
         logger.info(f"Attempting to clear all notifications for user: {current_user.email}, company: {current_user.company}")
         success = await notification_service.clear_all_notifications(
             current_user.email,
@@ -1035,6 +1133,8 @@ async def delete_notification(
         if not notification_id or not isinstance(notification_id, str) or len(notification_id) < 3:
             raise HTTPException(status_code=400, detail="Invalid notification ID format")
 
+        database = await get_database()
+        notification_service = NotificationService(database)
         success = await notification_service.delete_notification(
             notification_id,
             current_user.email,

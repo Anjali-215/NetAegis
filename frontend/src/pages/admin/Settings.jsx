@@ -8,54 +8,28 @@ import {
   TextField,
   Button,
   Switch,
-  FormControlLabel,
-  Divider,
-  Card,
-  CardContent,
   List,
   ListItem,
   ListItemText,
   ListItemIcon,
-  Chip,
   Alert,
   Snackbar,
   Avatar,
   IconButton,
-  Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Slider,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   CircularProgress
 } from '@mui/material';
 import {
   Person,
   Security,
   Notifications,
-  Palette,
   Save,
   Cancel,
   Edit,
   Visibility,
   VisibilityOff,
-  ExpandMore,
   Email,
-  Phone,
-  LocationOn,
   Business,
-  Warning,
-  CheckCircle,
-  Error,
-  Info,
-  DarkMode,
-  LightMode,
-  VolumeUp,
-  VolumeOff,
-  Refresh
+  CheckCircle
 } from '@mui/icons-material';
 import apiService from '../../services/api';
 
@@ -68,21 +42,37 @@ const Settings = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
+
+        
         const userData = await apiService.getCurrentUser();
+        console.log('User data received:', userData);
+        
+        if (!userData || !userData.name) {
+          throw new Error('Invalid user data received');
+        }
+        
         setProfileData({
           firstName: userData.name.split(' ')[0] || '',
           lastName: userData.name.split(' ').slice(1).join(' ') || '',
-          email: userData.email,
-          phone: userData.phone || '',
+          email: userData.email || '',
           company: userData.company || 'NetAegis Security',
           position: userData.role || 'User',
-          location: userData.location || '',
           avatar: userData.name.split(' ').map(n => n[0]).join('')
         });
-        setError(null);
+        
+        // Load notification preferences
+        if (userData.notificationPreferences) {
+          setAlertPreferences({
+            emailNotifications: userData.notificationPreferences.emailNotifications ?? true,
+            pushNotifications: userData.notificationPreferences.pushNotifications ?? true,
+            reportAlerts: userData.notificationPreferences.reportAlerts ?? false
+          });
+        }
       } catch (err) {
         console.error('Error fetching user data:', err);
-        setError('Failed to load user data. Please try again later.');
+        setError(err.message || 'Failed to load user data. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -102,28 +92,8 @@ const Settings = () => {
 
   const [alertPreferences, setAlertPreferences] = useState({
     emailNotifications: true,
-    smsNotifications: false,
     pushNotifications: true,
-    threatAlerts: true,
-    systemAlerts: true,
-    reportAlerts: false,
-    weeklyDigest: true,
-    alertVolume: 75,
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '08:00'
-    }
-  });
-
-  const [systemSettings, setSystemSettings] = useState({
-    darkMode: false,
-    autoRefresh: true,
-    refreshInterval: 30,
-    language: 'en',
-    timezone: 'America/New_York',
-    dateFormat: 'MM/DD/YYYY',
-    timeFormat: '12h'
+    reportAlerts: false
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -137,26 +107,41 @@ const Settings = () => {
     setPasswordData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAlertPreferenceChange = (field, value) => {
-    setAlertPreferences(prev => ({ ...prev, [field]: value }));
+  const handleAlertPreferenceChange = async (field, value) => {
+    const newPreferences = { ...alertPreferences, [field]: value };
+    setAlertPreferences(newPreferences);
+    
+    try {
+      await apiService.updateNotificationPreferences(newPreferences);
+      setSnackbar({ open: true, message: 'Notification preferences updated!', severity: 'success' });
+    } catch (err) {
+      console.error('Error updating notification preferences:', err);
+      // Revert the change if it failed
+      setAlertPreferences(prev => ({ ...prev, [field]: !value }));
+      setSnackbar({ open: true, message: 'Failed to update notification preferences', severity: 'error' });
+    }
   };
 
-  const handleSystemSettingChange = (field, value) => {
-    setSystemSettings(prev => ({ ...prev, [field]: value }));
-  };
+
 
   const handleSaveProfile = async () => {
     try {
-      const updatedUserData = {
-        name: `${profileData.firstName} ${profileData.lastName}`.trim(),
-        email: profileData.email,
-        phone: profileData.phone,
-        company: profileData.company,
-        location: profileData.location,
-        role: profileData.position
-      };
-
-      await apiService.adminUpdateUser(profileData.id, updatedUserData);
+      const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
+      
+      // Update the current user's profile using the new endpoint
+      await apiService.updateProfile(fullName, profileData.position);
+      
+      // Refresh the profile data
+      const refreshedUserData = await apiService.getCurrentUser();
+      setProfileData({
+        firstName: refreshedUserData.name.split(' ')[0] || '',
+        lastName: refreshedUserData.name.split(' ').slice(1).join(' ') || '',
+        email: refreshedUserData.email || '',
+        company: refreshedUserData.company || 'NetAegis Security',
+        position: refreshedUserData.role || 'User',
+        avatar: refreshedUserData.name.split(' ').map(n => n[0]).join('')
+      });
+      
       setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
       setIsEditing(false);
     } catch (err) {
@@ -210,9 +195,7 @@ const Settings = () => {
     }
   };
 
-  const handleSaveSettings = () => {
-    setSnackbar({ open: true, message: 'Settings saved successfully!', severity: 'success' });
-  };
+
 
   const togglePasswordVisibility = (field) => {
     setPasswordData(prev => ({ 
@@ -252,14 +235,14 @@ const Settings = () => {
 
             <Box display="flex" alignItems="center" gap={2} mb={3}>
               <Avatar sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '1.5rem' }}>
-                {profileData.avatar}
+                {profileData?.firstName?.charAt(0) || 'U'}{profileData?.lastName?.charAt(0) || ''}
               </Avatar>
               <Box>
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                  {profileData.firstName} {profileData.lastName}
+                  {profileData?.firstName || 'User'} {profileData?.lastName || ''}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {profileData.position} at {profileData.company}
+                  {profileData?.position || 'User'} at {profileData?.company || 'Company'}
                 </Typography>
               </Box>
             </Box>
@@ -269,7 +252,7 @@ const Settings = () => {
                 <TextField
                   fullWidth
                   label="First Name"
-                  value={profileData.firstName}
+                  value={profileData?.firstName || ''}
                   onChange={(e) => handleProfileChange('firstName', e.target.value)}
                   disabled={!isEditing}
                 />
@@ -278,7 +261,7 @@ const Settings = () => {
                 <TextField
                   fullWidth
                   label="Last Name"
-                  value={profileData.lastName}
+                  value={profileData?.lastName || ''}
                   onChange={(e) => handleProfileChange('lastName', e.target.value)}
                   disabled={!isEditing}
                 />
@@ -288,9 +271,8 @@ const Settings = () => {
                   fullWidth
                   label="Email"
                   type="email"
-                  value={profileData.email}
-                  onChange={(e) => handleProfileChange('email', e.target.value)}
-                  disabled={!isEditing}
+                  value={profileData?.email || ''}
+                  disabled={true}
                   InputProps={{
                     startAdornment: <Email fontSize="small" color="action" sx={{ mr: 1 }} />
                   }}
@@ -299,36 +281,11 @@ const Settings = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Phone"
-                  value={profileData.phone}
-                  onChange={(e) => handleProfileChange('phone', e.target.value)}
-                  disabled={!isEditing}
-                  InputProps={{
-                    startAdornment: <Phone fontSize="small" color="action" sx={{ mr: 1 }} />
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
                   label="Company"
-                  value={profileData.company}
-                  onChange={(e) => handleProfileChange('company', e.target.value)}
-                  disabled={!isEditing}
+                  value={profileData?.company || ''}
+                  disabled={true}
                   InputProps={{
-                    startAdornment: <Business fontSize="small" color="action" sx={{ mr: 1 }} />
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Location"
-                  value={profileData.location}
-                  onChange={(e) => handleProfileChange('location', e.target.value)}
-                  disabled={!isEditing}
-                  InputProps={{
-                    startAdornment: <LocationOn fontSize="small" color="action" sx={{ mr: 1 }} />
+                    startAdornment: <Business fontSize="action" sx={{ mr: 1 }} />
                   }}
                 />
               </Grid>
@@ -457,20 +414,6 @@ const Settings = () => {
               
               <ListItem>
                 <ListItemIcon>
-                  <Phone />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="SMS Notifications"
-                  secondary="Receive alerts via SMS"
-                />
-                <Switch
-                  checked={alertPreferences.smsNotifications}
-                  onChange={(e) => handleAlertPreferenceChange('smsNotifications', e.target.checked)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
                   <Notifications />
                 </ListItemIcon>
                 <ListItemText 
@@ -485,170 +428,22 @@ const Settings = () => {
               
               <ListItem>
                 <ListItemIcon>
-                  <Warning />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Threat Alerts"
-                  secondary="High priority threat notifications"
-                />
-                <Switch
-                  checked={alertPreferences.threatAlerts}
-                  onChange={(e) => handleAlertPreferenceChange('threatAlerts', e.target.checked)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <Info />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="System Alerts"
-                  secondary="System maintenance and updates"
-                />
-                <Switch
-                  checked={alertPreferences.systemAlerts}
-                  onChange={(e) => handleAlertPreferenceChange('systemAlerts', e.target.checked)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
                   <CheckCircle />
                 </ListItemIcon>
                 <ListItemText 
-                  primary="Weekly Digest"
-                  secondary="Summary of weekly activities"
+                  primary="Report Alerts"
+                  secondary="Receive report notifications"
                 />
                 <Switch
-                  checked={alertPreferences.weeklyDigest}
-                  onChange={(e) => handleAlertPreferenceChange('weeklyDigest', e.target.checked)}
+                  checked={alertPreferences.reportAlerts}
+                  onChange={(e) => handleAlertPreferenceChange('reportAlerts', e.target.checked)}
                 />
               </ListItem>
             </List>
-
-            <Divider sx={{ my: 2 }} />
-
-            <Typography variant="subtitle2" gutterBottom>
-              Alert Volume
-            </Typography>
-            <Box display="flex" alignItems="center" gap={2}>
-              <VolumeOff fontSize="small" color="action" />
-              <Slider
-                value={alertPreferences.alertVolume}
-                onChange={(e, value) => handleAlertPreferenceChange('alertVolume', value)}
-                aria-label="Alert Volume"
-                valueLabelDisplay="auto"
-                min={0}
-                max={100}
-              />
-              <VolumeUp fontSize="small" color="action" />
-            </Box>
           </Paper>
         </Grid>
 
-        {/* System Settings */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, backgroundColor: '#23272F', color: '#fff' }}>
-            <Typography variant="h6" gutterBottom>
-              System Settings
-            </Typography>
 
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  {systemSettings.darkMode ? <DarkMode /> : <LightMode />}
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Dark Mode"
-                  secondary="Toggle dark/light theme"
-                />
-                <Switch
-                  checked={systemSettings.darkMode}
-                  onChange={(e) => handleSystemSettingChange('darkMode', e.target.checked)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <Refresh />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Auto Refresh"
-                  secondary="Automatically refresh data"
-                />
-                <Switch
-                  checked={systemSettings.autoRefresh}
-                  onChange={(e) => handleSystemSettingChange('autoRefresh', e.target.checked)}
-                />
-              </ListItem>
-            </List>
-
-            {systemSettings.autoRefresh && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Refresh Interval (seconds)
-                </Typography>
-                <Slider
-                  value={systemSettings.refreshInterval}
-                  onChange={(e, value) => handleSystemSettingChange('refreshInterval', value)}
-                  aria-label="Refresh Interval"
-                  valueLabelDisplay="auto"
-                  min={10}
-                  max={300}
-                  step={10}
-                />
-                <Typography variant="caption" color="text.secondary">
-                  {systemSettings.refreshInterval} seconds
-                </Typography>
-              </Box>
-            )}
-
-            <Divider sx={{ my: 2 }} />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Language</InputLabel>
-                  <Select
-                    value={systemSettings.language}
-                    label="Language"
-                    onChange={(e) => handleSystemSettingChange('language', e.target.value)}
-                  >
-                    <MenuItem value="en">English</MenuItem>
-                    <MenuItem value="es">Spanish</MenuItem>
-                    <MenuItem value="fr">French</MenuItem>
-                    <MenuItem value="de">German</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Timezone</InputLabel>
-                  <Select
-                    value={systemSettings.timezone}
-                    label="Timezone"
-                    onChange={(e) => handleSystemSettingChange('timezone', e.target.value)}
-                  >
-                    <MenuItem value="America/New_York">Eastern Time</MenuItem>
-                    <MenuItem value="America/Chicago">Central Time</MenuItem>
-                    <MenuItem value="America/Denver">Mountain Time</MenuItem>
-                    <MenuItem value="America/Los_Angeles">Pacific Time</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{ mt: 2 }}
-              onClick={handleSaveSettings}
-            >
-              Save Settings
-            </Button>
-          </Paper>
-        </Grid>
       </Grid>
       )}
 
@@ -656,7 +451,7 @@ const Settings = () => {
       <Alert severity="info" sx={{ mt: 3 }}>
         <Typography variant="body2">
           <strong>Note:</strong> Profile changes are saved immediately. Password changes require current password verification. 
-          Alert preferences and system settings are applied in real-time.
+          Alert preferences are applied in real-time.
         </Typography>
       </Alert>
 
